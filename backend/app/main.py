@@ -29,7 +29,8 @@ async def _scheduled_sync() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging()
-    Base.metadata.create_all(bind=engine)
+    if settings.environment != "production":
+        Base.metadata.create_all(bind=engine)
     if settings.enable_internal_scheduler and not scheduler.running:
         scheduler.add_job(_scheduled_sync, "interval", minutes=settings.sync_interval_minutes, id="job-sync", replace_existing=True)
         scheduler.start()
