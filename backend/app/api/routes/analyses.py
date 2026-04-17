@@ -1,4 +1,5 @@
 import logging
+from base64 import b64decode
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
@@ -7,7 +8,7 @@ from app.api.deps import get_optional_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.analysis import AnalysisResponse
+from app.schemas.analysis import AnalysisResponse, AnalysisUploadRequest
 from app.services.analysis.orchestrator import AnalysisOrchestrator
 
 router = APIRouter()
@@ -25,6 +26,32 @@ async def analyze_resume(request: Request, resume: UploadFile = File(...), role_
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Resume analysis failed")
+        detail = f"Analysis failed internally: {exc}" if settings.environment == "development" else "Analysis failed internally."
+        raise HTTPException(status_code=500, detail=detail) from exc
+
+
+@router.post("/resume-json", response_model=AnalysisResponse)
+async def analyze_resume_json(payload: AnalysisUploadRequest, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)) -> AnalysisResponse:
+    try:
+        file_bytes = b64decode(payload.file_base64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Uploaded file encoding is invalid.") from exc
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        return await AnalysisOrchestrator(db).analyze_resume(
+            filename=payload.filename or "resume.pdf",
+            content_type=payload.content_type or "application/octet-stream",
+            file_bytes=file_bytes,
+            role_query=payload.role_query,
+            location=payload.location,
+            limit=payload.limit,
+            user=current_user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("JSON resume analysis failed")
         detail = f"Analysis failed internally: {exc}" if settings.environment == "development" else "Analysis failed internally."
         raise HTTPException(status_code=500, detail=detail) from exc
 

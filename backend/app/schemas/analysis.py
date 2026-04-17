@@ -12,6 +12,15 @@ class RecommendationItem(BaseModel):
     impact: str
 
 
+class AnalysisUploadRequest(BaseModel):
+    filename: str
+    content_type: str
+    file_base64: str
+    role_query: str
+    location: str = "India"
+    limit: int = 12
+
+
 class AnalysisResponse(BaseModel):
     analysis_id: str
     role_query: str

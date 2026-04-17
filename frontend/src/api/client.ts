@@ -59,6 +59,18 @@ export function getBackendRoot() {
   return PUBLIC_ROOT;
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 export async function register(input: { email: string; fullName: string; password: string }): Promise<AuthResponse> {
   const { data } = await withWakeRetry(() =>
     api.post<AuthResponse>("/auth/register", {
@@ -101,14 +113,16 @@ export async function compareAnalyses(currentId: string, previousId?: string): P
 }
 
 export async function analyzeResume(input: { file: File; roleQuery: string; location: string; limit: number }): Promise<AnalysisResponse> {
-  const formData = new FormData();
-  formData.append("resume", input.file);
-  formData.append("role_query", input.roleQuery);
-  formData.append("location", input.location);
-  formData.append("limit", String(input.limit));
+  const fileBase64 = await fileToBase64(input.file);
   const { data } = await withWakeRetry(() =>
-    api.post<AnalysisResponse>("/analyses/resume", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+    api.post<AnalysisResponse>("/analyses/resume-json", {
+      filename: input.file.name,
+      content_type: input.file.type || "application/octet-stream",
+      file_base64: fileBase64,
+      role_query: input.roleQuery,
+      location: input.location,
+      limit: input.limit
+    }, {
       timeout: ANALYSIS_TIMEOUT_MS
     })
   );
