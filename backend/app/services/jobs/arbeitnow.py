@@ -19,7 +19,7 @@ class ArbeitnowProvider:
         collected: list[dict] = []
         seen_ids: set[str] = set()
 
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             for page in range(1, 4):
                 try:
                     response = await client.get(settings.arbeitnow_base_url, params={"page": page})

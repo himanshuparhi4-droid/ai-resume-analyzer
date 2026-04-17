@@ -16,7 +16,7 @@ class RemotiveProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         params = {"search": query, "limit": limit}
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             response = await client.get(settings.remotive_base_url, params=params)
             response.raise_for_status()
             payload = response.json()

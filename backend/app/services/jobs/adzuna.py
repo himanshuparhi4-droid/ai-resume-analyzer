@@ -25,7 +25,7 @@ class AdzunaProvider:
             "content-type": "application/json",
         }
         endpoint = f"{settings.adzuna_base_url}/{settings.adzuna_country}/search/1"
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             response = await client.get(endpoint, params=params)
             response.raise_for_status()
             payload = response.json()

@@ -103,7 +103,11 @@ function App() {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
     } catch (err: any) {
-      setError(getBackendErrorMessage(err, "Login failed. Check your email and password."));
+      if (err?.response?.status === 401) {
+        setError("Login failed on the hosted app. This deployment uses its own database, so if you have not created an account here yet, use Register first.");
+      } else {
+        setError(getBackendErrorMessage(err, "Login failed. Check your email and password."));
+      }
     } finally {
       setAuthLoading(false);
     }

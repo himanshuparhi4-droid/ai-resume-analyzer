@@ -21,7 +21,7 @@ class USAJobsProvider:
             "Authorization-Key": settings.usajobs_api_key,
         }
         params = {"Keyword": query, "LocationName": location, "ResultsPerPage": limit}
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             response = await client.get(settings.usajobs_base_url, headers=headers, params=params)
             response.raise_for_status()
             payload = response.json()

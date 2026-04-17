@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
     llm_summary_timeout_seconds: float = 15.0
+    job_request_timeout_seconds: float = 8.0
+    job_fetch_timeout_seconds: float = 25.0
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360

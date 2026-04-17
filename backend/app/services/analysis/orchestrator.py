@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import secrets
 from datetime import date, datetime
 
@@ -29,7 +30,13 @@ class AnalysisOrchestrator:
 
     async def analyze_resume(self, *, filename: str, content_type: str, file_bytes: bytes, role_query: str, location: str, limit: int, user: User | None = None) -> AnalysisResponse:
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
-        jobs = await self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit)
+        try:
+            jobs = await asyncio.wait_for(
+                self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
+                timeout=settings.job_fetch_timeout_seconds,
+            )
+        except TimeoutError:
+            jobs = []
         if not jobs:
             jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
         else:
@@ -46,6 +53,14 @@ class AnalysisOrchestrator:
         score_payload["experience_years"] = resume_data.get("experience_years", 0)
         ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
         recommendations = self._build_recommendations(score_payload, resume_data)
+        if user is None:
+            return self._build_ephemeral_response(
+                role_query=role_query,
+                score_payload=score_payload,
+                recommendations=recommendations,
+                ai_summary=ai_summary,
+                resume_data=resume_data,
+            )
         resume_record = ResumeDocument(user_id=user.id if user else None, filename=filename, mime_type=content_type, raw_text=resume_data["raw_text"], structured_data=resume_data)
         self.db.add(resume_record)
         self.db.flush()
@@ -101,6 +116,61 @@ class AnalysisOrchestrator:
             "component_deltas": component_deltas,
             "summary": summary,
         }
+
+    def _build_ephemeral_response(
+        self,
+        *,
+        role_query: str,
+        score_payload: dict,
+        recommendations: list[RecommendationItem],
+        ai_summary: dict,
+        resume_data: dict,
+    ) -> AnalysisResponse:
+        skill_report = self.skill_grounding.build_skill_report(
+            resume_text=resume_data.get("raw_text", ""),
+            jobs=score_payload.get("top_job_matches", []),
+            matched_skills=score_payload.get("matched_skills", []),
+            missing_skills=score_payload.get("missing_skills", []),
+            resume_skill_evidence=resume_data.get("skill_evidence"),
+        )
+        analysis_context = score_payload.get("analysis_context", self.skill_grounding.build_analysis_context(score_payload.get("top_job_matches", [])))
+        component_feedback = self._build_component_feedback(
+            breakdown=score_payload.get("breakdown", {}),
+            analysis=type(
+                "EphemeralAnalysis",
+                (),
+                {
+                    "top_job_matches": score_payload.get("top_job_matches", []),
+                    "matched_skills": score_payload.get("matched_skills", []),
+                    "missing_skills": score_payload.get("missing_skills", []),
+                    "component_scores": score_payload.get("breakdown", {}),
+                    "role_query": role_query,
+                },
+            )(),
+            resume_data=resume_data,
+            analysis_context=analysis_context,
+        )
+        return AnalysisResponse(
+            analysis_id=f"preview-{secrets.token_hex(8)}",
+            role_query=role_query,
+            overall_score=score_payload["overall_score"],
+            breakdown=score_payload["breakdown"],
+            matched_skills=score_payload["matched_skills"],
+            missing_skills=score_payload["missing_skills"],
+            matched_skill_details=skill_report["matched_skill_details"],
+            missing_skill_details=skill_report["missing_skill_details"],
+            market_skill_frequency=skill_report["market_skill_frequency"],
+            top_job_matches=score_payload["top_job_matches"],
+            analysis_context=analysis_context,
+            resume_archetype=resume_data.get("resume_archetype", {}),
+            component_feedback=component_feedback,
+            recommendations=recommendations,
+            ai_summary=ai_summary,
+            resume_sections=resume_data.get("sections", {}),
+            resume_preview=truncate(resume_data.get("raw_text", ""), 400),
+            share_token=None,
+            created_at=datetime.utcnow(),
+        )
 
     def delete_analysis(self, *, user: User, analysis_id: str) -> bool:
         analysis = self.db.get(AnalysisRun, analysis_id)
