@@ -184,6 +184,14 @@ class JobAggregator:
         if len(selected) < min(limit, 8):
             secondary_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=False)]
             maybe_add(secondary_candidates, cap_per_company=2)
+        if len(selected) < limit:
+            tertiary_candidates = [
+                item
+                for item in ranked
+                if self._title_hint_overlap(query, item) >= 1
+                or float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 4.0
+            ]
+            maybe_add(tertiary_candidates, cap_per_company=3)
 
         return selected[:limit]
 
@@ -196,6 +204,8 @@ class JobAggregator:
         source = str(item.get("source", ""))
 
         if strict:
+            if title_overlap >= 1 and role_fit >= 1.5:
+                return True
             if title_overlap >= 2 and (role_fit >= 2.5 or skill_overlap >= 1.5):
                 return True
             if role_fit >= 6.0 and skill_overlap >= 1.0:
@@ -204,6 +214,8 @@ class JobAggregator:
                 return True
             return False
 
+        if title_overlap >= 1 and role_fit >= 0.75:
+            return True
         if title_overlap >= 1 and role_fit >= 2.0:
             return True
         if skill_overlap >= 2.0 and role_fit >= 3.0:
