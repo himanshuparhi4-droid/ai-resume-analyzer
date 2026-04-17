@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
+from app.services.jobs.jobicy import JobicyProvider
 from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
@@ -63,7 +64,7 @@ class JobAggregator:
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
-        providers: list[object] = [TheMuseProvider()]
+        providers: list[object] = [JobicyProvider()]
 
         def add(provider: object) -> None:
             if any(existing.__class__ is provider.__class__ for existing in providers):
@@ -75,25 +76,31 @@ class JobAggregator:
         if source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
             add(USAJobsProvider())
 
-        if source in {"auto", "themuse"}:
+        if source in {"auto", "themuse", "jobicy"}:
             add(RemotiveProvider())
+            if source == "themuse":
+                add(TheMuseProvider())
             return providers
 
         if source == "remotive":
             add(RemotiveProvider())
+            add(JobicyProvider())
             return providers
 
         if source == "remoteok":
             add(RemoteOKProvider())
             add(RemotiveProvider())
+            add(JobicyProvider())
             return providers
 
         if source == "adzuna" and settings.has_adzuna_credentials:
             add(RemotiveProvider())
+            add(JobicyProvider())
             return providers
 
         if source == "usajobs" and settings.has_usajobs_credentials:
             add(RemotiveProvider())
+            add(JobicyProvider())
             return providers
 
         add(RemotiveProvider())
@@ -220,6 +227,8 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "themuse":
                 provider_timeout = 8.5
+            elif source_name == "jobicy":
+                provider_timeout = 4.0
             elif source_name == "remotive":
                 provider_timeout = 4.5
             elif source_name == "remoteok":
@@ -353,7 +362,7 @@ class JobAggregator:
         source = str(item.get("source", ""))
 
         if strict:
-            if source == "themuse" and title_overlap >= 1 and market_quality >= 18.0:
+            if source in {"themuse", "jobicy"} and title_overlap >= 1 and market_quality >= 18.0:
                 return True
             if title_overlap >= 1 and role_fit >= 1.0:
                 return True
@@ -367,7 +376,7 @@ class JobAggregator:
                 return True
             return False
 
-        if source == "themuse" and title_overlap >= 1:
+        if source in {"themuse", "jobicy"} and title_overlap >= 1:
             return True
         if title_overlap >= 1 and role_fit >= 0.5:
             return True
