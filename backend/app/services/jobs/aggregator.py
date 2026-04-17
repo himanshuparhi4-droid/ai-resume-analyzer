@@ -219,7 +219,7 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "themuse":
-                provider_timeout = 5.5
+                provider_timeout = 8.5
             elif source_name == "remotive":
                 provider_timeout = 4.5
             elif source_name == "remoteok":
@@ -353,6 +353,8 @@ class JobAggregator:
         source = str(item.get("source", ""))
 
         if strict:
+            if source == "themuse" and title_overlap >= 1 and market_quality >= 18.0:
+                return True
             if title_overlap >= 1 and role_fit >= 1.0:
                 return True
             if title_overlap >= 1 and skill_overlap >= 1.0:
@@ -365,6 +367,8 @@ class JobAggregator:
                 return True
             return False
 
+        if source == "themuse" and title_overlap >= 1:
+            return True
         if title_overlap >= 1 and role_fit >= 0.5:
             return True
         if title_overlap >= 1 and role_fit >= 1.0:
