@@ -34,6 +34,7 @@ class JobAggregator:
     def __init__(self, db: Session | None = None) -> None:
         self.db = db
         self.providers = []
+        self.last_fetch_diagnostics: dict = {}
         if settings.environment == "production":
             self.providers = self._production_providers()
             if self.providers:
@@ -114,6 +115,13 @@ class JobAggregator:
         return True
 
     async def fetch_jobs(self, query: str, location: str, limit: int, force_refresh: bool = False) -> list[dict]:
+        self.last_fetch_diagnostics = {
+            "environment": settings.environment,
+            "query": query,
+            "location": location,
+            "limit": limit,
+            "providers": [],
+        }
         if settings.environment == "production":
             live_jobs = await self._fetch_production_jobs(query=query, location=location, limit=limit)
             if live_jobs:
@@ -216,11 +224,19 @@ class JobAggregator:
         async def safe_search(provider: object) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             provider_timeout = 4.5 if source_name == "themuse" else 3.5
+            provider_diag = {
+                "provider": provider.__class__.__name__,
+                "source": source_name,
+                "timeout_seconds": provider_timeout,
+            }
             try:
-                return await asyncio.wait_for(
+                items = await asyncio.wait_for(
                     provider.search(query=query, location=location, limit=max(8, limit)),
                     timeout=provider_timeout,
                 )
+                provider_diag["result_count"] = len(items)
+                self.last_fetch_diagnostics["providers"].append(provider_diag)
+                return items
             except Exception as exc:
                 logger.warning(
                     "Production job provider search failed for %s (query=%s, location=%s): %s",
@@ -229,6 +245,8 @@ class JobAggregator:
                     location,
                     exc,
                 )
+                provider_diag["error"] = str(exc)
+                self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
 
         provider_results = await asyncio.gather(*(safe_search(provider) for provider in self.providers))
@@ -248,6 +266,12 @@ class JobAggregator:
                 collected.append(item)
 
         preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+        self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+        self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+        self.last_fetch_diagnostics["selected_live_sources"] = {
+            source: len([item for item in preferred_live if item.get("source") == source])
+            for source in sorted({item.get("source", "unknown") for item in preferred_live})
+        }
         if preferred_live:
             logger.info(
                 "Production live selection kept %s jobs from %s collected candidates for query=%s",

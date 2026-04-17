@@ -124,6 +124,9 @@ class AnalysisOrchestrator:
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
+        fetch_diagnostics = getattr(self.job_aggregator, "last_fetch_diagnostics", None)
+        if fetch_diagnostics:
+            score_payload["analysis_context"]["fetch_diagnostics"] = fetch_diagnostics
         score_payload["experience_years"] = resume_data.get("experience_years", 0)
         if settings.environment == "production":
             ai_summary = self.insight_generator._normalize_summary(
