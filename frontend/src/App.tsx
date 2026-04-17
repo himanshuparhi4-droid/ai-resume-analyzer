@@ -13,6 +13,20 @@ import type { AnalysisResponse, ComparisonResponse, HistoryItem, User } from "./
 const TOKEN_KEY = "resume-analyzer-token";
 const USER_KEY = "resume-analyzer-user";
 
+function getBackendErrorMessage(err: any, fallback: string): string {
+  const backendDetail = err?.response?.data?.detail;
+  if (backendDetail) {
+    return backendDetail;
+  }
+  if (err?.code === "ECONNABORTED") {
+    return "The backend took too long to respond. If Render is waking the service up, wait about 30 to 60 seconds and try again.";
+  }
+  if (err?.message === "Network Error" || err?.code === "ERR_NETWORK" || err?.request) {
+    return "The browser did not get a response from the backend. If you opened a Vercel preview URL, switch to the main site or wait for the backend to wake up, then retry.";
+  }
+  return fallback;
+}
+
 function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,16 +71,7 @@ function App() {
         await refreshHistory();
       }
     } catch (err: any) {
-      const backendDetail = err?.response?.data?.detail;
-      if (backendDetail) {
-        setError(backendDetail);
-      } else if (err?.message === "Network Error" || err?.code === "ERR_NETWORK" || err?.request) {
-        setError(
-          "The browser did not get a response from the backend. Make sure the FastAPI server is still running, wait for any auto-reload to finish, then try again."
-        );
-      } else {
-        setError("Analysis failed before the app received a usable response. Retry once after the backend is fully up.");
-      }
+      setError(getBackendErrorMessage(err, "Analysis failed before the app received a usable response. Retry once after the backend is fully up."));
     } finally {
       setLoading(false);
     }
@@ -82,7 +87,7 @@ function App() {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? "Registration failed. Try again with a fresh email.");
+      setError(getBackendErrorMessage(err, "Registration failed. Try again with a fresh email."));
     } finally {
       setAuthLoading(false);
     }
@@ -98,7 +103,7 @@ function App() {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? "Login failed. Check your email and password.");
+      setError(getBackendErrorMessage(err, "Login failed. Check your email and password."));
     } finally {
       setAuthLoading(false);
     }

@@ -56,6 +56,17 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
+    def cors_origin_regex(self) -> str | None:
+        # Vercel preview deployments get unique *.vercel.app hostnames.
+        # Allowing that family keeps production + preview builds working
+        # without manually updating CORS for every redeploy.
+        origins = [self.frontend_base_url, *self.cors_origins]
+        if any("vercel.app" in origin for origin in origins):
+            return r"^https://.*\.vercel\.app$"
+        return None
+
+    @computed_field
+    @property
     def has_adzuna_credentials(self) -> bool:
         return bool(self.adzuna_app_id and self.adzuna_app_key)
 
