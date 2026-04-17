@@ -358,15 +358,18 @@ class JobAggregator:
         role_fit = float(normalized.get("role_fit_score", 0.0))
         market_quality = float(normalized.get("market_quality_score", 0.0))
         title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
         skill_overlap = self._skill_overlap_score(query, item)
         source = str(item.get("source", ""))
 
         if strict:
-            if source in {"themuse", "jobicy"} and title_overlap >= 1 and market_quality >= 18.0:
+            if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2) and market_quality >= 18.0:
                 return True
             if title_overlap >= 1 and role_fit >= 1.0:
                 return True
             if title_overlap >= 1 and skill_overlap >= 1.0:
+                return True
+            if family_overlap >= 2 and role_fit >= 3.0 and skill_overlap >= 1.0:
                 return True
             if title_overlap >= 2 and (role_fit >= 1.6 or skill_overlap >= 1.0):
                 return True
@@ -376,11 +379,13 @@ class JobAggregator:
                 return True
             return False
 
-        if source in {"themuse", "jobicy"} and title_overlap >= 1:
+        if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2):
             return True
         if title_overlap >= 1 and role_fit >= 0.5:
             return True
         if title_overlap >= 1 and role_fit >= 1.0:
+            return True
+        if family_overlap >= 2 and role_fit >= 2.5:
             return True
         if title_overlap == 0 and skill_overlap >= 2.0 and role_fit >= 3.25:
             return True
@@ -397,6 +402,16 @@ class JobAggregator:
             if re.search(pattern, title):
                 overlap += 1
         return overlap
+
+    def _family_token_overlap(self, query: str, item: dict) -> int:
+        title = normalize_role(str(item.get("title", "")).lower())
+        title_tokens = {token for token in re.split(r"[^a-z0-9+]+", title) if token and len(token) > 2}
+        query_tokens = {
+            token
+            for token in re.split(r"[^a-z0-9+]+", normalize_role(query))
+            if token and len(token) > 2 and token not in {"engineer", "developer", "manager"}
+        }
+        return len(title_tokens & query_tokens)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
