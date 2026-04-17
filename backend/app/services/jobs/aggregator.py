@@ -33,17 +33,10 @@ class JobAggregator:
     def __init__(self, db: Session | None = None) -> None:
         self.db = db
         self.providers = []
-        if settings.environment == "production" and settings.default_job_source == "auto":
-            # In production we anchor the market sample on one broad public source
-            # (The Muse), then supplement with remote-focused feeds. This keeps
-            # Render traffic lightweight while still widening the live skill map.
-            self.providers = [TheMuseProvider()]
-            if settings.has_adzuna_credentials:
-                self.providers.append(AdzunaProvider())
-            if settings.has_usajobs_credentials:
-                self.providers.append(USAJobsProvider())
-            self.providers.extend([RemotiveProvider(), RemoteOKProvider()])
-            return
+        if settings.environment == "production":
+            self.providers = self._production_providers()
+            if self.providers:
+                return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -65,6 +58,49 @@ class JobAggregator:
             self.providers.append(ArbeitnowProvider())
         if not self.providers:
             self.providers = [TheMuseProvider(), RemotiveProvider(), RemoteOKProvider(), ArbeitnowProvider()]
+
+    def _production_providers(self) -> list[object]:
+        source = (settings.default_job_source or "auto").strip().lower()
+        providers: list[object] = [TheMuseProvider()]
+
+        def add(provider: object) -> None:
+            if any(existing.__class__ is provider.__class__ for existing in providers):
+                return
+            providers.append(provider)
+
+        if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
+            add(AdzunaProvider())
+        if source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
+            add(USAJobsProvider())
+
+        if source in {"auto", "themuse"}:
+            add(RemotiveProvider())
+            add(RemoteOKProvider())
+            return providers
+
+        if source == "remotive":
+            add(RemotiveProvider())
+            add(RemoteOKProvider())
+            return providers
+
+        if source == "remoteok":
+            add(RemoteOKProvider())
+            add(RemotiveProvider())
+            return providers
+
+        if source == "adzuna" and settings.has_adzuna_credentials:
+            add(RemotiveProvider())
+            add(RemoteOKProvider())
+            return providers
+
+        if source == "usajobs" and settings.has_usajobs_credentials:
+            add(RemotiveProvider())
+            add(RemoteOKProvider())
+            return providers
+
+        add(RemotiveProvider())
+        add(RemoteOKProvider())
+        return providers
 
     def _use_cache(self) -> bool:
         if self.db is None or not settings.enable_job_cache:

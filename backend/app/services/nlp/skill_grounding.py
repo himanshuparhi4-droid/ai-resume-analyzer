@@ -77,6 +77,7 @@ ROLE_BASELINE_POOLS = {
     "painter": ["painting", "surface preparation", "color matching", "spray painting", "safety compliance"],
     "teacher": ["lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction", "pedagogy"],
 }
+SPARSE_LIVE_MARKET_ROLES = {"teacher", "painter"}
 
 
 class SkillGroundingService:
@@ -705,6 +706,7 @@ class SkillGroundingService:
         return sorted(kept, key=lambda item: (item["skill"], item["snippet"]))
 
     def _inspect_market_sample(self, *, role_query: str, jobs: list[dict]) -> dict[str, Any]:
+        normalized_role = normalize_role(role_query)
         live_jobs = [job for job in jobs if job.get("source") != "role-baseline"]
         live_skills = sorted(
             {
@@ -729,20 +731,26 @@ class SkillGroundingService:
                 if normalize_whitespace(str(job.get("title", "")).strip())
             }
         )
+        sparse_role = normalized_role in SPARSE_LIVE_MARKET_ROLES
+        min_live_jobs = 1 if sparse_role else 3
+        min_live_skills = 2 if sparse_role else max(4, min(6, len(expected_skills) or 4))
+        min_role_coverage = 0.2 if sparse_role else 0.45
+        min_company_count = 1 if sparse_role else 2
+        min_title_count = 1 if sparse_role else 2
         needs_blend = (
-            len(live_jobs) < 3
-            or len(live_skills) < max(4, min(6, len(expected_skills) or 4))
-            or role_coverage < 0.45
-            or company_count < 2
-            or title_count < 2
+            len(live_jobs) < min_live_jobs
+            or len(live_skills) < min_live_skills
+            or role_coverage < min_role_coverage
+            or company_count < min_company_count
+            or title_count < min_title_count
         )
-        if len(live_jobs) < 3:
+        if len(live_jobs) < min_live_jobs:
             reason = "Too few live job listings were available to form a stable market view."
-        elif len(live_skills) < max(4, min(6, len(expected_skills) or 4)):
+        elif len(live_skills) < min_live_skills:
             reason = "The sampled live jobs exposed too few distinct hard skills for this role."
-        elif role_coverage < 0.45:
+        elif role_coverage < min_role_coverage:
             reason = "The sampled live jobs missed several role-defining tools, so the market model needed calibration."
-        elif company_count < 2 or title_count < 2:
+        elif company_count < min_company_count or title_count < min_title_count:
             reason = "The live sample was too concentrated in one company or role variation."
         else:
             reason = ""
@@ -752,6 +760,7 @@ class SkillGroundingService:
             "live_skills": live_skills,
             "expected_skills": expected_skills,
             "role_coverage": round(role_coverage, 2),
+            "sparse_role": sparse_role,
         }
 
     def _filter_skills_for_role(self, role_query: str, selected: list[str], expanded: list[str]) -> list[str]:
