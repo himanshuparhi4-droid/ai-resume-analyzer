@@ -41,17 +41,32 @@ class AnalysisOrchestrator:
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         jobs: list[dict]
         if settings.environment == "production":
-            logger.info("Analysis step: using lightweight production review path")
-            jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
-            logger.info(
-                "Analysis step: fallback baseline built with %s jobs in %sms",
-                len(jobs),
-                round((time.perf_counter() - started) * 1000, 2),
-            )
+            logger.info("Analysis step: using lightweight production review path with live Remotive fetch")
+            try:
+                jobs = await asyncio.wait_for(
+                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=min(limit, 5)),
+                    timeout=min(settings.job_fetch_timeout_seconds, 10.0),
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")
+                jobs = []
+            if jobs:
+                logger.info(
+                    "Analysis step: production live fetch produced %s jobs in %sms",
+                    len(jobs),
+                    round((time.perf_counter() - started) * 1000, 2),
+                )
+            else:
+                jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
+                logger.info(
+                    "Analysis step: fallback baseline built with %s jobs in %sms",
+                    len(jobs),
+                    round((time.perf_counter() - started) * 1000, 2),
+                )
             score_payload = self._build_lightweight_score_payload(resume_data=resume_data, jobs=jobs)
             logger.info("Analysis step: lightweight scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = {
-                "mode": "production-lightweight",
+                "mode": "production-lightweight-live" if any(job.get("source") != "role-baseline" for job in jobs) else "production-lightweight-baseline",
                 "resume_kept": resume_data.get("skills", []),
                 "market_kept": sorted({skill for item in jobs for skill in item.get("normalized_data", {}).get("skills", [])}),
                 "resume_dropped": [],

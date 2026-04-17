@@ -20,6 +20,11 @@ class JobAggregator:
     def __init__(self, db: Session | None = None) -> None:
         self.db = db
         self.providers = []
+        if settings.environment == "production" and settings.default_job_source == "auto":
+            # Keep the hosted analysis path lightweight and predictable.
+            # Remotive has been the most stable provider in production.
+            self.providers = [RemotiveProvider()]
+            return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -186,6 +191,8 @@ class JobAggregator:
         )
 
     def _search_queries(self, provider: object, query: str) -> list[str]:
+        if settings.environment == "production":
+            return [query]
         if not getattr(provider, "supports_query_variations", True):
             return [query]
         return query_variations(query)
