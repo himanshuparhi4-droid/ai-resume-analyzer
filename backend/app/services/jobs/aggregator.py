@@ -26,7 +26,12 @@ class JobAggregator:
             self.providers.append(USAJobsProvider())
         if settings.default_job_source in {"auto", "remotive"}:
             self.providers.append(RemotiveProvider())
-        if settings.default_job_source in {"auto", "arbeitnow"}:
+        if settings.default_job_source == "arbeitnow":
+            self.providers.append(ArbeitnowProvider())
+        elif settings.default_job_source == "auto" and settings.environment != "production":
+            # Arbeitnow frequently blocks cloud-hosted traffic with 403 responses.
+            # Keep it available for local/dev exploration, but don't slow down or
+            # clutter production analysis runs with a provider that is commonly blocked.
             self.providers.append(ArbeitnowProvider())
         if not self.providers:
             self.providers = [RemotiveProvider(), ArbeitnowProvider()]

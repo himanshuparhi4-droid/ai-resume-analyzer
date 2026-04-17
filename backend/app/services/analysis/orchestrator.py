@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import secrets
+import time
 from datetime import date, datetime
 
 from sqlalchemy import desc, select
@@ -19,6 +21,8 @@ from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.parsers.resume_parser import ResumeParser
 from app.utils.text import truncate
 
+logger = logging.getLogger(__name__)
+
 
 class AnalysisOrchestrator:
     def __init__(self, db: Session) -> None:
@@ -30,14 +34,22 @@ class AnalysisOrchestrator:
         self.skill_grounding = SkillGroundingService()
 
     async def analyze_resume(self, *, filename: str, content_type: str, file_bytes: bytes, role_query: str, location: str, limit: int, user: User | None = None) -> AnalysisResponse:
+        started = time.perf_counter()
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
+        logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         try:
             jobs = await asyncio.wait_for(
                 self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
                 timeout=settings.job_fetch_timeout_seconds,
             )
         except asyncio.TimeoutError:
+            logger.warning("Analysis step: live job fetch timed out after %ss, using fallback baseline", settings.job_fetch_timeout_seconds)
             jobs = []
+        logger.info(
+            "Analysis step: market fetch produced %s jobs in %sms",
+            len(jobs),
+            round((time.perf_counter() - started) * 1000, 2),
+        )
         if not jobs:
             jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
         else:
@@ -47,14 +59,23 @@ class AnalysisOrchestrator:
                 resume_data=resume_data,
                 jobs=jobs,
             )
+        logger.info(
+            "Analysis step: market normalization finished with %s jobs in %sms",
+            len(jobs),
+            round((time.perf_counter() - started) * 1000, 2),
+        )
         resume_data, jobs, grounding_metadata = await self.skill_grounding.ground(role_query=role_query, resume_data=resume_data, jobs=jobs)
+        logger.info("Analysis step: grounding finished in %sms", round((time.perf_counter() - started) * 1000, 2))
         score_payload = self.scoring_engine.score(resume_data, jobs)
+        logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
         score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
         score_payload["experience_years"] = resume_data.get("experience_years", 0)
         ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
+        logger.info("Analysis step: summary finished in %sms", round((time.perf_counter() - started) * 1000, 2))
         recommendations = self._build_recommendations(score_payload, resume_data)
         if user is None:
+            logger.info("Analysis step: returning ephemeral response in %sms", round((time.perf_counter() - started) * 1000, 2))
             return self._build_ephemeral_response(
                 role_query=role_query,
                 score_payload=score_payload,
@@ -79,8 +100,10 @@ class AnalysisOrchestrator:
             share_token=secrets.token_urlsafe(12),
         )
         self.db.add(analysis_record)
+        logger.info("Analysis step: persisting analysis to database")
         self.db.commit()
         self.db.refresh(analysis_record)
+        logger.info("Analysis step: persisted analysis in %sms", round((time.perf_counter() - started) * 1000, 2))
         return self._to_response(analysis_record, resume_data)
 
     def get_analysis(self, analysis_id: str) -> AnalysisResponse | None:
