@@ -133,6 +133,11 @@ class JobAggregator:
             reverse=True,
         )
         filtered = [item for item in ordered if self._passes_quality_gate(query, item)]
+        if filtered:
+            return filtered
+        if settings.environment == "production":
+            relaxed = [item for item in ordered if float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 6.0]
+            return relaxed[: max(1, min(5, len(relaxed)))]
         return filtered if filtered else []
 
     def _market_quality_score(self, query: str, item: dict) -> float:
@@ -151,6 +156,8 @@ class JobAggregator:
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
+        if settings.environment == "production" and item.get("source") == "remotive" and role_fit >= 6.0:
+            return True
         if role_fit < 2.0:
             return False
 
