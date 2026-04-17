@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360
+    enable_job_cache: bool = True
     sync_default_queries: list[str] = ["python developer", "data analyst", "full stack developer"]
     sync_default_locations: list[str] = ["India", "Remote"]
     sync_interval_minutes: int = 360

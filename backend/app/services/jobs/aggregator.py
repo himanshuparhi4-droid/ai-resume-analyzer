@@ -31,8 +31,19 @@ class JobAggregator:
         if not self.providers:
             self.providers = [RemotiveProvider(), ArbeitnowProvider()]
 
+    def _use_cache(self) -> bool:
+        if self.db is None or not settings.enable_job_cache:
+            return False
+        database_url = (settings.database_url or "").lower()
+        if settings.environment == "production":
+            return False
+        if "pooler.supabase.com" in database_url:
+            return False
+        return True
+
     async def fetch_jobs(self, query: str, location: str, limit: int, force_refresh: bool = False) -> list[dict]:
-        if self.db is not None and not force_refresh:
+        use_cache = self._use_cache()
+        if use_cache and not force_refresh:
             cache = JobCacheService(self.db)
             cached = cache.get_cached_jobs(query=query, location=location, limit=limit)
             if cached:
@@ -101,7 +112,7 @@ class JobAggregator:
 
         collected = self._filter_relevant_jobs(query, collected)
 
-        if self.db is not None and collected:
+        if use_cache and collected:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
         return collected[:limit]
 
