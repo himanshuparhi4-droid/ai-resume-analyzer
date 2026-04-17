@@ -37,19 +37,24 @@ class AnalysisOrchestrator:
         started = time.perf_counter()
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
-        try:
-            jobs = await asyncio.wait_for(
-                self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
-                timeout=settings.job_fetch_timeout_seconds,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("Analysis step: live job fetch timed out after %ss, using fallback baseline", settings.job_fetch_timeout_seconds)
+        jobs: list[dict]
+        if settings.environment == "production" or not settings.enable_live_market_fetch:
+            logger.info("Analysis step: skipping live market fetch in production, using fallback baseline")
             jobs = []
-        logger.info(
-            "Analysis step: market fetch produced %s jobs in %sms",
-            len(jobs),
-            round((time.perf_counter() - started) * 1000, 2),
-        )
+        else:
+            try:
+                jobs = await asyncio.wait_for(
+                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
+                    timeout=settings.job_fetch_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Analysis step: live job fetch timed out after %ss, using fallback baseline", settings.job_fetch_timeout_seconds)
+                jobs = []
+            logger.info(
+                "Analysis step: market fetch produced %s jobs in %sms",
+                len(jobs),
+                round((time.perf_counter() - started) * 1000, 2),
+            )
         if not jobs:
             jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
         else:

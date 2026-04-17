@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     llm_summary_timeout_seconds: float = 15.0
     job_request_timeout_seconds: float = 8.0
     job_fetch_timeout_seconds: float = 25.0
+    enable_live_market_fetch: bool = True
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360
