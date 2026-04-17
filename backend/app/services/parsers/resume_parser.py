@@ -310,13 +310,29 @@ class ResumeParser:
             reasons.append("Detected research, publication, teaching, or awards sections common in academic CVs.")
             return {"type": "academic_cv", "label": "Academic CV", "confidence": 0.86, "reasons": reasons}
 
+        if "clearance" in lowered or "federal" in lowered or "government" in lowered or "citizenship" in lowered:
+            reasons.append("Detected federal or compliance-heavy language common in government resumes.")
+            return {"type": "government_resume", "label": "Government Resume", "confidence": 0.77, "reasons": reasons}
+
+        if ("teaching" in section_names or "lesson planning" in lowered or "curriculum" in lowered) and "education" in section_names:
+            reasons.append("Detected teaching-specific evidence with education-led structure.")
+            return {"type": "teaching_cv", "label": "Teaching CV", "confidence": 0.8, "reasons": reasons}
+
         if experience_years >= 8 and ("leadership" in lowered or "director" in lowered or "vp" in lowered or "head of" in lowered):
             reasons.append("Detected seniority and leadership-oriented language typical of executive CVs.")
             return {"type": "executive_cv", "label": "Executive CV", "confidence": 0.84, "reasons": reasons}
 
+        if parse_signals.get("page_count", 0) >= 3 and word_count >= 900 and not has_research:
+            reasons.append("Detected a long-form multi-page document without a research-heavy profile.")
+            return {"type": "long_form_cv", "label": "Long-Form CV", "confidence": 0.75, "reasons": reasons}
+
         if experience_years >= 5 and has_projects and "skills" in section_names and summary_words >= 18:
             reasons.append("Detected a combined summary, skills, and experience structure typical of hybrid resumes.")
             return {"type": "hybrid_resume", "label": "Hybrid Resume", "confidence": 0.8, "reasons": reasons}
+
+        if "objective" in lowered and has_projects and experience_years < 3 and "experience" in section_names:
+            reasons.append("Detected transition-style summary language with mixed project and experience evidence.")
+            return {"type": "career_change_resume", "label": "Career-Change Resume", "confidence": 0.72, "reasons": reasons}
 
         if parse_signals.get("multi_column_detected"):
             reasons.append("Detected a multi-column PDF layout with sidebar-style sections.")

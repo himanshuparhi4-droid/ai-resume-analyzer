@@ -25,7 +25,9 @@ class RemotiveProvider:
         for item in payload.get("jobs", [])[:limit]:
             description = strip_html(item.get("description", ""))
             title = item.get("title", "Unknown Role")
-            requirement_profile = extract_job_requirement_profile(title=title, description=description)
+            tags = [str(tag).strip() for tag in (item.get("tags") or []) if str(tag).strip()]
+            enriched_tags = list(dict.fromkeys(tags + [item.get("category", "General"), item.get("job_type", "Unknown")]))
+            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=enriched_tags)
             jobs.append(
                 {
                     "source": self.source_name,
@@ -36,7 +38,7 @@ class RemotiveProvider:
                     "remote": True,
                     "url": item.get("url", "https://remotive.com"),
                     "description": description,
-                    "tags": [item.get("category", "General"), item.get("job_type", "Unknown")],
+                    "tags": enriched_tags,
                     "normalized_data": {
                         "category": item.get("category"),
                         "salary": item.get("salary"),

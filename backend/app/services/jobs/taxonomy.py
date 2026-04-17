@@ -45,6 +45,8 @@ ROLE_SEARCH_VARIATIONS = {
         "business analyst",
         "bi analyst",
         "analytics analyst",
+        "product analyst",
+        "operations analyst",
     ],
     "data scientist": [
         "data scientist",
@@ -116,7 +118,7 @@ ROLE_SEARCH_VARIATIONS = {
     ],
 }
 ROLE_PRODUCTION_VARIATIONS = {
-    "data analyst": ["data analyst", "analyst", "data", "analytics"],
+    "data analyst": ["data analyst", "analytics", "reporting analyst", "business intelligence analyst", "product analyst", "data"],
     "data scientist": ["data scientist", "machine learning", "data"],
     "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
     "data engineer": ["data engineer", "data", "etl"],
@@ -127,11 +129,11 @@ ROLE_PRODUCTION_VARIATIONS = {
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
-    "teacher": ["teacher", "education", "curriculum", "instructor"],
-    "painter": ["painter", "painting", "coating", "spray"],
+    "teacher": ["teacher", "instructor", "educator", "curriculum", "lesson planning"],
+    "painter": ["painter", "painting", "surface preparation", "coating", "spray"],
 }
 ROLE_MARKET_HINTS = {
-    "data analyst": {"sql", "excel", "power bi", "tableau", "statistics", "data analysis", "pandas", "python"},
+    "data analyst": {"sql", "excel", "power bi", "tableau", "statistics", "data analysis", "pandas", "python", "reporting", "dashboarding", "data visualization", "business intelligence"},
     "data scientist": {"python", "pandas", "numpy", "machine learning", "scikit-learn", "sql", "statistics"},
     "machine learning engineer": {"python", "machine learning", "scikit-learn", "tensorflow", "pytorch", "sql"},
     "data engineer": {"python", "sql", "spark", "hadoop", "etl", "aws", "postgresql"},
@@ -142,11 +144,11 @@ ROLE_MARKET_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
-    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy"},
-    "painter": {"painting", "surface preparation", "color matching", "spray painting", "safety compliance"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy", "differentiated instruction"},
+    "painter": {"painting", "surface preparation", "color matching", "spray painting", "safety compliance", "coating"},
 }
 ROLE_PRIMARY_HINTS = {
-    "data analyst": {"sql", "excel", "pandas", "power bi", "tableau", "statistics", "python"},
+    "data analyst": {"sql", "excel", "pandas", "power bi", "tableau", "statistics", "python", "reporting", "dashboarding"},
     "data scientist": {"python", "pandas", "numpy", "machine learning", "scikit-learn", "sql", "statistics"},
     "machine learning engineer": {"python", "machine learning", "tensorflow", "pytorch", "scikit-learn"},
     "data engineer": {"python", "sql", "spark", "etl", "postgresql", "aws"},
@@ -157,11 +159,11 @@ ROLE_PRIMARY_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
-    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment"},
-    "painter": {"painting", "surface preparation", "color matching", "spray painting"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction"},
+    "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
 ROLE_TITLE_HINTS = {
-    "data analyst": {"analyst", "analytics", "reporting", "insights", "business intelligence", "bi"},
+    "data analyst": {"data analyst", "analytics", "reporting", "insights", "business intelligence", "bi", "product analyst", "operations analyst", "decision scientist"},
     "data scientist": {"scientist", "ml", "machine learning", "applied"},
     "machine learning engineer": {"machine learning", "ml engineer", "ai engineer"},
     "data engineer": {"data engineer", "etl", "analytics engineer"},
@@ -217,7 +219,7 @@ def production_query_variations(query: str) -> list[str]:
     variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    return list(dict.fromkeys(item for item in variations if item))[:4]
+    return list(dict.fromkeys(item for item in variations if item))[:6]
 
 
 def role_market_hints(query: str) -> set[str]:

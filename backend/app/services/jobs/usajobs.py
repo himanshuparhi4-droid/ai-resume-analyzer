@@ -31,7 +31,11 @@ class USAJobsProvider:
             descriptor = item.get("MatchedObjectDescriptor", {})
             description = strip_html(" ".join(descriptor.get("UserArea", {}).get("Details", {}).get("MajorDuties", [])))
             title = descriptor.get("PositionTitle", "Unknown Role")
-            requirement_profile = extract_job_requirement_profile(title=title, description=description)
+            requirement_profile = extract_job_requirement_profile(
+                title=title,
+                description=description,
+                tags=[item.get("PositionTitle", ""), item.get("OrganizationName", "")],
+            )
             jobs.append(
                 {
                     "source": self.source_name,

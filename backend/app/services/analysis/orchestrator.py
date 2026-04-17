@@ -18,6 +18,7 @@ from app.schemas.analysis import AnalysisResponse, RecommendationItem
 from app.services.analysis.insights import InsightGenerator
 from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
+from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
 from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.nlp.skill_extractor import infer_skill_frequency
 from app.services.parsers.resume_parser import ResumeParser
@@ -75,7 +76,7 @@ class AnalysisOrchestrator:
                     len(jobs),
                     round((time.perf_counter() - started) * 1000, 2),
                 )
-            score_payload = self._build_lightweight_score_payload(resume_data=resume_data, jobs=jobs)
+            score_payload = self._build_lightweight_score_payload(resume_data=resume_data, jobs=jobs, role_query=role_query)
             logger.info("Analysis step: lightweight scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = {
                 "mode": "production-lightweight-live" if any(job.get("source") != "role-baseline" for job in jobs) else "production-lightweight-baseline",
@@ -119,7 +120,7 @@ class AnalysisOrchestrator:
             )
             resume_data, jobs, grounding_metadata = await self.skill_grounding.ground(role_query=role_query, resume_data=resume_data, jobs=jobs)
             logger.info("Analysis step: grounding finished in %sms", round((time.perf_counter() - started) * 1000, 2))
-            score_payload = self.scoring_engine.score(resume_data, jobs)
+            score_payload = self.scoring_engine.score(resume_data, jobs, role_query=role_query)
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
@@ -210,6 +211,7 @@ class AnalysisOrchestrator:
         resume_data: dict,
     ) -> AnalysisResponse:
         skill_report = self.skill_grounding.build_skill_report(
+            role_query=role_query,
             resume_text=resume_data.get("raw_text", ""),
             jobs=score_payload.get("top_job_matches", []),
             matched_skills=score_payload.get("matched_skills", []),
@@ -282,6 +284,7 @@ class AnalysisOrchestrator:
         sections = resume_data.get("sections", {})
         raw_text = resume_data.get("raw_text", "")
         skill_report = self.skill_grounding.build_skill_report(
+            role_query=analysis.role_query,
             resume_text=raw_text,
             jobs=analysis.top_job_matches,
             matched_skills=analysis.matched_skills,
@@ -317,12 +320,13 @@ class AnalysisOrchestrator:
             created_at=analysis.created_at,
         )
 
-    def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict]) -> dict:
+    def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict], role_query: str) -> dict:
         resume_text = resume_data.get("raw_text", "")
         resume_skills = set(resume_data.get("skills", []))
-        skill_frequency = infer_skill_frequency(jobs)
+        skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
+        role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query)
 
         matched_skills = sorted(resume_skills & market_skills)
         missing_skills = [
@@ -359,9 +363,35 @@ class AnalysisOrchestrator:
 
         ranked_jobs = []
         for job, relevance in zip(jobs, relevance_scores):
+            normalized = {**(job.get("normalized_data", {}) or {})}
+            filtered_skills = [
+                skill
+                for skill in normalized.get("skills", [])
+                if skill in role_skill_pool
+            ]
+            if filtered_skills:
+                filtered_skills = sorted(
+                    filtered_skills,
+                    key=lambda skill: (
+                        demand_map.get(skill, 0.0),
+                        float((normalized.get("skill_weights", {}) or {}).get(skill, 0.0)),
+                    ),
+                    reverse=True,
+                )
+                normalized["skills"] = filtered_skills
+                normalized["skill_weights"] = {
+                    skill: float((normalized.get("skill_weights", {}) or {}).get(skill, 0.0))
+                    for skill in filtered_skills
+                }
+                normalized["skill_evidence"] = [
+                    item
+                    for item in normalized.get("skill_evidence", []) or []
+                    if item.get("skill") in role_skill_pool
+                ][:4]
             ranked_jobs.append(
                 {
                     **job,
+                    "normalized_data": normalized,
                     "relevance_score": relevance,
                     "preview": truncate(job["description"], 180),
                     "role_fit_score": float(job.get("normalized_data", {}).get("role_fit_score", 0.0)),
@@ -379,15 +409,15 @@ class AnalysisOrchestrator:
         )
         live_top_matches = [item for item in ranked_jobs if item.get("source") != "role-baseline"]
         display_limit = 8 if live_top_matches else 5
-        top_matches = ranked_jobs[:display_limit]
+        stored_matches = ranked_jobs[: max(display_limit, min(len(ranked_jobs), 24))]
         if (
             len(live_top_matches) < display_limit
             and any(item.get("source") == "role-baseline" for item in jobs)
-            and not any(item.get("source") == "role-baseline" for item in top_matches)
+            and not any(item.get("source") == "role-baseline" for item in stored_matches)
         ):
             baseline_candidate = next((item for item in ranked_jobs if item.get("source") == "role-baseline"), None)
-            if baseline_candidate and top_matches:
-                top_matches = top_matches[:-1] + [baseline_candidate]
+            if baseline_candidate:
+                stored_matches = [*stored_matches, baseline_candidate]
 
         return {
             "overall_score": overall_score,
@@ -402,7 +432,7 @@ class AnalysisOrchestrator:
             "matched_skills": matched_skills,
             "missing_skills": missing_skills,
             "market_skill_frequency": skill_frequency,
-            "top_job_matches": top_matches,
+            "top_job_matches": stored_matches,
         }
 
     def _token_overlap(self, left: str, right: str) -> float:
@@ -519,6 +549,38 @@ class AnalysisOrchestrator:
                 RecommendationItem(
                     title="Translate research into industry outcomes",
                     detail="Convert research-heavy language into business or product impact by naming datasets, tools, methodology, and the decision value of the work.",
+                    impact="High",
+                )
+            )
+        if archetype == "teaching_cv":
+            items.append(
+                RecommendationItem(
+                    title="Lead with classroom outcomes and teaching methods",
+                    detail="Teaching CVs land better when they foreground curriculum design, classroom results, student outcomes, and age-group or subject specialization.",
+                    impact="High",
+                )
+            )
+        if archetype == "government_resume":
+            items.append(
+                RecommendationItem(
+                    title="Keep a shorter recruiter-facing version alongside the long government format",
+                    detail="Government resumes can stay detailed, but private-sector applications usually perform better with a tighter version that highlights role fit and quantified outcomes earlier.",
+                    impact="Medium",
+                )
+            )
+        if archetype == "long_form_cv":
+            items.append(
+                RecommendationItem(
+                    title="Trim low-signal detail from the long-form CV",
+                    detail="A long CV is fine when every section adds role evidence. Cut repetition and move the strongest tools, outcomes, and recent work closer to the top.",
+                    impact="Medium",
+                )
+            )
+        if archetype == "career_change_resume":
+            items.append(
+                RecommendationItem(
+                    title="Translate past experience into the target-role vocabulary",
+                    detail="Career-change resumes score better when old responsibilities are rewritten in the language of the new role, backed by projects or certifications.",
                     impact="High",
                 )
             )

@@ -21,8 +21,14 @@ function describeJobSource(source?: string) {
   if (source === "arbeitnow") {
     return "Arbeitnow";
   }
+  if (source === "remoteok") {
+    return "RemoteOK";
+  }
   if (source === "remotive") {
     return "Remotive";
+  }
+  if (source === "themuse") {
+    return "The Muse";
   }
   return source ?? "Live listing";
 }
@@ -30,6 +36,8 @@ function describeJobSource(source?: string) {
 export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
   const liveJobs = jobs.filter((job) => job.source !== "role-baseline");
   const baselineJobs = jobs.filter((job) => job.source === "role-baseline");
+  const displayedLiveJobs = liveJobs.slice(0, 8);
+  const displayedBaselineJobs = baselineJobs.slice(0, liveJobs.length >= 8 ? 2 : 3);
 
   function renderJob(job: JobMatch) {
     return (
@@ -96,20 +104,22 @@ export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate">Job Matches</p>
           <h3 className="mt-2 font-display text-3xl text-ink">Market sample behind this score</h3>
         </div>
-        <p className="text-sm text-slate-700">Listings are ranked by role fit and requirement quality before they influence scoring.</p>
+        <p className="text-sm text-slate-700">
+          Showing {displayedLiveJobs.length} of {liveJobs.length} live listings used for ranking. Listings are sorted by role fit and requirement quality before they influence scoring.
+        </p>
       </div>
-      {liveJobs.length ? (
+      {displayedLiveJobs.length ? (
         <div className="grid gap-4">
-          {liveJobs.map((job) => renderJob(job))}
+          {displayedLiveJobs.map((job) => renderJob(job))}
         </div>
       ) : null}
-      {baselineJobs.length ? (
-        <div className={liveJobs.length ? "mt-6" : ""}>
+      {displayedBaselineJobs.length ? (
+        <div className={displayedLiveJobs.length ? "mt-6" : ""}>
           <div className="mb-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
             <span className="font-semibold">Calibration baselines:</span> live listings were too sparse for a complete market map, so these role benchmarks were added only to widen skill coverage.
           </div>
           <div className="grid gap-4">
-            {baselineJobs.map((job) => renderJob(job))}
+            {displayedBaselineJobs.map((job) => renderJob(job))}
           </div>
         </div>
       ) : null}

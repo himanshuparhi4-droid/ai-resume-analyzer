@@ -1,6 +1,7 @@
 import re
 from collections import Counter, defaultdict
 
+from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
 from app.utils.text import normalize_whitespace
 
 URL_RE = re.compile(r"https?://\S+")
@@ -47,6 +48,18 @@ SKILL_PATTERNS = {
     "data visualization": [r"\bdata visualization\b", r"\bdata visualisation\b", r"\bvisualization\b", r"\bdashboarding\b"],
     "dashboarding": [r"\bdashboarding\b", r"\bdashboards?\b", r"\breport building\b"],
     "reporting": [r"\breporting\b", r"\breports?\b", r"\bkpi reporting\b"],
+    "lesson planning": [r"\blesson planning\b", r"\blesson plans?\b"],
+    "classroom management": [r"\bclassroom management\b"],
+    "curriculum development": [r"\bcurriculum development\b", r"\bcurriculum design\b"],
+    "student assessment": [r"\bstudent assessment\b", r"\bassessment design\b", r"\bgrading\b"],
+    "differentiated instruction": [r"\bdifferentiated instruction\b", r"\bdifferentiated learning\b"],
+    "pedagogy": [r"\bpedagogy\b", r"\bteaching methodology\b"],
+    "painting": [r"\bpainting\b", r"\bpainter\b"],
+    "surface preparation": [r"\bsurface preparation\b", r"\bsurface prep\b", r"\bsanding\b"],
+    "color matching": [r"\bcolor matching\b", r"\bcolour matching\b"],
+    "spray painting": [r"\bspray painting\b", r"\bspray painter\b", r"\bpaint spraying\b"],
+    "safety compliance": [r"\bsafety compliance\b", r"\bworkplace safety\b", r"\bsafety protocols?\b"],
+    "coating": [r"\bcoatings?\b", r"\bprotective coatings?\b"],
     "tensorflow": [r"\btensorflow\b"],
     "pytorch": [r"\bpytorch\b"],
     "nlp": [r"\bnatural language processing\b", r"\bnlp\b"],
@@ -96,20 +109,39 @@ COMPILED_SKILL_PATTERNS = {
 }
 KNOWN_SKILLS = set(SKILL_PATTERNS.keys())
 SNIPPET_WINDOW = 84
+SENTENCE_PUNCTUATION = ".!?;\n"
 
 
 def _build_snippet(text: str, start: int, end: int) -> str:
+    sentence_left = start
+    sentence_right = end
+
+    while sentence_left > 0 and text[sentence_left - 1] not in SENTENCE_PUNCTUATION:
+        sentence_left -= 1
+    while sentence_right < len(text) and text[sentence_right] not in SENTENCE_PUNCTUATION:
+        sentence_right += 1
+    if sentence_right < len(text):
+        sentence_right += 1
+
+    sentence = normalize_whitespace(text[sentence_left:sentence_right]).strip(" ,;:-")
+    if sentence and len(sentence) <= 220:
+        sentence = re.sub(r"^[^\w+(]+", "", sentence)
+        return sentence.strip(" ,;:-")
+
     left = max(0, start - SNIPPET_WINDOW)
     right = min(len(text), end + SNIPPET_WINDOW)
-
-    while left > 0 and text[left] not in ".!?;\n ":
+    while left > 0 and text[left - 1].isalnum():
         left -= 1
-    while right < len(text) and text[right - 1] not in ".!?;\n ":
+    while right < len(text) and text[right].isalnum():
         right += 1
 
     snippet = normalize_whitespace(text[left:right]).strip(" ,;:-")
     snippet = re.sub(r"^[^\w+(]+", "", snippet)
-    return snippet.strip(" ,;:-")
+    snippet = snippet.strip(" ,;:-")
+    first_token_match = re.search(r"[A-Za-z0-9(+]", snippet)
+    if first_token_match and first_token_match.start() > 0:
+        snippet = snippet[first_token_match.start():]
+    return snippet
 
 
 def _exact_skill_pattern(skill: str) -> re.Pattern[str]:
@@ -188,11 +220,13 @@ def _job_signature(job_item: dict) -> str:
     return f"{job_item.get('source', 'unknown')}|{company}|{title}|{description[:240]}"
 
 
-def infer_skill_frequency(job_items: list[dict]) -> list[dict]:
+def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = None) -> list[dict]:
     frequency: defaultdict[str, float] = defaultdict(float)
     mention_count = Counter()
     signatures = Counter(_job_signature(item) for item in job_items) or Counter()
     denominator = 0.0
+    market_hints = role_market_hints(role_query or "") if role_query else set()
+    primary_hints = role_primary_hints(role_query or "") if role_query else set()
 
     for item in job_items:
         normalized_data = item.get("normalized_data", {}) or {}
@@ -230,12 +264,25 @@ def infer_skill_frequency(job_items: list[dict]) -> list[dict]:
     if denominator <= 0:
         return result
 
-    for skill, weighted_score in sorted(frequency.items(), key=lambda item: item[1], reverse=True)[:20]:
+    for skill, weighted_score in sorted(frequency.items(), key=lambda item: item[1], reverse=True):
+        share = round((weighted_score / denominator) * 100, 1)
+        if role_query:
+            if skill not in market_hints and skill not in primary_hints:
+                if skill in KNOWN_SKILLS:
+                    if mention_count[skill] < 2 and share < 8.5:
+                        continue
+                else:
+                    if mention_count[skill] < 3:
+                        continue
+                    if share < 9.0:
+                        continue
         result.append(
             {
                 "skill": skill,
                 "count": mention_count[skill],
-                "share": round((weighted_score / denominator) * 100, 1),
+                "share": share,
             }
         )
+        if len(result) >= 20:
+            break
     return result

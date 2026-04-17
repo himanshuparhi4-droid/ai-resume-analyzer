@@ -34,7 +34,7 @@ class AdzunaProvider:
         for item in payload.get("results", [])[:limit]:
             description = strip_html(item.get("description", ""))
             title = item.get("title", "Unknown Role")
-            requirement_profile = extract_job_requirement_profile(title=title, description=description)
+            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=item.get("category", "").split("/"))
             jobs.append(
                 {
                     "source": self.source_name,

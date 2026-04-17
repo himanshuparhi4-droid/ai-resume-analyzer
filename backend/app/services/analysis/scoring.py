@@ -15,13 +15,13 @@ class ScoringEngine:
     def __init__(self) -> None:
         self.embedding_service = EmbeddingService()
 
-    def score(self, resume_data: dict, jobs: list[dict]) -> dict:
+    def score(self, resume_data: dict, jobs: list[dict], *, role_query: str | None = None) -> dict:
         baseline_job_count = sum(1 for job in jobs if job.get("source") == "role-baseline")
         baseline_only = bool(jobs) and baseline_job_count == len(jobs)
         blended_market = baseline_job_count > 0 and not baseline_only
         market_confidence = 0.82 if baseline_only else 0.9 if blended_market else 1.0
         resume_skills = set(resume_data.get("skills", []))
-        skill_frequency = infer_skill_frequency(jobs)
+        skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
 

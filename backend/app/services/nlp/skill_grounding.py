@@ -20,17 +20,30 @@ except Exception:
 
 GENERIC_DYNAMIC_SKILLS = {
     "analysis",
+    "analyst",
     "analytics",
     "business",
     "communication",
+    "consultant",
     "data",
+    "data analyst",
+    "developer",
+    "designer",
+    "educator",
+    "engineer",
     "experience",
+    "instructor",
     "leadership",
+    "manager",
     "management",
+    "painter",
     "problem solving",
     "projects",
     "reporting",
     "research",
+    "scientist",
+    "specialist",
+    "teacher",
     "teamwork",
 }
 RESUME_EVIDENCE_SECTION_PRIORITY = {
@@ -227,12 +240,19 @@ class SkillGroundingService:
     def build_analysis_context(self, jobs: list[dict]) -> dict[str, Any]:
         live_job_count = sum(1 for job in jobs if job.get("source") != "role-baseline")
         baseline_job_count = sum(1 for job in jobs if job.get("source") == "role-baseline")
+        live_source_counts: dict[str, int] = {}
+        for job in jobs:
+            source = str(job.get("source", "unknown"))
+            if source == "role-baseline":
+                continue
+            live_source_counts[source] = live_source_counts.get(source, 0) + 1
         used_role_baseline = baseline_job_count > 0
         if used_role_baseline and live_job_count == 0:
             return {
                 "market_source": "role-baseline",
                 "live_job_count": 0,
                 "used_role_baseline": True,
+                "live_source_counts": live_source_counts,
                 "message": "Live job providers did not return listings for this run, so the score is an estimate built from a model-generated role baseline instead of real-time job data.",
             }
         if used_role_baseline and live_job_count > 0:
@@ -240,25 +260,28 @@ class SkillGroundingService:
                 "market_source": "blended-market",
                 "live_job_count": live_job_count,
                 "used_role_baseline": True,
+                "live_source_counts": live_source_counts,
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
             "market_source": "live-jobs" if live_job_count else "none",
             "live_job_count": live_job_count,
             "used_role_baseline": False,
+            "live_source_counts": live_source_counts,
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 
     def build_skill_report(
         self,
         *,
+        role_query: str | None = None,
         resume_text: str,
         jobs: list[dict],
         matched_skills: list[str],
         missing_skills: list[dict],
         resume_skill_evidence: list[dict] | None = None,
     ) -> dict[str, Any]:
-        market_skill_frequency = infer_skill_frequency(jobs)
+        market_skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in market_skill_frequency}
         live_jobs_present = any(job.get("source") != "role-baseline" for job in jobs)
         resume_evidence_map: dict[str, list[str]] = {}

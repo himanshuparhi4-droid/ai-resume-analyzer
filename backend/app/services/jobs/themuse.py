@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+import httpx
+
+from app.core.config import settings
+from app.services.jobs.taxonomy import normalize_role, role_fit_score
+from app.services.nlp.job_requirements import extract_job_requirement_profile
+from app.utils.text import strip_html, truncate
+
+ROLE_CATEGORY_MAP = {
+    "data analyst": ["Data and Analytics"],
+    "data scientist": ["Data and Analytics"],
+    "data engineer": ["Data and Analytics", "Software Engineering"],
+    "machine learning engineer": ["Data and Analytics", "Software Engineering"],
+    "software engineer": ["Software Engineering"],
+    "frontend developer": ["Software Engineering"],
+    "full stack developer": ["Software Engineering"],
+    "devops engineer": ["Software Engineering"],
+    "qa engineer": ["Software Engineering"],
+    "product manager": ["Product"],
+    "ui/ux designer": ["Design and UX"],
+    "graphic designer": ["Design and UX"],
+    "teacher": ["Education"],
+    "painter": ["Manufacturing and Warehouse"],
+}
+
+
+class TheMuseProvider:
+    source_name = "themuse"
+    supports_query_variations = False
+    supports_location_variations = False
+    request_headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json,text/plain,*/*",
+        "Referer": "https://www.themuse.com/",
+    }
+
+    async def search(self, query: str, location: str, limit: int) -> list[dict]:
+        normalized_role = normalize_role(query)
+        categories = ROLE_CATEGORY_MAP.get(normalized_role, [])
+        location_value = (location or "").strip()
+        use_location = location_value.lower() not in {"", "remote", "worldwide", "global"}
+        page_count = 2 if settings.environment == "production" else 4
+        items_per_page = 20
+
+        request_specs: list[dict[str, str]] = []
+        if categories:
+            for category in categories[:2]:
+                params = {"category": category}
+                if use_location:
+                    params["location"] = location_value
+                request_specs.append(params)
+            if use_location:
+                request_specs.extend({"category": category} for category in categories[:1])
+        else:
+            params: dict[str, str] = {}
+            if use_location:
+                params["location"] = location_value
+            request_specs.append(params)
+            if use_location:
+                request_specs.append({})
+
+        collected: list[dict] = []
+        seen_ids: set[str] = set()
+
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
+            for spec in request_specs:
+                for page in range(1, page_count + 1):
+                    params = {"page": page, "items_per_page": items_per_page, **spec}
+                    response = await client.get(settings.themuse_base_url, params=params)
+                    response.raise_for_status()
+                    payload = response.json()
+                    results = payload.get("results") or []
+                    if not results:
+                        break
+
+                    for item in results:
+                        external_id = str(item.get("id") or item.get("short_name") or "")
+                        if not external_id or external_id in seen_ids:
+                            continue
+                        seen_ids.add(external_id)
+                        description = strip_html(item.get("contents", "") or "")
+                        title = item.get("name", "Unknown Role")
+                        category_tags = [entry.get("name", "") for entry in (item.get("categories") or []) if entry.get("name")]
+                        level_tags = [entry.get("name", "") for entry in (item.get("levels") or []) if entry.get("name")]
+                        tags = [tag for tag in [*category_tags, *level_tags] if tag]
+                        requirement_profile = extract_job_requirement_profile(
+                            title=title,
+                            description=description,
+                            tags=[],
+                        )
+                        locations = [entry.get("name", "") for entry in (item.get("locations") or []) if entry.get("name")]
+                        location_label = ", ".join(locations[:2]) or location_value or "Remote"
+                        job = {
+                            "source": self.source_name,
+                            "external_id": external_id,
+                            "title": title,
+                            "company": (item.get("company") or {}).get("name") or "Unknown Company",
+                            "location": location_label,
+                            "remote": "remote" in location_label.lower(),
+                            "url": ((item.get("refs") or {}).get("landing_page")) or "https://www.themuse.com",
+                            "description": description,
+                            "preview": truncate(description, 260),
+                            "tags": tags,
+                            "normalized_data": {
+                                "categories": category_tags,
+                                "levels": level_tags,
+                                **requirement_profile,
+                            },
+                            "posted_at": self._parse_datetime(item.get("publication_date")),
+                        }
+                        collected.append(job)
+                        if len(collected) >= max(limit * 6, 60):
+                            break
+                    if len(collected) >= max(limit * 6, 60):
+                        break
+                if len(collected) >= max(limit * 6, 60):
+                    break
+
+        ranked = sorted(
+            collected,
+            key=lambda item: (
+                role_fit_score(query, item),
+                self._location_score(location_value, item.get("location", "")),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )
+        return ranked[: max(limit * 4, 48)]
+
+    def _parse_datetime(self, value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    def _location_score(self, requested_location: str, job_location: str) -> float:
+        requested = (requested_location or "").strip().lower()
+        job = (job_location or "").strip().lower()
+        if not requested:
+            return 0.0
+        if requested in {"remote", "worldwide", "global"}:
+            return 1.0 if "remote" in job else 0.2
+        if requested in job:
+            return 1.0
+        if "remote" in job:
+            return 0.45
+        return 0.0

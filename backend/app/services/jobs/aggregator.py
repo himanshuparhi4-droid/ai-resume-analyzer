@@ -9,7 +9,9 @@ from app.core.config import settings
 from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
+from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
+from app.services.jobs.themuse import TheMuseProvider
 from app.services.jobs.taxonomy import (
     dedupe_key,
     normalize_role,
@@ -22,6 +24,7 @@ from app.services.jobs.taxonomy import (
 )
 from app.services.jobs.usajobs import USAJobsProvider
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
+from app.utils.text import truncate
 
 logger = logging.getLogger(__name__)
 
@@ -31,18 +34,28 @@ class JobAggregator:
         self.db = db
         self.providers = []
         if settings.environment == "production" and settings.default_job_source == "auto":
-            # In production we keep the live path lightweight, but we still need
-            # enough listings to build a realistic market skill map. Remotive is
-            # strong for explicit remote queries, while Arbeitnow offers a wider
-            # live board once we send normal browser-like headers.
-            self.providers = [RemotiveProvider(), ArbeitnowProvider()]
+            # In production we anchor the market sample on one broad public source
+            # (The Muse), then supplement with remote-focused feeds. This keeps
+            # Render traffic lightweight while still widening the live skill map.
+            self.providers = [TheMuseProvider()]
+            if settings.has_adzuna_credentials:
+                self.providers.append(AdzunaProvider())
+            if settings.has_usajobs_credentials:
+                self.providers.append(USAJobsProvider())
+            self.providers.extend([RemotiveProvider(), RemoteOKProvider()])
             return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
             self.providers.append(USAJobsProvider())
+        if settings.default_job_source in {"auto", "themuse"}:
+            self.providers.append(TheMuseProvider())
         if settings.default_job_source in {"auto", "remotive"}:
             self.providers.append(RemotiveProvider())
+        if settings.default_job_source == "remoteok":
+            self.providers.append(RemoteOKProvider())
+        elif settings.default_job_source == "auto":
+            self.providers.append(RemoteOKProvider())
         if settings.default_job_source == "arbeitnow":
             self.providers.append(ArbeitnowProvider())
         elif settings.default_job_source == "auto" and settings.environment != "production":
@@ -51,7 +64,7 @@ class JobAggregator:
             # clutter production analysis runs with a provider that is commonly blocked.
             self.providers.append(ArbeitnowProvider())
         if not self.providers:
-            self.providers = [RemotiveProvider(), ArbeitnowProvider()]
+            self.providers = [TheMuseProvider(), RemotiveProvider(), RemoteOKProvider(), ArbeitnowProvider()]
 
     def _use_cache(self) -> bool:
         if self.db is None or not settings.enable_job_cache:
@@ -76,6 +89,7 @@ class JobAggregator:
                         refreshed = extract_job_requirement_profile(
                             title=item.get("title", ""),
                             description=item.get("description", ""),
+                            tags=item.get("tags") or [],
                         )
                         preserved = {
                             key: value
@@ -124,6 +138,7 @@ class JobAggregator:
                             continue
                         seen.add(key)
                         item.setdefault("normalized_data", {})
+                        item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                         item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
                         item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
                         collected.append(item)
@@ -131,6 +146,12 @@ class JobAggregator:
                         break
                 if len(collected) >= limit * 2:
                     break
+            if (
+                settings.environment == "production"
+                and getattr(provider, "source_name", "") == "themuse"
+                and len(collected) >= max(limit, 8)
+            ):
+                break
 
         if settings.environment == "production":
             preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
@@ -189,7 +210,10 @@ class JobAggregator:
                 item
                 for item in ranked
                 if self._title_hint_overlap(query, item) >= 1
-                or float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 4.0
+                or (
+                    self._skill_overlap_score(query, item) >= 3.0
+                    and float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 5.0
+                )
             ]
             maybe_add(tertiary_candidates, cap_per_company=3)
 
@@ -204,23 +228,25 @@ class JobAggregator:
         source = str(item.get("source", ""))
 
         if strict:
-            if title_overlap >= 1 and role_fit >= 1.5:
+            if title_overlap >= 1 and role_fit >= 1.0:
                 return True
-            if title_overlap >= 2 and (role_fit >= 2.5 or skill_overlap >= 1.5):
+            if title_overlap >= 1 and skill_overlap >= 1.0:
                 return True
-            if role_fit >= 6.0 and skill_overlap >= 1.0:
+            if title_overlap >= 2 and (role_fit >= 1.6 or skill_overlap >= 1.0):
                 return True
-            if source == "remotive" and title_overlap >= 1 and market_quality >= 36.0:
+            if title_overlap == 0 and role_fit >= 6.0 and skill_overlap >= 2.0 and market_quality >= 40.0:
+                return True
+            if source in {"remotive", "remoteok", "arbeitnow"} and title_overlap >= 1 and market_quality >= 28.0:
                 return True
             return False
 
-        if title_overlap >= 1 and role_fit >= 0.75:
+        if title_overlap >= 1 and role_fit >= 0.5:
             return True
-        if title_overlap >= 1 and role_fit >= 2.0:
+        if title_overlap >= 1 and role_fit >= 1.0:
             return True
-        if skill_overlap >= 2.0 and role_fit >= 3.0:
+        if title_overlap == 0 and skill_overlap >= 2.0 and role_fit >= 3.25:
             return True
-        if market_quality >= 55.0 and title_overlap >= 1:
+        if market_quality >= 42.0 and title_overlap >= 1:
             return True
         return False
 
@@ -271,7 +297,7 @@ class JobAggregator:
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
-        if settings.environment == "production" and item.get("source") == "remotive" and role_fit >= 6.0:
+        if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0:
             return True
         if role_fit < 2.0:
             return False

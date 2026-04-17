@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     default_job_source: str = "auto"
     remotive_base_url: str = "https://remotive.com/api/remote-jobs"
+    remoteok_base_url: str = "https://remoteok.com/api"
+    themuse_base_url: str = "https://www.themuse.com/api/public/jobs"
     arbeitnow_base_url: str = "https://www.arbeitnow.com/api/job-board-api"
     adzuna_base_url: str = "https://api.adzuna.com/v1/api/jobs"
     adzuna_app_id: str | None = None

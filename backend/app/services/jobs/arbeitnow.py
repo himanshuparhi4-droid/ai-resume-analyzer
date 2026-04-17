@@ -27,7 +27,7 @@ class ArbeitnowProvider:
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         collected: list[dict] = []
         seen_ids: set[str] = set()
-        max_pages = 2 if settings.environment == "production" else 3
+        max_pages = 4 if settings.environment == "production" else 3
 
         async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
             for page in range(1, max_pages + 1):
@@ -49,7 +49,8 @@ class ArbeitnowProvider:
                     seen_ids.add(external_id)
                     description = strip_html(item.get("description", "") or "")
                     title = item.get("title", "Unknown Role")
-                    requirement_profile = extract_job_requirement_profile(title=title, description=description)
+                    tags = [str(tag).strip() for tag in (item.get("tags") or []) if str(tag).strip()]
+                    requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=tags)
                     collected.append(
                         {
                             "source": self.source_name,
@@ -60,7 +61,7 @@ class ArbeitnowProvider:
                             "remote": bool(item.get("remote")) or "remote" in str(item.get("location", "")).lower(),
                             "url": item.get("url") or "https://www.arbeitnow.com",
                             "description": description,
-                            "tags": item.get("tags") or [query],
+                            "tags": tags or [query],
                             "normalized_data": {
                                 "job_types": item.get("job_types") or [],
                                 "visa_sponsorship": item.get("visa_sponsorship"),
