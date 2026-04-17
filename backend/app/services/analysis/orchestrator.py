@@ -50,7 +50,7 @@ class AnalysisOrchestrator:
             try:
                 jobs = await asyncio.wait_for(
                     self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=production_limit),
-                    timeout=min(settings.job_fetch_timeout_seconds, 10.0),
+                    timeout=min(settings.job_fetch_timeout_seconds, 12.0),
                 )
             except asyncio.TimeoutError:
                 logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")

@@ -45,25 +45,19 @@ class TheMuseProvider:
         categories = ROLE_CATEGORY_MAP.get(normalized_role, [])
         location_value = (location or "").strip()
         use_location = location_value.lower() not in {"", "remote", "worldwide", "global"}
-        page_count = 2 if settings.environment == "production" else 4
+        page_count = 1 if settings.environment == "production" else 4
         items_per_page = 20
 
         request_specs: list[dict[str, str]] = []
         if categories:
             for category in categories[:2]:
-                params = {"category": category}
-                if use_location:
-                    params["location"] = location_value
-                request_specs.append(params)
+                request_specs.append({"category": category})
             if use_location:
-                request_specs.extend({"category": category} for category in categories[:1])
+                request_specs.extend({"category": category, "location": location_value} for category in categories[:1])
         else:
-            params: dict[str, str] = {}
+            request_specs.append({})
             if use_location:
-                params["location"] = location_value
-            request_specs.append(params)
-            if use_location:
-                request_specs.append({})
+                request_specs.append({"location": location_value})
 
         collected: list[dict] = []
         seen_ids: set[str] = set()
