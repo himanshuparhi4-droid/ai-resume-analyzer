@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ai-resume-analyzer-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && pip install -r requirements-ml.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SYNC_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: LLM_PROVIDER
+        value: disabled
+      - key: ENABLE_INTERNAL_SCHEDULER
+        value: false
+  - type: cron
+    name: ai-resume-analyzer-sync
+    runtime: python
+    rootDir: backend
+    schedule: '0 */6 * * *'
+    buildCommand: pip install -r requirements.txt && pip install -r requirements-ml.txt
+    startCommand: python -c "import os,urllib.request; req=urllib.request.Request(os.environ['SYNC_ENDPOINT'], method='POST', headers={'X-Sync-Secret': os.environ['SYNC_SECRET']}); urllib.request.urlopen(req, timeout=120).read()"
+    envVars:
+      - key: SYNC_ENDPOINT
+        sync: false
+      - key: SYNC_SECRET
+        sync: false

@@ -1,0 +1,364 @@
+[
+  {
+    "id": "analyst_project_first_modern",
+    "role_query": "data analyst",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "Data Analyst candidate with internship experience in analytics and machine learning. Skills include SQL, Python, Pandas, NumPy, statistics and exploratory data analysis. Built dashboards and reports from 10000 records, cleaned data, tracked KPIs, and presented findings.",
+      "sections": {
+        "summary": "Data Analyst candidate with internship experience in analytics and machine learning.",
+        "skills": "SQL, Python, Pandas, NumPy, statistics, exploratory data analysis, machine learning",
+        "projects": "Built dashboards and reports from 10000 records, cleaned data, tracked KPIs, and presented findings.",
+        "experience": "Project intern on analytics work using Python, Pandas, NumPy, SQL and statistics.",
+        "education": "BTech in Computer Science"
+      },
+      "skills": ["sql", "python", "pandas", "numpy", "statistics", "data analysis", "machine learning"],
+      "experience_years": 0.4,
+      "parse_signals": {
+        "word_count": 320,
+        "section_count": 5,
+        "explicit_header_count": 5,
+        "inline_header_count": 0,
+        "merged_header_count": 0,
+        "section_leakage_count": 0,
+        "suspicious_token_count": 0,
+        "suspicious_url_count": 0,
+        "inferred_skills_section": false,
+        "skills_count": 7,
+        "quantified_line_count": 3,
+        "bullet_like_line_count": 4,
+        "date_range_count": 1,
+        "contact_link_count": 2,
+        "multi_column_detected": true,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "modern_two_column_project_first",
+        "label": "Modern Two-Column Project-First Resume"
+      }
+    },
+    "jobs": [
+      {
+        "source": "live-job",
+        "title": "Data Analyst",
+        "company": "Insight BI",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/analyst-1",
+        "description": "Requirements: SQL, Excel, Power BI, Tableau, statistics, dashboarding and data analysis. Build KPI dashboards and turn business data into weekly reporting.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      },
+      {
+        "source": "live-job",
+        "title": "Junior Data Analyst",
+        "company": "Ops Metrics",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/analyst-2",
+        "description": "Required skills: SQL, Excel, pandas, Python, business analysis, Power BI. Nice to have Tableau. Build weekly performance dashboards and automate reporting.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      }
+    ],
+    "expected": {
+      "overall": { "min": 48, "max": 78 },
+      "ats": { "min": 68, "max": 96 },
+      "resume_quality": { "min": 70, "max": 92 },
+      "must_match": ["data analysis", "python", "sql", "pandas"],
+      "must_missing": ["excel", "power bi", "tableau"]
+    }
+  },
+  {
+    "id": "analyst_bi_ready_chronological",
+    "role_query": "data analyst",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "Data Analyst with 2 years of reporting experience using SQL, Excel, Power BI, Tableau and Python. Built dashboards, automated reporting, tracked business KPIs and supported stakeholder reviews.",
+      "sections": {
+        "summary": "Data Analyst with 2 years of reporting experience using SQL, Excel, Power BI, Tableau and Python.",
+        "skills": "SQL, Excel, Power BI, Tableau, Python, data analysis, statistics",
+        "experience": "Built dashboards, automated reporting, tracked KPIs, handled ad hoc analysis and stakeholder reviews.",
+        "education": "Bachelor of Technology",
+        "projects": "Customer retention dashboard in Power BI and Tableau"
+      },
+      "skills": ["sql", "excel", "power bi", "tableau", "python", "data analysis", "statistics"],
+      "experience_years": 2.0,
+      "parse_signals": {
+        "word_count": 420,
+        "section_count": 5,
+        "explicit_header_count": 5,
+        "inline_header_count": 0,
+        "merged_header_count": 0,
+        "section_leakage_count": 0,
+        "suspicious_token_count": 0,
+        "suspicious_url_count": 0,
+        "inferred_skills_section": false,
+        "skills_count": 7,
+        "quantified_line_count": 4,
+        "bullet_like_line_count": 5,
+        "date_range_count": 2,
+        "contact_link_count": 2,
+        "multi_column_detected": false,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "reverse_chronological",
+        "label": "Reverse-Chronological Resume"
+      }
+    },
+    "jobs": [
+      {
+        "source": "live-job",
+        "title": "Data Analyst",
+        "company": "Insight BI",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/analyst-3",
+        "description": "Requirements: SQL, Excel, Power BI, Tableau, dashboarding, data analysis and statistics.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      },
+      {
+        "source": "live-job",
+        "title": "Reporting Analyst",
+        "company": "Finance Ops",
+        "location": "India",
+        "remote": false,
+        "url": "https://example.com/analyst-4",
+        "description": "Must have Excel, SQL, reporting, dashboarding, Power BI and Tableau. Preferred Python and statistics.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      }
+    ],
+    "expected": {
+      "overall": { "min": 70, "max": 95 },
+      "ats": { "min": 78, "max": 94 },
+      "resume_quality": { "min": 76, "max": 92 },
+      "must_match": ["excel", "power bi", "tableau", "sql"],
+      "must_not_missing": ["excel", "power bi", "tableau", "sql"]
+    }
+  },
+  {
+    "id": "data_scientist_entry_level",
+    "role_query": "data scientist",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "Entry-level Data Scientist with Python, Pandas, NumPy, scikit-learn, SQL and machine learning projects. Built classification and regression models, feature engineering pipelines and evaluated model accuracy.",
+      "sections": {
+        "summary": "Entry-level Data Scientist with Python, Pandas, NumPy, scikit-learn, SQL and machine learning projects.",
+        "skills": "Python, Pandas, NumPy, scikit-learn, SQL, machine learning, statistics",
+        "projects": "Built classification and regression models, feature engineering pipelines and evaluated model accuracy.",
+        "education": "Bachelor of Technology"
+      },
+      "skills": ["python", "pandas", "numpy", "scikit-learn", "sql", "machine learning", "statistics"],
+      "experience_years": 0.5,
+      "parse_signals": {
+        "word_count": 330,
+        "section_count": 4,
+        "explicit_header_count": 4,
+        "inline_header_count": 0,
+        "merged_header_count": 0,
+        "section_leakage_count": 0,
+        "suspicious_token_count": 0,
+        "suspicious_url_count": 0,
+        "inferred_skills_section": false,
+        "skills_count": 7,
+        "quantified_line_count": 3,
+        "bullet_like_line_count": 4,
+        "date_range_count": 1,
+        "contact_link_count": 2,
+        "multi_column_detected": false,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "project_first_entry_level",
+        "label": "Project-First Entry-Level Resume"
+      }
+    },
+    "jobs": [
+      {
+        "source": "live-job",
+        "title": "Junior Data Scientist",
+        "company": "ML Labs",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/ds-1",
+        "description": "Required: Python, pandas, numpy, machine learning, scikit-learn, SQL and statistics. Build models and evaluate experiments.",
+        "tags": ["data scientist"],
+        "normalized_data": {}
+      },
+      {
+        "source": "live-job",
+        "title": "Data Scientist",
+        "company": "Insight AI",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/ds-2",
+        "description": "Need Python, pandas, numpy, scikit-learn and SQL. Preferred AWS and experimentation experience.",
+        "tags": ["data scientist"],
+        "normalized_data": {}
+      }
+    ],
+    "expected": {
+      "overall": { "min": 60, "max": 90 },
+      "ats": { "min": 70, "max": 92 },
+      "resume_quality": { "min": 70, "max": 92 },
+      "must_match": ["python", "pandas", "numpy", "scikit-learn", "sql", "machine learning"]
+    }
+  },
+  {
+    "id": "frontend_resume_for_analyst_role",
+    "role_query": "data analyst",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "Frontend developer with React, TypeScript, Tailwind, Node.js and Figma. Built landing pages, design systems and authentication flows.",
+      "sections": {
+        "summary": "Frontend developer with React, TypeScript, Tailwind, Node.js and Figma.",
+        "skills": "React, TypeScript, Tailwind, Node.js, Figma, UX design",
+        "experience": "Built landing pages, design systems and authentication flows.",
+        "education": "Bachelor degree"
+      },
+      "skills": ["react", "typescript", "tailwind", "node.js", "figma", "ux design"],
+      "experience_years": 1.2,
+      "parse_signals": {
+        "word_count": 250,
+        "section_count": 4,
+        "explicit_header_count": 4,
+        "inline_header_count": 0,
+        "merged_header_count": 0,
+        "section_leakage_count": 0,
+        "suspicious_token_count": 0,
+        "suspicious_url_count": 0,
+        "inferred_skills_section": false,
+        "skills_count": 6,
+        "quantified_line_count": 1,
+        "bullet_like_line_count": 2,
+        "date_range_count": 1,
+        "contact_link_count": 1,
+        "multi_column_detected": false,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "skills_first",
+        "label": "Skills-First Resume"
+      }
+    },
+    "jobs": [
+      {
+        "source": "live-job",
+        "title": "Data Analyst",
+        "company": "Insight BI",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/analyst-5",
+        "description": "Requirements: SQL, Excel, Power BI, Tableau, statistics and dashboarding.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      }
+    ],
+    "expected": {
+      "overall": { "min": 12, "max": 40 },
+      "must_missing": ["sql", "excel", "power bi", "tableau"]
+    }
+  },
+  {
+    "id": "noisy_pdf_export_analyst",
+    "role_query": "data analyst",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "SUMMARY SKILLS Data Analyst SQL Python Pandas dashboard work https://www.linfiedin.com/in/example PROJECTS EXPERIENCE Built reports for 5000 records and shared KPI updates.",
+      "sections": {
+        "summary": "Data Analyst SQL Python Pandas dashboard work",
+        "projects": "Built reports for 5000 records and shared KPI updates.",
+        "education": "Bachelor degree"
+      },
+      "skills": ["sql", "python", "pandas", "data analysis"],
+      "experience_years": 0.3,
+      "parse_signals": {
+        "word_count": 180,
+        "section_count": 3,
+        "explicit_header_count": 1,
+        "inline_header_count": 1,
+        "merged_header_count": 2,
+        "section_leakage_count": 1,
+        "suspicious_token_count": 3,
+        "suspicious_url_count": 2,
+        "inferred_skills_section": true,
+        "skills_count": 4,
+        "quantified_line_count": 1,
+        "bullet_like_line_count": 0,
+        "date_range_count": 0,
+        "contact_link_count": 0,
+        "multi_column_detected": false,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "general_resume",
+        "label": "General Resume"
+      }
+    },
+    "jobs": [
+      {
+        "source": "live-job",
+        "title": "Junior Data Analyst",
+        "company": "Ops Metrics",
+        "location": "India",
+        "remote": true,
+        "url": "https://example.com/analyst-6",
+        "description": "Required skills: SQL, Excel, pandas, Python, Power BI and reporting.",
+        "tags": ["data analyst"],
+        "normalized_data": {}
+      }
+    ],
+    "expected": {
+      "overall": { "min": 25, "max": 70 },
+      "ats": { "min": 35, "max": 68 },
+      "resume_quality": { "min": 40, "max": 72 },
+      "must_missing": ["excel", "power bi"]
+    }
+  },
+  {
+    "id": "analyst_resume_for_painter_role",
+    "role_query": "painter",
+    "location": "India",
+    "resume_data": {
+      "raw_text": "Data Analyst candidate with internship experience in analytics and machine learning. Skills include SQL, Python, Pandas, NumPy, statistics and exploratory data analysis. Built dashboards and reports from 10000 records, cleaned data, tracked KPIs, and presented findings.",
+      "sections": {
+        "summary": "Data Analyst candidate with internship experience in analytics and machine learning.",
+        "skills": "SQL, Python, Pandas, NumPy, statistics, exploratory data analysis, machine learning",
+        "projects": "Built dashboards and reports from 10000 records, cleaned data, tracked KPIs, and presented findings.",
+        "experience": "Project intern on analytics work using Python, Pandas, NumPy, SQL and statistics.",
+        "education": "BTech in Computer Science"
+      },
+      "skills": ["sql", "python", "pandas", "numpy", "statistics", "data analysis", "machine learning"],
+      "experience_years": 0.4,
+      "parse_signals": {
+        "word_count": 320,
+        "section_count": 5,
+        "explicit_header_count": 5,
+        "inline_header_count": 0,
+        "merged_header_count": 0,
+        "section_leakage_count": 0,
+        "suspicious_token_count": 0,
+        "suspicious_url_count": 0,
+        "inferred_skills_section": false,
+        "skills_count": 7,
+        "quantified_line_count": 3,
+        "bullet_like_line_count": 4,
+        "date_range_count": 1,
+        "contact_link_count": 2,
+        "multi_column_detected": true,
+        "page_count": 1
+      },
+      "resume_archetype": {
+        "type": "modern_two_column_project_first",
+        "label": "Modern Two-Column Project-First Resume"
+      }
+    },
+    "expected": {
+      "overall": { "min": 5, "max": 22 },
+      "must_missing": ["painting"]
+    }
+  }
+]

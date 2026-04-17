@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+import re
+
+ROLE_SYNONYMS = {
+    "software engineer": "software engineer",
+    "backend developer": "software engineer",
+    "backend engineer": "software engineer",
+    "full stack developer": "full stack developer",
+    "fullstack developer": "full stack developer",
+    "frontend developer": "frontend developer",
+    "frontend engineer": "frontend developer",
+    "web developer": "frontend developer",
+    "python developer": "software engineer",
+    "data analyst": "data analyst",
+    "data scientist": "data scientist",
+    "business analyst": "data analyst",
+    "reporting analyst": "data analyst",
+    "analytics analyst": "data analyst",
+    "bi analyst": "data analyst",
+    "data engineer": "data engineer",
+    "ml engineer": "machine learning engineer",
+    "ai engineer": "machine learning engineer",
+    "devops engineer": "devops engineer",
+    "site reliability engineer": "devops engineer",
+    "sre": "devops engineer",
+    "qa engineer": "qa engineer",
+    "test engineer": "qa engineer",
+    "product manager": "product manager",
+    "ui ux designer": "ui/ux designer",
+    "ux designer": "ui/ux designer",
+    "ui designer": "ui/ux designer",
+}
+STOPWORDS = {"and", "the", "for", "with", "role", "remote"}
+ROLE_SEARCH_VARIATIONS = {
+    "data analyst": [
+        "data analyst",
+        "reporting analyst",
+        "business analyst",
+        "bi analyst",
+        "analytics analyst",
+    ],
+    "data scientist": [
+        "data scientist",
+        "applied scientist",
+        "ml scientist",
+        "machine learning scientist",
+    ],
+    "machine learning engineer": [
+        "machine learning engineer",
+        "ml engineer",
+        "ai engineer",
+    ],
+    "data engineer": [
+        "data engineer",
+        "etl engineer",
+        "analytics engineer",
+    ],
+    "software engineer": [
+        "software engineer",
+        "backend developer",
+        "python developer",
+        "backend engineer",
+    ],
+    "frontend developer": [
+        "frontend developer",
+        "frontend engineer",
+        "web developer",
+        "react developer",
+    ],
+    "full stack developer": [
+        "full stack developer",
+        "fullstack developer",
+        "software engineer",
+    ],
+    "devops engineer": [
+        "devops engineer",
+        "site reliability engineer",
+        "cloud engineer",
+        "platform engineer",
+    ],
+    "qa engineer": [
+        "qa engineer",
+        "test engineer",
+        "automation tester",
+        "quality assurance engineer",
+    ],
+    "product manager": [
+        "product manager",
+        "associate product manager",
+        "product owner",
+    ],
+    "ui/ux designer": [
+        "ui ux designer",
+        "ux designer",
+        "ui designer",
+        "product designer",
+    ],
+}
+ROLE_MARKET_HINTS = {
+    "data analyst": {"sql", "excel", "power bi", "tableau", "statistics", "data analysis", "pandas", "python"},
+    "data scientist": {"python", "pandas", "numpy", "machine learning", "scikit-learn", "sql", "statistics"},
+    "machine learning engineer": {"python", "machine learning", "scikit-learn", "tensorflow", "pytorch", "sql"},
+    "data engineer": {"python", "sql", "spark", "hadoop", "etl", "aws", "postgresql"},
+    "software engineer": {"python", "java", "javascript", "sql", "docker", "api", "backend"},
+    "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css", "figma"},
+    "full stack developer": {"react", "javascript", "typescript", "node.js", "sql", "api"},
+    "devops engineer": {"aws", "docker", "kubernetes", "terraform", "linux", "ci/cd"},
+    "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
+    "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
+    "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
+}
+ROLE_PRIMARY_HINTS = {
+    "data analyst": {"sql", "excel", "pandas", "power bi", "tableau", "statistics", "python"},
+    "data scientist": {"python", "pandas", "numpy", "machine learning", "scikit-learn", "sql", "statistics"},
+    "machine learning engineer": {"python", "machine learning", "tensorflow", "pytorch", "scikit-learn"},
+    "data engineer": {"python", "sql", "spark", "etl", "postgresql", "aws"},
+    "software engineer": {"python", "java", "javascript", "api", "docker", "sql"},
+    "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css"},
+    "full stack developer": {"javascript", "typescript", "react", "node.js", "sql", "api"},
+    "devops engineer": {"aws", "docker", "kubernetes", "terraform", "linux", "ci/cd"},
+    "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
+    "product manager": {"sql", "excel", "data analysis"},
+    "ui/ux designer": {"figma", "ui design", "ux design"},
+}
+ROLE_KEYWORD_FAMILIES = {
+    "data analyst": ("data analyst", "reporting analyst", "analytics analyst", "bi analyst", "business analyst"),
+    "data scientist": ("data scientist", "applied scientist", "ml scientist"),
+    "machine learning engineer": ("machine learning engineer", "ml engineer", "ai engineer"),
+    "data engineer": ("data engineer", "etl engineer", "analytics engineer"),
+    "frontend developer": ("frontend", "react developer", "web developer"),
+    "software engineer": ("backend", "api developer", "python developer", "software engineer"),
+    "full stack developer": ("full stack", "fullstack"),
+    "devops engineer": ("devops", "site reliability", "sre", "platform engineer", "cloud engineer"),
+    "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
+    "product manager": ("product manager", "product owner", "associate product manager"),
+    "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
+}
+ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
+
+
+def normalize_role(query: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    if cleaned in ROLE_SYNONYMS:
+        return ROLE_SYNONYMS[cleaned]
+    for canonical, keywords in ROLE_KEYWORD_FAMILIES.items():
+        if any(keyword in cleaned for keyword in keywords):
+            return canonical
+    return cleaned
+
+
+def query_variations(query: str) -> list[str]:
+    normalized = normalize_role(query)
+    variations = ROLE_SEARCH_VARIATIONS.get(normalized, [normalized])
+    if normalized not in variations:
+        variations = [normalized, *variations]
+    return list(dict.fromkeys(item for item in variations if item))
+
+
+def role_market_hints(query: str) -> set[str]:
+    return ROLE_MARKET_HINTS.get(normalize_role(query), set())
+
+
+def role_primary_hints(query: str) -> set[str]:
+    return ROLE_PRIMARY_HINTS.get(normalize_role(query), set())
+
+
+def dedupe_key(item: dict) -> str:
+    title = normalize_role(item.get("title", ""))
+    company = re.sub(r"\s+", " ", item.get("company", "").lower()).strip()
+    return f"{title}::{company}"
+
+
+def role_fit_score(query: str, item: dict) -> float:
+    normalized_query = normalize_role(query)
+    query_tokens = [token for token in normalized_query.split() if token and token not in STOPWORDS]
+    title = normalize_role(item.get("title", ""))
+    description = re.sub(r"[^a-z0-9+ ]+", " ", item.get("description", "").lower())
+    tags = " ".join(str(tag).lower() for tag in item.get("tags", []))
+    normalized_data = item.get("normalized_data", {}) or {}
+    market_hints = role_market_hints(query)
+    extracted_skills = {str(skill).lower() for skill in normalized_data.get("skills", []) or []}
+
+    score = 0.0
+    if normalized_query and normalized_query in title:
+        score += 6.0
+    if normalized_query and normalized_query in description:
+        score += 3.0
+    for token in query_tokens:
+        if token in title.split():
+            score += 2.0
+        elif re.search(rf"\\b{re.escape(token)}\\b", description):
+            score += 0.75
+        elif re.search(rf"\\b{re.escape(token)}\\b", tags):
+            score += 0.5
+    if market_hints:
+        hint_overlap = len(extracted_skills & market_hints)
+        score += min(3.0, hint_overlap * 0.75)
+    if (
+        normalized_query in ROLE_FAMILY_CANONICALS
+        and title in ROLE_FAMILY_CANONICALS
+        and title != normalized_query
+    ):
+        score *= 0.6
+    return round(score, 2)
