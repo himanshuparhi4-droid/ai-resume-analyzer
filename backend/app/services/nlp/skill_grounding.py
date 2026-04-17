@@ -62,6 +62,7 @@ ROLE_BASELINE_POOLS = {
     "customer support": ["communication", "problem solving"],
     "content writer": ["seo", "communication"],
     "painter": ["painting", "surface preparation", "color matching", "spray painting", "safety compliance"],
+    "teacher": ["lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction", "pedagogy"],
 }
 
 
@@ -179,6 +180,8 @@ class SkillGroundingService:
         baseline = await self._generate_role_baseline(role_query=role_query, resume_data=resume_data)
         role_title = baseline.get("role_title") or role_query.title()
         skills = baseline.get("skills", []) or resume_data.get("skills", [])[:6]
+        if len(skills) < 2:
+            return []
         experience_months = int(baseline.get("experience_months", 6) or 6)
         summary = reason or baseline.get("summary") or f"Fallback market baseline for {role_title} built when live job providers are unavailable."
         titles = baseline.get("titles") or [
@@ -585,10 +588,6 @@ class SkillGroundingService:
             if token in KNOWN_SKILLS and token not in seen:
                 ranked.append(token)
                 seen.add(token)
-
-        role_phrase = " ".join(query_tokens[:3]).strip()
-        if role_phrase and role_phrase not in seen:
-            ranked.append(role_phrase)
 
         return ranked
 

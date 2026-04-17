@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { analyzeResume, compareAnalyses, getHistory, login, register, setAuthToken } from "./api/client";
 import { AuthPanel } from "./components/AuthPanel";
 import { Header } from "./components/Header";
@@ -35,6 +35,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const analyzeRequestId = useRef(0);
 
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_KEY);
@@ -62,18 +63,29 @@ function App() {
   }
 
   async function handleAnalyze(payload: UploadInput) {
+    const requestId = ++analyzeRequestId.current;
     try {
       setLoading(true);
       setError(null);
+      setComparison(null);
+      setResult(null);
       const data = await analyzeResume(payload);
+      if (requestId !== analyzeRequestId.current) {
+        return;
+      }
       setResult(data);
       if (user) {
         await refreshHistory();
       }
     } catch (err: any) {
+      if (requestId !== analyzeRequestId.current) {
+        return;
+      }
       setError(getBackendErrorMessage(err, "Analysis failed before the app received a usable response. Retry once after the backend is fully up."));
     } finally {
-      setLoading(false);
+      if (requestId === analyzeRequestId.current) {
+        setLoading(false);
+      }
     }
   }
 
