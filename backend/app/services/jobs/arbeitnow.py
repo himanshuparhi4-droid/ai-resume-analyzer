@@ -14,13 +14,23 @@ class ArbeitnowProvider:
     source_name = "arbeitnow"
     supports_query_variations = False
     supports_location_variations = False
+    request_headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.arbeitnow.com/",
+    }
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         collected: list[dict] = []
         seen_ids: set[str] = set()
+        max_pages = 2 if settings.environment == "production" else 3
 
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
-            for page in range(1, 4):
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
+            for page in range(1, max_pages + 1):
                 try:
                     response = await client.get(settings.arbeitnow_base_url, params={"page": page})
                     response.raise_for_status()
@@ -59,8 +69,10 @@ class ArbeitnowProvider:
                             "posted_at": self._parse_datetime(item.get("created_at") or item.get("published_at")),
                         }
                     )
-                    if len(collected) >= limit * 8:
+                    if len(collected) >= limit * 10:
                         break
+                if len(collected) >= limit * 10:
+                    break
 
         ranked = sorted(
             collected,

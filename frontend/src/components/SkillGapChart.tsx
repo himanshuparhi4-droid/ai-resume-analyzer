@@ -9,7 +9,34 @@ type SkillGapChartProps = {
 };
 
 export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetails, missingSkillDetails }: SkillGapChartProps) {
-  const hasMissingSkills = missingSkills.length > 0;
+  const liveMissingDetails = missingSkillDetails.filter((detail) => detail.primary_source && detail.primary_source !== "role-baseline");
+  const calibratedMissingDetails = missingSkillDetails.filter((detail) => detail.primary_source === "role-baseline");
+  const matchedDetails = [...matchedSkillDetails].sort((left, right) => {
+    const leftSource = left.primary_source === "role-baseline" ? 0 : 1;
+    const rightSource = right.primary_source === "role-baseline" ? 0 : 1;
+    if (leftSource !== rightSource) {
+      return rightSource - leftSource;
+    }
+    return right.market_share - left.market_share;
+  });
+  const chartSource = liveMissingDetails.length ? liveMissingDetails : missingSkillDetails;
+  const chartData = (chartSource.length ? chartSource : missingSkills)
+    .slice(0, 8)
+    .map((detail) => ({
+      skill: detail.skill,
+      share: "market_share" in detail ? detail.market_share : detail.share,
+    }));
+  const hasMissingSkills = chartData.length > 0;
+
+  function describeSource(source?: string) {
+    if (source === "role-baseline") {
+      return "Calibrated baseline";
+    }
+    if (source && source !== "unknown") {
+      return "Live listing";
+    }
+    return "Market sample";
+  }
 
   return (
     <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -17,11 +44,18 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
         <div className="mb-5">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate">Market Gaps</p>
           <h3 className="mt-2 font-display text-3xl text-ink">Missing role-specific tools</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            {liveMissingDetails.length
+              ? "These gaps are backed by live job listings from the current market sample."
+              : calibratedMissingDetails.length
+                ? "Live listings were too thin for a reliable skills map, so calibrated role baselines widened the missing-skill view."
+                : "The current market sample did not expose a strong missing-skill cluster."}
+          </p>
         </div>
         {hasMissingSkills ? (
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={missingSkills.slice(0, 8)} layout="vertical" margin={{ left: 20, right: 12 }}>
+              <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#dbe5e3" />
                 <XAxis type="number" tick={{ fill: "#52606b" }} unit="%" />
                 <YAxis type="category" dataKey="skill" width={95} tick={{ fill: "#06131c", fontSize: 12 }} />
@@ -40,18 +74,46 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
             </div>
           </div>
         )}
-        {missingSkillDetails.length ? (
+        {liveMissingDetails.length ? (
           <div className="mt-5 grid gap-3">
-            {missingSkillDetails.slice(0, 3).map((detail) => (
+            {liveMissingDetails.slice(0, 3).map((detail) => (
               <article key={detail.skill} className="rounded-[1.25rem] bg-mist p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-semibold text-ink">{detail.skill}</h4>
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate">
-                    {Math.round(detail.market_share)}% demand
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-sea/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink">
+                      {describeSource(detail.primary_source)}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate">
+                      {Math.round(detail.market_share)}% demand
+                    </span>
+                  </div>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   {detail.job_evidence?.[0]?.snippet ?? "This skill appeared repeatedly in the market sample for the chosen role."}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {calibratedMissingDetails.length ? (
+          <div className="mt-5 grid gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate">Calibration-only gaps</p>
+            {calibratedMissingDetails.slice(0, 3).map((detail) => (
+              <article key={`calibrated-${detail.skill}`} className="rounded-[1.25rem] border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-semibold text-ink">{detail.skill}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-amber-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink">
+                      {describeSource(detail.primary_source)}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate">
+                      {Math.round(detail.market_share)}% demand
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {detail.job_evidence?.[0]?.snippet ?? "This gap was inferred from the calibration baseline for this role."}
                 </p>
               </article>
             ))}
@@ -72,15 +134,20 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
             <p className="text-sm leading-6 text-slate-700">No strong market-skill overlaps yet. That is fixable once we target the missing skills above.</p>
           )}
         </div>
-        {matchedSkillDetails.length ? (
+        {matchedDetails.length ? (
           <div className="mt-6 grid gap-3">
-            {matchedSkillDetails.slice(0, 4).map((detail) => (
+            {matchedDetails.slice(0, 4).map((detail) => (
               <article key={detail.skill} className="rounded-[1.25rem] bg-mist p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-semibold text-ink">{detail.skill}</h4>
-                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate">
-                    {Math.round(detail.market_share)}% demand
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-mist px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink">
+                      {describeSource(detail.primary_source)}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate">
+                      {Math.round(detail.market_share)}% demand
+                    </span>
+                  </div>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   <span className="font-semibold text-ink">Resume proof:</span>{" "}

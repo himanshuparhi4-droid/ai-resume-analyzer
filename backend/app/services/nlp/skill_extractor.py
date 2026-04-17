@@ -107,8 +107,9 @@ def _build_snippet(text: str, start: int, end: int) -> str:
     while right < len(text) and text[right - 1] not in ".!?;\n ":
         right += 1
 
-    snippet = text[left:right]
-    return normalize_whitespace(snippet)
+    snippet = normalize_whitespace(text[left:right]).strip(" ,;:-")
+    snippet = re.sub(r"^[^\w+(]+", "", snippet)
+    return snippet.strip(" ,;:-")
 
 
 def _exact_skill_pattern(skill: str) -> re.Pattern[str]:
@@ -202,7 +203,9 @@ def infer_skill_frequency(job_items: list[dict]) -> list[dict]:
         signature = _job_signature(item)
         duplicate_divisor = max(1, signatures.get(signature, 1))
         source_weight = 1.0 if item.get("source") != "role-baseline" else 0.65
-        job_weight = source_weight / duplicate_divisor
+        role_fit = float(normalized_data.get("role_fit_score", 0.0))
+        relevance_weight = 0.45 + min(role_fit, 8.0) / 8.0
+        job_weight = (source_weight * relevance_weight) / duplicate_divisor
         denominator += job_weight
 
         title_text = normalize_whitespace(str(item.get("title", ""))).lower()
@@ -227,7 +230,7 @@ def infer_skill_frequency(job_items: list[dict]) -> list[dict]:
     if denominator <= 0:
         return result
 
-    for skill, weighted_score in sorted(frequency.items(), key=lambda item: item[1], reverse=True)[:15]:
+    for skill, weighted_score in sorted(frequency.items(), key=lambda item: item[1], reverse=True)[:20]:
         result.append(
             {
                 "skill": skill,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from app.services.jobs.taxonomy import (
     role_fit_score,
     role_market_hints,
     role_primary_hints,
+    role_title_hints,
 )
 from app.services.jobs.usajobs import USAJobsProvider
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
@@ -29,9 +31,11 @@ class JobAggregator:
         self.db = db
         self.providers = []
         if settings.environment == "production" and settings.default_job_source == "auto":
-            # Keep the hosted analysis path lightweight and predictable.
-            # Remotive has been the most stable provider in production.
-            self.providers = [RemotiveProvider()]
+            # In production we keep the live path lightweight, but we still need
+            # enough listings to build a realistic market skill map. Remotive is
+            # strong for explicit remote queries, while Arbeitnow offers a wider
+            # live board once we send normal browser-like headers.
+            self.providers = [RemotiveProvider(), ArbeitnowProvider()]
             return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
@@ -129,10 +133,10 @@ class JobAggregator:
                     break
 
         if settings.environment == "production":
-            preferred_live = self._select_production_live_jobs(collected, limit)
+            preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
             if preferred_live:
                 logger.info(
-                    "Production live selection kept %s Remotive jobs from %s collected candidates for query=%s",
+                    "Production live selection kept %s jobs from %s collected candidates for query=%s",
                     len(preferred_live),
                     len(collected),
                     query,
@@ -145,28 +149,85 @@ class JobAggregator:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
         return collected[:limit]
 
-    def _select_production_live_jobs(self, jobs: list[dict], limit: int) -> list[dict]:
-        remotive_jobs = [item for item in jobs if item.get("source") == "remotive"]
-        if not remotive_jobs:
+    def _select_production_live_jobs(self, *, query: str, jobs: list[dict], limit: int) -> list[dict]:
+        live_jobs = [item for item in jobs if item.get("source") != "role-baseline"]
+        if not live_jobs:
             return []
 
         ranked = sorted(
-            remotive_jobs,
+            live_jobs,
             key=lambda item: (
+                self._title_hint_overlap(query, item),
                 float(item.get("normalized_data", {}).get("role_fit_score", 0.0)),
                 float(item.get("normalized_data", {}).get("market_quality_score", 0.0)),
+                self._skill_overlap_score(query, item),
             ),
             reverse=True,
         )
-        # In production, prefer real Remotive listings whenever they are at least
-        # plausibly aligned with the requested role. Baseline fallback should only
-        # happen when live search is truly empty or completely off-target.
-        relevant = [
-            item
-            for item in ranked
-            if float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 3.0
-        ]
-        return relevant[:limit]
+        selected: list[dict] = []
+        company_counts: dict[str, int] = {}
+
+        def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
+            for item in candidates:
+                if item in selected:
+                    continue
+                company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
+                if company_counts.get(company, 0) >= cap_per_company:
+                    continue
+                selected.append(item)
+                company_counts[company] = company_counts.get(company, 0) + 1
+                if len(selected) >= limit:
+                    break
+
+        strong_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=True)]
+        maybe_add(strong_candidates, cap_per_company=2)
+        if len(selected) < min(limit, 8):
+            secondary_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=False)]
+            maybe_add(secondary_candidates, cap_per_company=2)
+
+        return selected[:limit]
+
+    def _is_production_live_candidate(self, query: str, item: dict, *, strict: bool) -> bool:
+        normalized = item.get("normalized_data", {}) or {}
+        role_fit = float(normalized.get("role_fit_score", 0.0))
+        market_quality = float(normalized.get("market_quality_score", 0.0))
+        title_overlap = self._title_hint_overlap(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        source = str(item.get("source", ""))
+
+        if strict:
+            if title_overlap >= 2 and (role_fit >= 2.5 or skill_overlap >= 1.5):
+                return True
+            if role_fit >= 6.0 and skill_overlap >= 1.0:
+                return True
+            if source == "remotive" and title_overlap >= 1 and market_quality >= 36.0:
+                return True
+            return False
+
+        if title_overlap >= 1 and role_fit >= 2.0:
+            return True
+        if skill_overlap >= 2.0 and role_fit >= 3.0:
+            return True
+        if market_quality >= 55.0 and title_overlap >= 1:
+            return True
+        return False
+
+    def _title_hint_overlap(self, query: str, item: dict) -> int:
+        title = str(item.get("title", "")).lower()
+        hints = role_title_hints(query)
+        overlap = 0
+        for hint in hints:
+            pattern = rf"\b{re.escape(hint)}\b" if " " not in hint else re.escape(hint)
+            if re.search(pattern, title):
+                overlap += 1
+        return overlap
+
+    def _skill_overlap_score(self, query: str, item: dict) -> float:
+        normalized = item.get("normalized_data", {}) or {}
+        skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
+        market_overlap = len(skills & role_market_hints(query))
+        primary_overlap = len(skills & role_primary_hints(query))
+        return (primary_overlap * 1.5) + market_overlap
 
     def _filter_relevant_jobs(self, query: str, jobs: list[dict]) -> list[dict]:
         ordered = sorted(

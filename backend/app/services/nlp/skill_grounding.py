@@ -294,6 +294,7 @@ class SkillGroundingService:
                 "market_share": demand_map.get(skill, 0.0),
                 "resume_evidence": resume_evidence_map.get(skill, [])[:2],
                 "job_evidence": self._rank_job_evidence(job_evidence_map.get(skill, []), prefer_live=live_jobs_present)[:2],
+                "primary_source": self._primary_evidence_source(job_evidence_map.get(skill, []), prefer_live=live_jobs_present),
             }
             for skill in matched_skills
         ]
@@ -303,6 +304,7 @@ class SkillGroundingService:
                 "skill": item["skill"],
                 "market_share": item["share"],
                 "job_evidence": self._rank_job_evidence(job_evidence_map.get(item["skill"], []), prefer_live=live_jobs_present)[:2],
+                "primary_source": self._primary_evidence_source(job_evidence_map.get(item["skill"], []), prefer_live=live_jobs_present),
             }
             for item in missing_skills
         ]
@@ -344,6 +346,13 @@ class SkillGroundingService:
             if live:
                 return live
         return ranked
+
+    def _primary_evidence_source(self, items: list[dict[str, str]], *, prefer_live: bool) -> str:
+        ranked = self._rank_job_evidence(items, prefer_live=prefer_live)
+        if not ranked:
+            return "unknown"
+        source = str(ranked[0].get("source", "unknown"))
+        return source
 
     async def _run_skill_audit(self, *, role_query: str, resume_data: dict, jobs: list[dict]) -> dict[str, Any] | None:
         if settings.llm_provider == "openai":

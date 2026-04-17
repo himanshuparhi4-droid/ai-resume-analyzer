@@ -359,17 +359,31 @@ class AnalysisOrchestrator:
 
         ranked_jobs = []
         for job, relevance in zip(jobs, relevance_scores):
-            ranked_jobs.append({**job, "relevance_score": relevance, "preview": truncate(job["description"], 180)})
+            ranked_jobs.append(
+                {
+                    **job,
+                    "relevance_score": relevance,
+                    "preview": truncate(job["description"], 180),
+                    "role_fit_score": float(job.get("normalized_data", {}).get("role_fit_score", 0.0)),
+                    "market_quality_score": float(job.get("normalized_data", {}).get("market_quality_score", 0.0)),
+                }
+            )
         ranked_jobs.sort(
             key=lambda item: (
                 1 if item.get("source") != "role-baseline" else 0,
-                item["relevance_score"],
+                item.get("role_fit_score", 0.0),
+                item.get("market_quality_score", 0.0),
+                item.get("relevance_score", 0.0),
             ),
             reverse=True,
         )
-        top_matches = ranked_jobs[:5]
-        if any(item.get("source") == "role-baseline" for item in jobs) and not any(
-            item.get("source") == "role-baseline" for item in top_matches
+        live_top_matches = [item for item in ranked_jobs if item.get("source") != "role-baseline"]
+        display_limit = 8 if live_top_matches else 5
+        top_matches = ranked_jobs[:display_limit]
+        if (
+            len(live_top_matches) < display_limit
+            and any(item.get("source") == "role-baseline" for item in jobs)
+            and not any(item.get("source") == "role-baseline" for item in top_matches)
         ):
             baseline_candidate = next((item for item in ranked_jobs if item.get("source") == "role-baseline"), None)
             if baseline_candidate and top_matches:

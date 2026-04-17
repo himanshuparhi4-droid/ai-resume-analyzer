@@ -15,6 +15,7 @@ export type RecommendationItem = {
 
 export type JobMatch = {
   source: string;
+  external_id?: string;
   title: string;
   company: string;
   location: string;
@@ -41,11 +42,13 @@ export type JobMatch = {
 export type SkillDetail = {
   skill: string;
   market_share: number;
+  primary_source?: string;
   resume_evidence?: string[];
   job_evidence?: {
     title: string;
     company: string;
     snippet: string;
+    source?: string;
   }[];
 };
 

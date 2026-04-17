@@ -30,6 +30,12 @@ ROLE_SYNONYMS = {
     "ui ux designer": "ui/ux designer",
     "ux designer": "ui/ux designer",
     "ui designer": "ui/ux designer",
+    "teacher": "teacher",
+    "educator": "teacher",
+    "instructor": "teacher",
+    "painter": "painter",
+    "industrial painter": "painter",
+    "spray painter": "painter",
 }
 STOPWORDS = {"and", "the", "for", "with", "role", "remote"}
 ROLE_SEARCH_VARIATIONS = {
@@ -96,9 +102,21 @@ ROLE_SEARCH_VARIATIONS = {
         "ui designer",
         "product designer",
     ],
+    "teacher": [
+        "teacher",
+        "educator",
+        "instructor",
+        "tutor",
+    ],
+    "painter": [
+        "painter",
+        "industrial painter",
+        "spray painter",
+        "coating technician",
+    ],
 }
 ROLE_PRODUCTION_VARIATIONS = {
-    "data analyst": ["data analyst", "data", "analytics"],
+    "data analyst": ["data analyst", "analyst", "data", "analytics"],
     "data scientist": ["data scientist", "machine learning", "data"],
     "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
     "data engineer": ["data engineer", "data", "etl"],
@@ -109,6 +127,8 @@ ROLE_PRODUCTION_VARIATIONS = {
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
+    "teacher": ["teacher", "education", "curriculum", "instructor"],
+    "painter": ["painter", "painting", "coating", "spray"],
 }
 ROLE_MARKET_HINTS = {
     "data analyst": {"sql", "excel", "power bi", "tableau", "statistics", "data analysis", "pandas", "python"},
@@ -122,6 +142,8 @@ ROLE_MARKET_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy"},
+    "painter": {"painting", "surface preparation", "color matching", "spray painting", "safety compliance"},
 }
 ROLE_PRIMARY_HINTS = {
     "data analyst": {"sql", "excel", "pandas", "power bi", "tableau", "statistics", "python"},
@@ -135,6 +157,23 @@ ROLE_PRIMARY_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment"},
+    "painter": {"painting", "surface preparation", "color matching", "spray painting"},
+}
+ROLE_TITLE_HINTS = {
+    "data analyst": {"analyst", "analytics", "reporting", "insights", "business intelligence", "bi"},
+    "data scientist": {"scientist", "ml", "machine learning", "applied"},
+    "machine learning engineer": {"machine learning", "ml engineer", "ai engineer"},
+    "data engineer": {"data engineer", "etl", "analytics engineer"},
+    "software engineer": {"software engineer", "backend", "developer", "engineer"},
+    "frontend developer": {"frontend", "react", "web developer", "ui"},
+    "full stack developer": {"full stack", "fullstack", "developer", "engineer"},
+    "devops engineer": {"devops", "site reliability", "sre", "platform", "cloud"},
+    "qa engineer": {"qa", "quality assurance", "test", "automation"},
+    "product manager": {"product manager", "product owner", "product"},
+    "ui/ux designer": {"designer", "ui", "ux", "product designer"},
+    "teacher": {"teacher", "educator", "instructor", "tutor", "faculty"},
+    "painter": {"painter", "painting", "coating", "spray", "finisher"},
 }
 ROLE_KEYWORD_FAMILIES = {
     "data analyst": ("data analyst", "reporting analyst", "analytics analyst", "bi analyst", "business analyst"),
@@ -148,6 +187,8 @@ ROLE_KEYWORD_FAMILIES = {
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
     "product manager": ("product manager", "product owner", "associate product manager"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
+    "teacher": ("teacher", "educator", "instructor", "tutor", "faculty"),
+    "painter": ("painter", "painting", "coating", "spray"),
 }
 ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
 
@@ -176,7 +217,7 @@ def production_query_variations(query: str) -> list[str]:
     variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    return list(dict.fromkeys(item for item in variations if item))[:3]
+    return list(dict.fromkeys(item for item in variations if item))[:4]
 
 
 def role_market_hints(query: str) -> set[str]:
@@ -187,20 +228,33 @@ def role_primary_hints(query: str) -> set[str]:
     return ROLE_PRIMARY_HINTS.get(normalize_role(query), set())
 
 
+def role_title_hints(query: str) -> set[str]:
+    return ROLE_TITLE_HINTS.get(normalize_role(query), set())
+
+
 def dedupe_key(item: dict) -> str:
+    source = str(item.get("source", "unknown")).strip().lower()
+    external_id = str(item.get("external_id", "")).strip().lower()
+    if external_id:
+        return f"{source}::{external_id}"
+    url = str(item.get("url", "")).strip().lower()
+    if url:
+        return f"{source}::{url}"
     title = normalize_role(item.get("title", ""))
     company = re.sub(r"\s+", " ", item.get("company", "").lower()).strip()
-    return f"{title}::{company}"
+    return f"{source}::{title}::{company}"
 
 
 def role_fit_score(query: str, item: dict) -> float:
     normalized_query = normalize_role(query)
     query_tokens = [token for token in normalized_query.split() if token and token not in STOPWORDS]
     title = normalize_role(item.get("title", ""))
+    raw_title = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower())
     description = re.sub(r"[^a-z0-9+ ]+", " ", item.get("description", "").lower())
     tags = " ".join(str(tag).lower() for tag in item.get("tags", []))
     normalized_data = item.get("normalized_data", {}) or {}
     market_hints = role_market_hints(query)
+    title_hints = role_title_hints(query)
     extracted_skills = {str(skill).lower() for skill in normalized_data.get("skills", []) or []}
 
     score = 0.0
@@ -215,6 +269,8 @@ def role_fit_score(query: str, item: dict) -> float:
             score += 0.75
         elif re.search(rf"\\b{re.escape(token)}\\b", tags):
             score += 0.5
+    if title_hints and any(hint in raw_title for hint in title_hints):
+        score += 2.5
     if market_hints:
         hint_overlap = len(extracted_skills & market_hints)
         score += min(3.0, hint_overlap * 0.75)
