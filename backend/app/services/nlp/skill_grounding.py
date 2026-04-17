@@ -254,7 +254,7 @@ class SkillGroundingService:
                 "live_job_count": 0,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
-                "build_tag": "2026-04-18-livefetch-debug-2",
+                "build_tag": "2026-04-18-livefetch-debug-3",
                 "message": "Live job providers did not return listings for this run, so the score is an estimate built from a model-generated role baseline instead of real-time job data.",
             }
         if used_role_baseline and live_job_count > 0:
@@ -263,7 +263,7 @@ class SkillGroundingService:
                 "live_job_count": live_job_count,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
-                "build_tag": "2026-04-18-livefetch-debug-2",
+                "build_tag": "2026-04-18-livefetch-debug-3",
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
@@ -271,7 +271,7 @@ class SkillGroundingService:
             "live_job_count": live_job_count,
             "used_role_baseline": False,
             "live_source_counts": live_source_counts,
-            "build_tag": "2026-04-18-livefetch-debug-2",
+            "build_tag": "2026-04-18-livefetch-debug-3",
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 
@@ -735,12 +735,18 @@ class SkillGroundingService:
             }
         )
         sparse_role = normalized_role in SPARSE_LIVE_MARKET_ROLES
-        min_live_jobs = 1 if sparse_role else 3
-        min_live_skills = 2 if sparse_role else max(4, min(6, len(expected_skills) or 4))
-        min_role_coverage = 0.2 if sparse_role else 0.45
+        live_target_reached = (
+            not sparse_role
+            and len(live_jobs) >= 8
+            and len(live_skills) >= max(4, min(6, len(expected_skills) or 4))
+            and role_coverage >= 0.3
+        )
+        min_live_jobs = 1 if sparse_role else 4
+        min_live_skills = 2 if sparse_role else max(3, min(5, len(expected_skills) or 4))
+        min_role_coverage = 0.2 if sparse_role else 0.3
         min_company_count = 1 if sparse_role else 2
         min_title_count = 1 if sparse_role else 2
-        needs_blend = (
+        needs_blend = False if live_target_reached else (
             len(live_jobs) < min_live_jobs
             or len(live_skills) < min_live_skills
             or role_coverage < min_role_coverage
