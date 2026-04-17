@@ -254,7 +254,7 @@ class SkillGroundingService:
                 "live_job_count": 0,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
-                "build_tag": "2026-04-18-livefetch-debug-4",
+                "build_tag": "2026-04-18-livefetch-debug-5",
                 "message": "Live job providers did not return listings for this run, so the score is an estimate built from a model-generated role baseline instead of real-time job data.",
             }
         if used_role_baseline and live_job_count > 0:
@@ -263,7 +263,7 @@ class SkillGroundingService:
                 "live_job_count": live_job_count,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
-                "build_tag": "2026-04-18-livefetch-debug-4",
+                "build_tag": "2026-04-18-livefetch-debug-5",
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
@@ -271,7 +271,7 @@ class SkillGroundingService:
             "live_job_count": live_job_count,
             "used_role_baseline": False,
             "live_source_counts": live_source_counts,
-            "build_tag": "2026-04-18-livefetch-debug-4",
+            "build_tag": "2026-04-18-livefetch-debug-5",
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 

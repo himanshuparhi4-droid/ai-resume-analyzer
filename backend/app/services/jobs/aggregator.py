@@ -16,9 +16,11 @@ from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
 from app.services.jobs.taxonomy import (
     dedupe_key,
+    is_sparse_live_market_role,
     normalize_role,
     production_query_variations,
     query_variations,
+    role_domain,
     role_fit_score,
     role_market_hints,
     role_primary_hints,
@@ -309,18 +311,25 @@ class JobAggregator:
         if not live_jobs:
             return []
 
+        target_live_count = self._production_live_target(query=query, limit=limit)
+
         ranked = sorted(
             live_jobs,
             key=lambda item: (
+                self._role_domain_match_score(query, item),
                 self._title_hint_overlap(query, item),
+                self._skill_overlap_score(query, item),
                 float(item.get("normalized_data", {}).get("role_fit_score", 0.0)),
                 float(item.get("normalized_data", {}).get("market_quality_score", 0.0)),
-                self._skill_overlap_score(query, item),
             ),
             reverse=True,
         )
         selected: list[dict] = []
         company_counts: dict[str, int] = {}
+        selection_debug: dict[str, int | list[str]] = {
+            "target_live_count": target_live_count,
+            "ranked_candidates": len(ranked),
+        }
 
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
             for item in candidates:
@@ -335,22 +344,45 @@ class JobAggregator:
                     break
 
         strong_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=True)]
+        selection_debug["strong_candidates"] = len(strong_candidates)
         maybe_add(strong_candidates, cap_per_company=2)
-        if len(selected) < min(limit, 8):
+        if len(selected) < target_live_count:
             secondary_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=False)]
-            maybe_add(secondary_candidates, cap_per_company=2)
-        if len(selected) < limit:
+            selection_debug["secondary_candidates"] = len(secondary_candidates)
+            maybe_add(secondary_candidates, cap_per_company=3)
+        if len(selected) < target_live_count:
+            family_candidates = [item for item in ranked if self._is_family_live_candidate(query, item)]
+            selection_debug["family_candidates"] = len(family_candidates)
+            maybe_add(family_candidates, cap_per_company=4)
+        if len(selected) < target_live_count:
             tertiary_candidates = [
                 item
                 for item in ranked
                 if self._title_hint_overlap(query, item) >= 1
+                or self._role_domain_match_score(query, item) >= 2
                 or (
-                    self._skill_overlap_score(query, item) >= 3.0
-                    and float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 5.0
+                    self._skill_overlap_score(query, item) >= 2.0
+                    and (
+                        float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 3.0
+                        or self._role_domain_match_score(query, item) >= 1
+                    )
                 )
             ]
-            maybe_add(tertiary_candidates, cap_per_company=3)
+            selection_debug["tertiary_candidates"] = len(tertiary_candidates)
+            maybe_add(tertiary_candidates, cap_per_company=4)
+        if len(selected) < target_live_count:
+            fallback_candidates = [
+                item
+                for item in ranked
+                if self._role_domain_match_score(query, item) >= 1
+                or self._skill_overlap_score(query, item) >= 1.5
+            ]
+            selection_debug["fallback_candidates"] = len(fallback_candidates)
+            maybe_add(fallback_candidates, cap_per_company=5)
 
+        selection_debug["selected_count"] = len(selected)
+        selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
+        self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
 
     def _is_production_live_candidate(self, query: str, item: dict, *, strict: bool) -> bool:
@@ -360,14 +392,19 @@ class JobAggregator:
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
         skill_overlap = self._skill_overlap_score(query, item)
+        domain_score = self._role_domain_match_score(query, item)
         source = str(item.get("source", ""))
 
         if strict:
+            if source in {"themuse", "jobicy"} and domain_score >= 2 and (title_overlap >= 1 or skill_overlap >= 1.5 or family_overlap >= 1):
+                return True
             if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2) and market_quality >= 18.0:
                 return True
             if title_overlap >= 1 and role_fit >= 1.0:
                 return True
             if title_overlap >= 1 and skill_overlap >= 1.0:
+                return True
+            if domain_score >= 2 and skill_overlap >= 1.5:
                 return True
             if family_overlap >= 2 and role_fit >= 3.0 and skill_overlap >= 1.0:
                 return True
@@ -379,11 +416,15 @@ class JobAggregator:
                 return True
             return False
 
+        if source in {"themuse", "jobicy"} and domain_score >= 2:
+            return True
         if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2):
             return True
         if title_overlap >= 1 and role_fit >= 0.5:
             return True
         if title_overlap >= 1 and role_fit >= 1.0:
+            return True
+        if domain_score >= 2 and (skill_overlap >= 1.0 or role_fit >= 1.5):
             return True
         if family_overlap >= 2 and role_fit >= 2.5:
             return True
@@ -392,6 +433,21 @@ class JobAggregator:
         if market_quality >= 42.0 and title_overlap >= 1:
             return True
         return False
+
+    def _is_family_live_candidate(self, query: str, item: dict) -> bool:
+        normalized = item.get("normalized_data", {}) or {}
+        role_fit = float(normalized.get("role_fit_score", 0.0))
+        market_quality = float(normalized.get("market_quality_score", 0.0))
+        skill_overlap = self._skill_overlap_score(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        return (
+            (domain_score >= 2 and skill_overlap >= 1.0)
+            or (domain_score >= 1 and title_overlap >= 1)
+            or (domain_score >= 1 and family_overlap >= 1 and role_fit >= 2.0)
+            or (domain_score >= 1 and market_quality >= 28.0 and skill_overlap >= 1.0)
+        )
 
     def _title_hint_overlap(self, query: str, item: dict) -> int:
         title = str(item.get("title", "")).lower()
@@ -412,6 +468,25 @@ class JobAggregator:
             if token and len(token) > 2 and token not in {"engineer", "developer", "manager"}
         }
         return len(title_tokens & query_tokens)
+
+    def _role_domain_match_score(self, query: str, item: dict) -> int:
+        query_domain = role_domain(query)
+        if not query_domain:
+            return 0
+        title_domain = role_domain(str(item.get("title", "")))
+        score = 0
+        if title_domain == query_domain:
+            score += 2
+        if self._title_hint_overlap(query, item) >= 1:
+            score += 1
+        if self._family_token_overlap(query, item) >= 1:
+            score += 1
+        return score
+
+    def _production_live_target(self, *, query: str, limit: int) -> int:
+        if is_sparse_live_market_role(query):
+            return min(limit, 4)
+        return min(limit, max(8, settings.production_live_fetch_minimum))
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}

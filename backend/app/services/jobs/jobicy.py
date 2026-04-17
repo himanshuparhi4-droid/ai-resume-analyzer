@@ -41,7 +41,7 @@ class JobicyProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
-        params = {"count": min(max(limit * 3, 30), 60)}
+        params = {"count": min(max(limit * 4, 40), 80)}
         role_tag = ROLE_TAG_MAP.get(normalized_role)
         if role_tag:
             params["tag"] = role_tag

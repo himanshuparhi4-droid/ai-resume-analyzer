@@ -193,6 +193,22 @@ ROLE_KEYWORD_FAMILIES = {
     "painter": ("painter", "painting", "coating", "spray"),
 }
 ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
+ROLE_DOMAIN_MAP = {
+    "data analyst": "data",
+    "data scientist": "data",
+    "machine learning engineer": "data",
+    "data engineer": "data",
+    "software engineer": "software",
+    "frontend developer": "software",
+    "full stack developer": "software",
+    "devops engineer": "software",
+    "qa engineer": "software",
+    "product manager": "product",
+    "ui/ux designer": "design",
+    "teacher": "education",
+    "painter": "trades",
+}
+SPARSE_LIVE_MARKET_ROLES = {"teacher", "painter"}
 
 
 def normalize_role(query: str) -> str:
@@ -232,6 +248,14 @@ def role_primary_hints(query: str) -> set[str]:
 
 def role_title_hints(query: str) -> set[str]:
     return ROLE_TITLE_HINTS.get(normalize_role(query), set())
+
+
+def role_domain(query: str) -> str | None:
+    return ROLE_DOMAIN_MAP.get(normalize_role(query))
+
+
+def is_sparse_live_market_role(query: str) -> bool:
+    return normalize_role(query) in SPARSE_LIVE_MARKET_ROLES
 
 
 def dedupe_key(item: dict) -> str:
