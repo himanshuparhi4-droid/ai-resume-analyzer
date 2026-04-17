@@ -120,11 +120,45 @@ class JobAggregator:
                 if len(collected) >= limit * 2:
                     break
 
+        if settings.environment == "production":
+            preferred_live = self._select_production_live_jobs(collected, limit)
+            if preferred_live:
+                logger.info(
+                    "Production live selection kept %s Remotive jobs from %s collected candidates for query=%s",
+                    len(preferred_live),
+                    len(collected),
+                    query,
+                )
+                return preferred_live
+
         collected = self._filter_relevant_jobs(query, collected)
 
         if use_cache and collected:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
         return collected[:limit]
+
+    def _select_production_live_jobs(self, jobs: list[dict], limit: int) -> list[dict]:
+        remotive_jobs = [item for item in jobs if item.get("source") == "remotive"]
+        if not remotive_jobs:
+            return []
+
+        ranked = sorted(
+            remotive_jobs,
+            key=lambda item: (
+                float(item.get("normalized_data", {}).get("role_fit_score", 0.0)),
+                float(item.get("normalized_data", {}).get("market_quality_score", 0.0)),
+            ),
+            reverse=True,
+        )
+        # In production, prefer real Remotive listings whenever they are at least
+        # plausibly aligned with the requested role. Baseline fallback should only
+        # happen when live search is truly empty or completely off-target.
+        relevant = [
+            item
+            for item in ranked
+            if float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 3.0
+        ]
+        return relevant[:limit]
 
     def _filter_relevant_jobs(self, query: str, jobs: list[dict]) -> list[dict]:
         ordered = sorted(
