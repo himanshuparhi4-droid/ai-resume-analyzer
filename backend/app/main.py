@@ -16,6 +16,7 @@ from app.models import analysis, job, resume, user  # noqa: F401
 from app.services.jobs.sync import JobSyncService
 
 scheduler = AsyncIOScheduler()
+BUILD_TAG = "2026-04-18-livefetch-debug-1"
 
 
 async def _scheduled_sync() -> None:
@@ -57,9 +58,9 @@ app.include_router(api_router, prefix=settings.api_prefix)
 
 @app.get("/", tags=["root"])
 def root() -> dict[str, str]:
-    return {"message": "AI Resume Analyzer API is running.", "docs": "/docs"}
+    return {"message": "AI Resume Analyzer API is running.", "docs": "/docs", "build_tag": BUILD_TAG}
 
 
 @app.get("/healthz", tags=["root"])
 def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "build_tag": BUILD_TAG}
