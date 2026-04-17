@@ -3,7 +3,7 @@ services:
     name: ai-resume-analyzer-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && pip install -r requirements-ml.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
@@ -21,6 +21,8 @@ services:
         sync: false
       - key: LLM_PROVIDER
         value: disabled
+      - key: ENABLE_EMBEDDINGS
+        value: false
       - key: ENABLE_INTERNAL_SCHEDULER
         value: false
   - type: cron
@@ -28,7 +30,7 @@ services:
     runtime: python
     rootDir: backend
     schedule: '0 */6 * * *'
-    buildCommand: pip install -r requirements.txt && pip install -r requirements-ml.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: python -c "import os,urllib.request; req=urllib.request.Request(os.environ['SYNC_ENDPOINT'], method='POST', headers={'X-Sync-Secret': os.environ['SYNC_SECRET']}); urllib.request.urlopen(req, timeout=120).read()"
     envVars:
       - key: PYTHON_VERSION
