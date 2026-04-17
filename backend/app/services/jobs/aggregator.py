@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 
@@ -113,6 +114,11 @@ class JobAggregator:
         return True
 
     async def fetch_jobs(self, query: str, location: str, limit: int, force_refresh: bool = False) -> list[dict]:
+        if settings.environment == "production":
+            live_jobs = await self._fetch_production_jobs(query=query, location=location, limit=limit)
+            if live_jobs:
+                return live_jobs
+
         use_cache = self._use_cache()
         if use_cache and not force_refresh:
             cache = JobCacheService(self.db)
@@ -205,6 +211,52 @@ class JobAggregator:
         if use_cache and collected:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
         return collected[:limit]
+
+    async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
+        async def safe_search(provider: object) -> list[dict]:
+            source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
+            provider_timeout = 4.5 if source_name == "themuse" else 3.5
+            try:
+                return await asyncio.wait_for(
+                    provider.search(query=query, location=location, limit=max(8, limit)),
+                    timeout=provider_timeout,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Production job provider search failed for %s (query=%s, location=%s): %s",
+                    provider.__class__.__name__,
+                    query,
+                    location,
+                    exc,
+                )
+                return []
+
+        provider_results = await asyncio.gather(*(safe_search(provider) for provider in self.providers))
+        collected: list[dict] = []
+        seen: set[str] = set()
+
+        for items in provider_results:
+            for item in items:
+                key = dedupe_key(item)
+                if key in seen:
+                    continue
+                seen.add(key)
+                item.setdefault("normalized_data", {})
+                item.setdefault("preview", truncate(str(item.get("description", "")), 260))
+                item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
+                item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
+                collected.append(item)
+
+        preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+        if preferred_live:
+            logger.info(
+                "Production live selection kept %s jobs from %s collected candidates for query=%s",
+                len(preferred_live),
+                len(collected),
+                query,
+            )
+            return preferred_live
+        return []
 
     def _select_production_live_jobs(self, *, query: str, jobs: list[dict], limit: int) -> list[dict]:
         live_jobs = [item for item in jobs if item.get("source") != "role-baseline"]
