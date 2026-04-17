@@ -7,6 +7,8 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/v1/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
       - key: DATABASE_URL
         sync: false
       - key: SECRET_KEY
@@ -29,6 +31,8 @@ services:
     buildCommand: pip install -r requirements.txt && pip install -r requirements-ml.txt
     startCommand: python -c "import os,urllib.request; req=urllib.request.Request(os.environ['SYNC_ENDPOINT'], method='POST', headers={'X-Sync-Secret': os.environ['SYNC_SECRET']}); urllib.request.urlopen(req, timeout=120).read()"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
       - key: SYNC_ENDPOINT
         sync: false
       - key: SYNC_SECRET
