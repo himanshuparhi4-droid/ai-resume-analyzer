@@ -51,8 +51,16 @@ class AnalysisOrchestrator:
                 logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")
                 jobs = []
             if jobs:
+                original_live_count = len(jobs)
+                jobs = await self.skill_grounding.ensure_market_coverage(
+                    role_query=role_query,
+                    location=location,
+                    resume_data=resume_data,
+                    jobs=jobs,
+                )
                 logger.info(
-                    "Analysis step: production live fetch produced %s jobs in %sms",
+                    "Analysis step: production live fetch produced %s jobs, expanded to %s jobs in %sms",
+                    original_live_count,
                     len(jobs),
                     round((time.perf_counter() - started) * 1000, 2),
                 )
@@ -348,7 +356,20 @@ class AnalysisOrchestrator:
         ranked_jobs = []
         for job, relevance in zip(jobs, relevance_scores):
             ranked_jobs.append({**job, "relevance_score": relevance, "preview": truncate(job["description"], 180)})
-        ranked_jobs.sort(key=lambda item: item["relevance_score"], reverse=True)
+        ranked_jobs.sort(
+            key=lambda item: (
+                1 if item.get("source") != "role-baseline" else 0,
+                item["relevance_score"],
+            ),
+            reverse=True,
+        )
+        top_matches = ranked_jobs[:5]
+        if any(item.get("source") == "role-baseline" for item in jobs) and not any(
+            item.get("source") == "role-baseline" for item in top_matches
+        ):
+            baseline_candidate = next((item for item in ranked_jobs if item.get("source") == "role-baseline"), None)
+            if baseline_candidate and top_matches:
+                top_matches = top_matches[:-1] + [baseline_candidate]
 
         return {
             "overall_score": overall_score,
@@ -363,7 +384,7 @@ class AnalysisOrchestrator:
             "matched_skills": matched_skills,
             "missing_skills": missing_skills,
             "market_skill_frequency": skill_frequency,
-            "top_job_matches": ranked_jobs[:5],
+            "top_job_matches": top_matches,
         }
 
     def _token_overlap(self, left: str, right: str) -> float:
