@@ -7,6 +7,7 @@ from datetime import date, datetime
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.analysis import AnalysisRun
 from app.models.resume import ResumeDocument
 from app.models.user import User
@@ -35,7 +36,7 @@ class AnalysisOrchestrator:
                 self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
                 timeout=settings.job_fetch_timeout_seconds,
             )
-        except TimeoutError:
+        except asyncio.TimeoutError:
             jobs = []
         if not jobs:
             jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
