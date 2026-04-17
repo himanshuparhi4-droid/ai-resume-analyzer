@@ -5,6 +5,7 @@ import logging
 import secrets
 import time
 from datetime import date, datetime
+from statistics import mean
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from app.services.analysis.insights import InsightGenerator
 from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
 from app.services.nlp.skill_grounding import SkillGroundingService
+from app.services.nlp.skill_extractor import infer_skill_frequency
 from app.services.parsers.resume_parser import ResumeParser
 from app.utils.text import truncate
 
@@ -38,15 +40,34 @@ class AnalysisOrchestrator:
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         jobs: list[dict]
-        if settings.environment == "production" or not settings.enable_live_market_fetch:
-            logger.info("Analysis step: skipping live market fetch in production, using fallback baseline")
-            jobs = []
+        if settings.environment == "production":
+            logger.info("Analysis step: using lightweight production review path")
+            jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
+            logger.info(
+                "Analysis step: fallback baseline built with %s jobs in %sms",
+                len(jobs),
+                round((time.perf_counter() - started) * 1000, 2),
+            )
+            score_payload = self._build_lightweight_score_payload(resume_data=resume_data, jobs=jobs)
+            logger.info("Analysis step: lightweight scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
+            score_payload["skill_grounding"] = {
+                "mode": "production-lightweight",
+                "resume_kept": resume_data.get("skills", []),
+                "market_kept": sorted({skill for item in jobs for skill in item.get("normalized_data", {}).get("skills", [])}),
+                "resume_dropped": [],
+                "market_dropped": [],
+                "role_focus": [],
+            }
         else:
             try:
-                jobs = await asyncio.wait_for(
-                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
-                    timeout=settings.job_fetch_timeout_seconds,
-                )
+                if settings.enable_live_market_fetch:
+                    jobs = await asyncio.wait_for(
+                        self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
+                        timeout=settings.job_fetch_timeout_seconds,
+                    )
+                else:
+                    logger.info("Analysis step: live market fetch disabled, using fallback baseline")
+                    jobs = []
             except asyncio.TimeoutError:
                 logger.warning("Analysis step: live job fetch timed out after %ss, using fallback baseline", settings.job_fetch_timeout_seconds)
                 jobs = []
@@ -55,28 +76,34 @@ class AnalysisOrchestrator:
                 len(jobs),
                 round((time.perf_counter() - started) * 1000, 2),
             )
-        if not jobs:
-            jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
-        else:
-            jobs = await self.skill_grounding.ensure_market_coverage(
-                role_query=role_query,
-                location=location,
-                resume_data=resume_data,
-                jobs=jobs,
+            if not jobs:
+                jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
+            else:
+                jobs = await self.skill_grounding.ensure_market_coverage(
+                    role_query=role_query,
+                    location=location,
+                    resume_data=resume_data,
+                    jobs=jobs,
+                )
+            logger.info(
+                "Analysis step: market normalization finished with %s jobs in %sms",
+                len(jobs),
+                round((time.perf_counter() - started) * 1000, 2),
             )
-        logger.info(
-            "Analysis step: market normalization finished with %s jobs in %sms",
-            len(jobs),
-            round((time.perf_counter() - started) * 1000, 2),
-        )
-        resume_data, jobs, grounding_metadata = await self.skill_grounding.ground(role_query=role_query, resume_data=resume_data, jobs=jobs)
-        logger.info("Analysis step: grounding finished in %sms", round((time.perf_counter() - started) * 1000, 2))
-        score_payload = self.scoring_engine.score(resume_data, jobs)
-        logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
-        score_payload["skill_grounding"] = grounding_metadata
+            resume_data, jobs, grounding_metadata = await self.skill_grounding.ground(role_query=role_query, resume_data=resume_data, jobs=jobs)
+            logger.info("Analysis step: grounding finished in %sms", round((time.perf_counter() - started) * 1000, 2))
+            score_payload = self.scoring_engine.score(resume_data, jobs)
+            logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
+            score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
         score_payload["experience_years"] = resume_data.get("experience_years", 0)
-        ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
+        if settings.environment == "production":
+            ai_summary = self.insight_generator._normalize_summary(
+                self.insight_generator._rule_based_summary(resume_data, score_payload, role_query),
+                role_query,
+            )
+        else:
+            ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
         logger.info("Analysis step: summary finished in %sms", round((time.perf_counter() - started) * 1000, 2))
         recommendations = self._build_recommendations(score_payload, resume_data)
         if user is None:
@@ -262,6 +289,74 @@ class AnalysisOrchestrator:
             share_token=analysis.share_token,
             created_at=analysis.created_at,
         )
+
+    def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict]) -> dict:
+        resume_text = resume_data.get("raw_text", "")
+        resume_skills = set(resume_data.get("skills", []))
+        skill_frequency = infer_skill_frequency(jobs)
+        demand_map = {item["skill"]: item["share"] for item in skill_frequency}
+        market_skills = set(demand_map.keys())
+
+        matched_skills = sorted(resume_skills & market_skills)
+        missing_skills = [
+            {"skill": skill, "share": demand_map[skill]}
+            for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
+        ][:10]
+
+        skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
+        relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in jobs]
+        semantic_match = round(mean(relevance_scores), 2) if relevance_scores else 0.0
+        experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), jobs)
+        total_demand = sum(demand_map.values())
+        covered_demand = sum(demand_map.get(skill, 0) for skill in matched_skills)
+        market_demand = round((covered_demand / total_demand) * 100, 2) if total_demand else 0.0
+        resume_quality = self.scoring_engine._resume_quality_score(resume_data)
+        ats_compliance = self.scoring_engine._ats_score(resume_data)
+
+        overall_score = round(
+            (skill_match * 0.25)
+            + (semantic_match * 0.20)
+            + (experience_match * 0.15)
+            + (market_demand * 0.15)
+            + (resume_quality * 0.15)
+            + (ats_compliance * 0.10),
+            2,
+        )
+        overall_score = self.scoring_engine._apply_role_alignment_penalty(
+            overall_score=overall_score,
+            matched_skills=matched_skills,
+            skill_match=skill_match,
+            semantic_match=semantic_match,
+            market_demand=market_demand,
+        )
+
+        ranked_jobs = []
+        for job, relevance in zip(jobs, relevance_scores):
+            ranked_jobs.append({**job, "relevance_score": relevance, "preview": truncate(job["description"], 180)})
+        ranked_jobs.sort(key=lambda item: item["relevance_score"], reverse=True)
+
+        return {
+            "overall_score": overall_score,
+            "breakdown": {
+                "skill_match": skill_match,
+                "semantic_match": semantic_match,
+                "experience_match": experience_match,
+                "market_demand": market_demand,
+                "resume_quality": resume_quality,
+                "ats_compliance": ats_compliance,
+            },
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "market_skill_frequency": skill_frequency,
+            "top_job_matches": ranked_jobs[:5],
+        }
+
+    def _token_overlap(self, left: str, right: str) -> float:
+        left_tokens = {token.lower() for token in left.split() if len(token) > 2}
+        right_tokens = {token.lower() for token in right.split() if len(token) > 2}
+        if not left_tokens or not right_tokens:
+            return 0.0
+        return round((len(left_tokens & right_tokens) / len(right_tokens)) * 100, 2)
 
     def _build_recommendations(self, score_payload: dict, resume_data: dict) -> list[RecommendationItem]:
         items: list[RecommendationItem] = []
