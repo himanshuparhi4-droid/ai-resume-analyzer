@@ -50,3 +50,8 @@ app.include_router(api_router, prefix=settings.api_prefix)
 @app.get("/", tags=["root"])
 def root() -> dict[str, str]:
     return {"message": "AI Resume Analyzer API is running.", "docs": "/docs"}
+
+
+@app.get("/healthz", tags=["root"])
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}
