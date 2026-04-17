@@ -19,4 +19,12 @@ def truncate(value: str, limit: int = 280) -> str:
     text = normalize_whitespace(value)
     if len(text) <= limit:
         return text
-    return text[: limit - 3].rstrip() + "..."
+    clipped = text[: limit - 3]
+    sentence_boundary = max(clipped.rfind(". "), clipped.rfind("! "), clipped.rfind("? "))
+    if sentence_boundary >= max(32, int(limit * 0.35)):
+        clipped = clipped[: sentence_boundary + 1]
+    else:
+        space_boundary = clipped.rfind(" ")
+        if space_boundary >= max(24, int(limit * 0.3)):
+            clipped = clipped[:space_boundary]
+    return clipped.rstrip(" ,;:-") + "..."

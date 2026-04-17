@@ -9,7 +9,15 @@ from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
 from app.services.jobs.remotive import RemotiveProvider
-from app.services.jobs.taxonomy import dedupe_key, normalize_role, query_variations, role_fit_score, role_market_hints, role_primary_hints
+from app.services.jobs.taxonomy import (
+    dedupe_key,
+    normalize_role,
+    production_query_variations,
+    query_variations,
+    role_fit_score,
+    role_market_hints,
+    role_primary_hints,
+)
 from app.services.jobs.usajobs import USAJobsProvider
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
 
@@ -233,7 +241,7 @@ class JobAggregator:
 
     def _search_queries(self, provider: object, query: str) -> list[str]:
         if settings.environment == "production":
-            return [query]
+            return production_query_variations(query)
         if not getattr(provider, "supports_query_variations", True):
             return [query]
         return query_variations(query)

@@ -48,18 +48,54 @@ PROXY_SKILL_PATTERNS = {
     "data analysis": [r"\bexploratory analysis\b", r"\broot cause analysis\b", r"\bad hoc analysis\b", r"\bkpi analysis\b", r"\bbusiness insights?\b"],
     "machine learning": [r"\bpredictive modeling\b", r"\bsupervised learning\b", r"\bclassification\b", r"\bregression models?\b"],
     "statistics": [r"\bhypothesis testing\b", r"\ba/b testing\b", r"\bstatistical modeling\b"],
+    "reporting": [r"\bbuild reports?\b", r"\bcreate reports?\b", r"\breporting\b", r"\bkpi reporting\b"],
+    "dashboarding": [r"\bdashboards?\b", r"\bdashboarding\b"],
+    "data visualization": [r"\bvisualizations?\b", r"\bdata visualization\b", r"\bdata visualisation\b"],
+    "business intelligence": [r"\bbusiness intelligence\b", r"\bbi tools?\b"],
+    "data modeling": [r"\bdata model(?:ing|ling)\b", r"\bdimensional model(?:ing|ling)\b", r"\bstar schema\b"],
+    "data warehousing": [r"\bdata warehouse\b", r"\bdata warehousing\b"],
+    "snowflake": [r"\bsnowflake\b"],
+    "bigquery": [r"\bbigquery\b", r"\bgoogle bigquery\b"],
+    "dbt": [r"\bdbt\b", r"\bdata build tool\b"],
+    "airflow": [r"\bairflow\b", r"\bapache airflow\b"],
+    "looker": [r"\blooker\b", r"\blooker studio\b", r"\bgoogle data studio\b"],
+    "regression": [r"\blinear regression\b", r"\blogistic regression\b", r"\bregression models?\b"],
+    "hypothesis testing": [r"\bhypothesis testing\b", r"\ba/?b testing\b", r"\bab tests?\b"],
+    "forecasting": [r"\bforecasting\b", r"\btime series\b", r"\btime-series\b"],
 }
 PROXY_CONTEXT_KEYWORDS = {
     "pandas": {"python", "analytics", "analysis", "machine learning", "modelling", "modeling"},
     "numpy": {"python", "machine learning", "statistics", "analytics", "analysis"},
     "sql": {"database", "warehouse", "analytics", "analysis", "reporting"},
     "excel": {"reporting", "analysis", "finance", "dashboard", "analytics"},
+    "reporting": {"analysis", "analytics", "dashboard", "kpi", "business"},
+    "dashboarding": {"analysis", "analytics", "reporting", "business", "kpi"},
+    "data visualization": {"analysis", "analytics", "dashboard", "business"},
+    "business intelligence": {"analysis", "analytics", "dashboard", "reporting", "data"},
+    "data modeling": {"warehouse", "analytics", "data", "sql", "etl"},
+    "data warehousing": {"warehouse", "analytics", "data", "sql", "etl"},
 }
 IMPLIED_SKILLS = {
     "postgresql": {"sql": 0.72},
     "mysql": {"sql": 0.72},
     "mongodb": {"sql": 0.28},
     "power bi": {"excel": 0.24},
+    "tableau": {"data visualization": 0.72, "dashboarding": 0.66},
+    "power bi": {"excel": 0.24, "data visualization": 0.74, "dashboarding": 0.68},
+    "looker": {"data visualization": 0.72, "dashboarding": 0.66},
+    "dbt": {"sql": 0.72, "data modeling": 0.58},
+    "airflow": {"etl": 0.66},
+    "snowflake": {"sql": 0.64, "data warehousing": 0.72},
+    "bigquery": {"sql": 0.64, "data warehousing": 0.72},
+}
+TITLE_IMPLIED_SKILLS = {
+    "data analyst": {"sql": 0.54, "excel": 0.48, "data analysis": 0.72, "reporting": 0.44},
+    "business analyst": {"data analysis": 0.66, "reporting": 0.46, "excel": 0.42},
+    "reporting analyst": {"reporting": 0.72, "excel": 0.52, "sql": 0.46},
+    "bi analyst": {"business intelligence": 0.72, "dashboarding": 0.62, "sql": 0.46},
+    "analytics analyst": {"data analysis": 0.68, "dashboarding": 0.52, "statistics": 0.44},
+    "data engineer": {"sql": 0.62, "etl": 0.72, "data warehousing": 0.58},
+    "data scientist": {"python": 0.56, "statistics": 0.56, "machine learning": 0.72},
 }
 
 
@@ -75,6 +111,23 @@ def extract_job_requirement_profile(*, title: str, description: str, source: str
 
     explicit_matches = extract_skill_matches(full_text, source=source)
     extracted_skills = set()
+
+    for title_key, implied_skills in TITLE_IMPLIED_SKILLS.items():
+        if title_key not in title_lower:
+            continue
+        for implied_skill, implied_weight in implied_skills.items():
+            evidence_counts[implied_skill] += 1
+            current = weighted_scores.get(implied_skill, 0.0)
+            weighted_scores[implied_skill] = max(current, implied_weight)
+            grouped_evidence[implied_skill].append(
+                {
+                    "skill": implied_skill,
+                    "matched_text": title_text,
+                    "snippet": title_text,
+                    "source": source,
+                    "mode": "title-implied",
+                }
+            )
 
     for item in explicit_matches:
         skill = item["skill"]
@@ -164,7 +217,7 @@ def extract_job_requirement_profile(*, title: str, description: str, source: str
     filtered_skills = [
         skill
         for skill, weight in sorted(normalized_weights.items(), key=lambda entry: (-entry[1], entry[0]))
-        if weight >= 0.42
+        if weight >= 0.36
     ]
 
     requirement_quality = round(

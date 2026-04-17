@@ -292,6 +292,14 @@ class ResumeParser:
         lowered = normalized.lower()
         section_names = set(sections.keys())
         reasons: list[str] = []
+        word_count = parse_signals.get("word_count", 0)
+        has_links = parse_signals.get("contact_link_count", 0) >= 1
+        has_projects = "projects" in section_names
+        has_research = bool(section_names & {"research", "publications"})
+        skills_words = len(sections.get("skills", "").split())
+        experience_words = len(sections.get("experience", "").split())
+        summary_words = len(sections.get("summary", "").split())
+        certifications_words = len(sections.get("certifications", "").split())
 
         if "europass" in lowered or "personal information" in lowered or "mother tongue" in lowered:
             reasons.append("Detected Europass-style markers and section language.")
@@ -302,22 +310,50 @@ class ResumeParser:
             reasons.append("Detected research, publication, teaching, or awards sections common in academic CVs.")
             return {"type": "academic_cv", "label": "Academic CV", "confidence": 0.86, "reasons": reasons}
 
+        if experience_years >= 8 and ("leadership" in lowered or "director" in lowered or "vp" in lowered or "head of" in lowered):
+            reasons.append("Detected seniority and leadership-oriented language typical of executive CVs.")
+            return {"type": "executive_cv", "label": "Executive CV", "confidence": 0.84, "reasons": reasons}
+
+        if experience_years >= 5 and has_projects and "skills" in section_names and summary_words >= 18:
+            reasons.append("Detected a combined summary, skills, and experience structure typical of hybrid resumes.")
+            return {"type": "hybrid_resume", "label": "Hybrid Resume", "confidence": 0.8, "reasons": reasons}
+
         if parse_signals.get("multi_column_detected"):
             reasons.append("Detected a multi-column PDF layout with sidebar-style sections.")
             if "projects" in section_names and experience_years < 1:
                 reasons.append("Projects are carrying a large share of the evidence, which is common in modern student resumes.")
                 return {"type": "modern_two_column_project_first", "label": "Modern Two-Column Project-First Resume", "confidence": 0.83, "reasons": reasons}
+            if has_links and ("behance" in lowered or "dribbble" in lowered or "portfolio" in lowered):
+                reasons.append("Portfolio links and multi-column layout suggest a creative portfolio resume.")
+                return {"type": "creative_portfolio_resume", "label": "Creative Portfolio Resume", "confidence": 0.82, "reasons": reasons}
             return {"type": "modern_two_column", "label": "Modern Two-Column Resume", "confidence": 0.8, "reasons": reasons}
 
-        if "projects" in section_names and experience_years < 1:
+        if has_projects and experience_years < 1:
             reasons.append("Projects carry more evidence than formal work history, which is common in fresher resumes.")
             return {"type": "project_first_entry_level", "label": "Project-First Entry-Level Resume", "confidence": 0.78, "reasons": reasons}
 
-        skills_words = len(sections.get("skills", "").split())
-        experience_words = len(sections.get("experience", "").split())
         if "skills" in section_names and (experience_words == 0 or skills_words > max(50, experience_words * 0.7)):
             reasons.append("Skills section dominates the document relative to experience.")
+            if experience_words < 40:
+                reasons.append("Minimal chronology with a dominant skills section suggests a functional resume.")
+                return {"type": "functional_resume", "label": "Functional Resume", "confidence": 0.79, "reasons": reasons}
             return {"type": "skills_first", "label": "Skills-First Resume", "confidence": 0.72, "reasons": reasons}
+
+        if has_projects and has_links and ("github" in lowered or "portfolio" in lowered):
+            reasons.append("Strong project and portfolio signals indicate a technical portfolio resume.")
+            return {"type": "technical_portfolio_resume", "label": "Technical Portfolio Resume", "confidence": 0.77, "reasons": reasons}
+
+        if word_count <= 420 and parse_signals.get("page_count", 0) <= 1 and parse_signals.get("section_count", 0) >= 4:
+            reasons.append("Compact one-page structure with clear sections suggests a concise resume style.")
+            return {"type": "one_page_concise", "label": "One-Page Concise Resume", "confidence": 0.74, "reasons": reasons}
+
+        if certifications_words >= 16 and experience_years <= 2:
+            reasons.append("Certifications and training are emphasized more than work history.")
+            return {"type": "certification_first_resume", "label": "Certification-First Resume", "confidence": 0.76, "reasons": reasons}
+
+        if has_research and experience_years < 3:
+            reasons.append("Research-heavy content paired with early-career experience suggests a research-to-industry transition resume.")
+            return {"type": "research_transition_resume", "label": "Research-to-Industry Resume", "confidence": 0.78, "reasons": reasons}
 
         if "experience" in section_names:
             reasons.append("Experience-led structure with clear timeline sections.")

@@ -35,10 +35,18 @@ SKILL_PATTERNS = {
     "graphql": [r"\bgraphql\b"],
     "pandas": [r"\bpandas\b"],
     "numpy": [r"\bnumpy\b"],
+    "r": [r"(?<![a-z0-9])r(?![a-z0-9])", r"\br studio\b", r"\brstudio\b"],
+    "sas": [r"\bsas\b"],
     "scikit-learn": [r"\bscikit[- ]learn\b", r"\bsklearn\b", r"\bscifiit[- ]learn\b"],
     "matplotlib": [r"\bmatplotlib\b"],
     "seaborn": [r"\bseaborn\b"],
     "statistics": [r"\bstatistics\b", r"\bstatistical analysis\b"],
+    "hypothesis testing": [r"\bhypothesis testing\b", r"\ba/?b testing\b", r"\bab tests?\b"],
+    "regression": [r"\bregression\b", r"\blinear regression\b", r"\blogistic regression\b"],
+    "forecasting": [r"\bforecasting\b", r"\btime series\b", r"\btime-series\b"],
+    "data visualization": [r"\bdata visualization\b", r"\bdata visualisation\b", r"\bvisualization\b", r"\bdashboarding\b"],
+    "dashboarding": [r"\bdashboarding\b", r"\bdashboards?\b", r"\breport building\b"],
+    "reporting": [r"\breporting\b", r"\breports?\b", r"\bkpi reporting\b"],
     "tensorflow": [r"\btensorflow\b"],
     "pytorch": [r"\bpytorch\b"],
     "nlp": [r"\bnatural language processing\b", r"\bnlp\b"],
@@ -46,7 +54,17 @@ SKILL_PATTERNS = {
     "data analysis": [r"\bdata analysis\b", r"\bdata analytics\b", r"\bdata analyst\b", r"\bexploratory data analysis\b", r"\beda\b"],
     "power bi": [r"\bpower\s*bi\b", r"\bpowerbi\b", r"\bdax\b", r"\bpower query\b", r"\bpower pivot\b", r"\bpowerpivot\b"],
     "tableau": [r"\btableau\b", r"\btableau desktop\b", r"\btableau prep\b"],
+    "looker": [r"\blooker\b", r"\blooker studio\b", r"\bgoogle data studio\b"],
     "excel": [r"\bmicrosoft excel\b", r"\bexcel\b", r"\bpivot tables?\b", r"\bvlookups?\b", r"\bxlookups?\b"],
+    "snowflake": [r"\bsnowflake\b"],
+    "bigquery": [r"\bbigquery\b", r"\bgoogle bigquery\b"],
+    "redshift": [r"\bredshift\b", r"\bamazon redshift\b"],
+    "dbt": [r"\bdbt\b", r"\bdata build tool\b"],
+    "airflow": [r"\bairflow\b", r"\bapache airflow\b"],
+    "pyspark": [r"\bpyspark\b"],
+    "data modeling": [r"\bdata model(?:ing|ling)\b", r"\bdimensional model(?:ing|ling)\b", r"\bstar schema\b"],
+    "data warehousing": [r"\bdata warehouse\b", r"\bdata warehousing\b"],
+    "business intelligence": [r"\bbusiness intelligence\b", r"\bbi\b"],
     "c++": [r"\bc\+\+\b"],
     "c": [r"\bc language\b", r"\bc programming\b", r"\bprogramming in c\b"],
     "spring boot": [r"\bspring boot\b"],
@@ -67,6 +85,7 @@ SKILL_PATTERNS = {
     "spark": [r"\bspark\b", r"\bapache spark\b"],
     "hadoop": [r"\bhadoop\b"],
     "etl": [r"\betl\b", r"\bextract transform load\b", r"\bdata pipelines?\b", r"\bpipeline automation\b"],
+    "kafka": [r"\bkafka\b", r"\bapache kafka\b"],
     "go": [r"\bgolang\b", r"\bgo language\b", r"\bgo programming\b"],
     "rust": [r"\brust\b"],
 }
@@ -80,7 +99,15 @@ SNIPPET_WINDOW = 84
 
 
 def _build_snippet(text: str, start: int, end: int) -> str:
-    snippet = text[max(0, start - SNIPPET_WINDOW): min(len(text), end + SNIPPET_WINDOW)]
+    left = max(0, start - SNIPPET_WINDOW)
+    right = min(len(text), end + SNIPPET_WINDOW)
+
+    while left > 0 and text[left] not in ".!?;\n ":
+        left -= 1
+    while right < len(text) and text[right - 1] not in ".!?;\n ":
+        right += 1
+
+    snippet = text[left:right]
     return normalize_whitespace(snippet)
 
 

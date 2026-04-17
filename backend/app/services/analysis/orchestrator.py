@@ -42,9 +42,13 @@ class AnalysisOrchestrator:
         jobs: list[dict]
         if settings.environment == "production":
             logger.info("Analysis step: using lightweight production review path with live Remotive fetch")
+            production_limit = min(
+                max(limit, settings.production_live_fetch_minimum),
+                settings.production_live_fetch_maximum,
+            )
             try:
                 jobs = await asyncio.wait_for(
-                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=min(limit, 5)),
+                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=production_limit),
                     timeout=min(settings.job_fetch_timeout_seconds, 10.0),
                 )
             except asyncio.TimeoutError:
@@ -448,6 +452,62 @@ class AnalysisOrchestrator:
                     impact="Medium",
                 )
             )
+        if archetype == "functional_resume":
+            items.append(
+                RecommendationItem(
+                    title="Add role-by-role evidence below the functional headings",
+                    detail="Functional resumes need credibility anchors. Add short dated role entries, internships, or projects under each capability area.",
+                    impact="High",
+                )
+            )
+        if archetype == "executive_cv":
+            items.append(
+                RecommendationItem(
+                    title="Lead with scope, scale, and leadership outcomes",
+                    detail="Executive CVs work best when each section shows team size, revenue, budget, transformation scope, or organizational impact.",
+                    impact="High",
+                )
+            )
+        if archetype == "creative_portfolio_resume":
+            items.append(
+                RecommendationItem(
+                    title="Pair portfolio links with ATS-friendly text evidence",
+                    detail="Creative resumes should still include role-specific tools, outcomes, and project context in plain text so ATS systems can read them reliably.",
+                    impact="Medium",
+                )
+            )
+        if archetype == "technical_portfolio_resume":
+            items.append(
+                RecommendationItem(
+                    title="Translate portfolio work into recruiter-ready bullets",
+                    detail="Keep GitHub or portfolio links, but also explain stack, dataset, decisions, and measurable outcomes directly in the resume.",
+                    impact="High",
+                )
+            )
+        if archetype == "one_page_concise":
+            items.append(
+                RecommendationItem(
+                    title="Use the one-page format for signal, not compression",
+                    detail="A concise resume is strongest when every line earns its place with a tool, action, and result rather than short generic bullets.",
+                    impact="Medium",
+                )
+            )
+        if archetype == "certification_first_resume":
+            items.append(
+                RecommendationItem(
+                    title="Balance certifications with project or internship proof",
+                    detail="Certifications help, but recruiter confidence rises when at least two bullets show how you used those tools in practice.",
+                    impact="High",
+                )
+            )
+        if archetype == "research_transition_resume":
+            items.append(
+                RecommendationItem(
+                    title="Translate research into industry outcomes",
+                    detail="Convert research-heavy language into business or product impact by naming datasets, tools, methodology, and the decision value of the work.",
+                    impact="High",
+                )
+            )
 
         if (
             parse_signals.get("merged_header_count", 0)
@@ -603,6 +663,14 @@ class AnalysisOrchestrator:
             feedback["experience_match"].append("Project-first resumes should make each project read like job evidence: tools used, problem solved, and measurable result.")
         if archetype_type == "skills_first":
             feedback["experience_match"].append("Skills-first resumes need clearer dates and chronology so recruiters can trust the experience story.")
+        if archetype_type == "functional_resume":
+            feedback["experience_match"].append("Functional resumes need concrete dated evidence under each capability block so the skill claims feel credible.")
+        if archetype_type == "executive_cv":
+            feedback["resume_quality"].append("Executive resumes score best when each bullet communicates organizational scope, leadership, and measurable business impact.")
+        if archetype_type in {"creative_portfolio_resume", "technical_portfolio_resume"}:
+            feedback["ats_compliance"].append("Portfolio-heavy resumes still need plain-text tool, role, and outcome evidence so ATS systems can capture the signal.")
+        if archetype_type == "research_transition_resume":
+            feedback["experience_match"].append("Research-to-industry resumes score better when experiments and studies are translated into product, business, or analytics outcomes.")
         if matched_skills and not missing_skills:
             feedback["skill_match"].append("The current sample did not expose a strong missing-skill cluster, so use the recommendations below to widen your tool coverage.")
         return feedback

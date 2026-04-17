@@ -97,6 +97,19 @@ ROLE_SEARCH_VARIATIONS = {
         "product designer",
     ],
 }
+ROLE_PRODUCTION_VARIATIONS = {
+    "data analyst": ["data analyst", "data", "analytics"],
+    "data scientist": ["data scientist", "machine learning", "data"],
+    "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
+    "data engineer": ["data engineer", "data", "etl"],
+    "software engineer": ["software engineer", "developer", "backend"],
+    "frontend developer": ["frontend developer", "frontend", "react"],
+    "full stack developer": ["full stack developer", "full stack", "developer"],
+    "devops engineer": ["devops engineer", "devops", "cloud"],
+    "qa engineer": ["qa engineer", "testing", "quality assurance"],
+    "product manager": ["product manager", "product", "product owner"],
+    "ui/ux designer": ["ui ux designer", "product designer", "design"],
+}
 ROLE_MARKET_HINTS = {
     "data analyst": {"sql", "excel", "power bi", "tableau", "statistics", "data analysis", "pandas", "python"},
     "data scientist": {"python", "pandas", "numpy", "machine learning", "scikit-learn", "sql", "statistics"},
@@ -156,6 +169,14 @@ def query_variations(query: str) -> list[str]:
     if normalized not in variations:
         variations = [normalized, *variations]
     return list(dict.fromkeys(item for item in variations if item))
+
+
+def production_query_variations(query: str) -> list[str]:
+    normalized = normalize_role(query)
+    variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
+    if normalized not in variations:
+        variations = [normalized, *variations]
+    return list(dict.fromkeys(item for item in variations if item))[:3]
 
 
 def role_market_hints(query: str) -> set[str]:

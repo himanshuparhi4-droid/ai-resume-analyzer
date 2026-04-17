@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     job_request_timeout_seconds: float = 8.0
     job_fetch_timeout_seconds: float = 25.0
     enable_live_market_fetch: bool = True
+    production_live_fetch_minimum: int = 20
+    production_live_fetch_maximum: int = 24
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360
