@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_optional_user
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.rate_limit import limiter
 from app.models.user import User
 from app.schemas.analysis import AnalysisResponse
 from app.services.analysis.orchestrator import AnalysisOrchestrator
@@ -16,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/resume", response_model=AnalysisResponse)
-@limiter.limit("20/hour")
 async def analyze_resume(request: Request, resume: UploadFile = File(...), role_query: str = Form(...), location: str = Form("India"), limit: int = Form(12), db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)) -> AnalysisResponse:
     file_bytes = await resume.read()
     if not file_bytes:
