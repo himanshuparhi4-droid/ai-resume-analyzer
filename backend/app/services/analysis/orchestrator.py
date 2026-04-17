@@ -42,7 +42,7 @@ class AnalysisOrchestrator:
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         jobs: list[dict]
         if settings.environment == "production":
-            logger.info("Analysis step: using lightweight production review path with live Remotive fetch")
+            logger.info("Analysis step: using lightweight production review path with live market fetch")
             production_limit = min(
                 max(limit, settings.production_live_fetch_minimum),
                 settings.production_live_fetch_maximum,

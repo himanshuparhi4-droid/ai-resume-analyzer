@@ -50,13 +50,19 @@ class TheMuseProvider:
 
         request_specs: list[dict[str, str]] = []
         if categories:
-            for category in categories[:2]:
-                request_specs.append({"category": category})
-            if use_location:
-                request_specs.extend({"category": category, "location": location_value} for category in categories[:1])
+            if settings.environment == "production":
+                # Keep hosted requests fast and broad: one category page usually
+                # yields enough raw candidates, and the ranking step can keep
+                # only the roles that actually match the requested family.
+                request_specs.append({"category": categories[0]})
+            else:
+                for category in categories[:2]:
+                    request_specs.append({"category": category})
+                if use_location:
+                    request_specs.extend({"category": category, "location": location_value} for category in categories[:1])
         else:
             request_specs.append({})
-            if use_location:
+            if use_location and settings.environment != "production":
                 request_specs.append({"location": location_value})
 
         collected: list[dict] = []

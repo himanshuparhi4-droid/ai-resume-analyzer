@@ -77,12 +77,10 @@ class JobAggregator:
 
         if source in {"auto", "themuse"}:
             add(RemotiveProvider())
-            add(RemoteOKProvider())
             return providers
 
         if source == "remotive":
             add(RemotiveProvider())
-            add(RemoteOKProvider())
             return providers
 
         if source == "remoteok":
@@ -92,16 +90,13 @@ class JobAggregator:
 
         if source == "adzuna" and settings.has_adzuna_credentials:
             add(RemotiveProvider())
-            add(RemoteOKProvider())
             return providers
 
         if source == "usajobs" and settings.has_usajobs_credentials:
             add(RemotiveProvider())
-            add(RemoteOKProvider())
             return providers
 
         add(RemotiveProvider())
-        add(RemoteOKProvider())
         return providers
 
     def _use_cache(self) -> bool:
@@ -223,7 +218,14 @@ class JobAggregator:
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
         async def safe_search(provider: object, search_query: str, search_location: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
-            provider_timeout = 4.5 if source_name == "themuse" else 3.5
+            if source_name == "themuse":
+                provider_timeout = 5.5
+            elif source_name == "remotive":
+                provider_timeout = 4.5
+            elif source_name == "remoteok":
+                provider_timeout = 2.5
+            else:
+                provider_timeout = 4.0
             provider_diag = {
                 "provider": provider.__class__.__name__,
                 "source": source_name,
@@ -240,14 +242,15 @@ class JobAggregator:
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return items
             except Exception as exc:
+                error_message = str(exc) or exc.__class__.__name__
                 logger.warning(
                     "Production job provider search failed for %s (query=%s, location=%s): %s",
                     provider.__class__.__name__,
                     search_query,
                     search_location,
-                    exc,
+                    error_message,
                 )
-                provider_diag["error"] = str(exc)
+                provider_diag["error"] = error_message
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
 
@@ -461,10 +464,14 @@ class JobAggregator:
         )
 
     def _search_queries(self, provider: object, query: str) -> list[str]:
-        if settings.environment == "production":
-            return production_query_variations(query)
         if not getattr(provider, "supports_query_variations", True):
             return [query]
+        if settings.environment == "production":
+            source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
+            variations = production_query_variations(query)
+            if source_name == "remotive":
+                return variations[:4]
+            return variations[:3]
         return query_variations(query)
 
     def _search_locations(self, provider: object, location: str) -> list[str]:

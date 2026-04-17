@@ -735,15 +735,17 @@ class SkillGroundingService:
             }
         )
         sparse_role = normalized_role in SPARSE_LIVE_MARKET_ROLES
+        sufficient_live_depth = len(live_jobs) >= max(8, settings.production_live_fetch_minimum)
         live_target_reached = (
             not sparse_role
-            and len(live_jobs) >= 8
-            and len(live_skills) >= max(4, min(6, len(expected_skills) or 4))
-            and role_coverage >= 0.3
+            and sufficient_live_depth
+            and len(live_skills) >= 3
+            and company_count >= 2
+            and title_count >= 2
         )
         min_live_jobs = 1 if sparse_role else 4
         min_live_skills = 2 if sparse_role else max(3, min(5, len(expected_skills) or 4))
-        min_role_coverage = 0.2 if sparse_role else 0.3
+        min_role_coverage = 0.2 if sparse_role else 0.22
         min_company_count = 1 if sparse_role else 2
         min_title_count = 1 if sparse_role else 2
         needs_blend = False if live_target_reached else (

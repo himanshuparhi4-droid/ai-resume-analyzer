@@ -112,6 +112,37 @@ SNIPPET_WINDOW = 84
 SENTENCE_PUNCTUATION = ".!?;\n"
 
 
+def _clean_snippet_edges(snippet: str) -> str:
+    cleaned = normalize_whitespace(snippet).strip(" ,;:-")
+    cleaned = re.sub(r"^[^\w+(]+", "", cleaned)
+    cleaned = cleaned.strip(" ,;:-")
+    if not cleaned:
+        return ""
+
+    words = cleaned.split()
+    # OCR-heavy PDFs sometimes hand us a fragment like "pple" or "ing" as the
+    # first token. If the opener looks like a broken lowercase fragment and the
+    # next token is also lowercase, drop that fragment so the proof starts on a
+    # more natural word boundary.
+    if len(words) >= 2:
+        first = words[0]
+        second = words[1]
+        if (
+            len(first) <= 4
+            and first.isalpha()
+            and first.islower()
+            and second.isalpha()
+            and second.islower()
+            and first not in KNOWN_SKILLS
+        ):
+            cleaned = " ".join(words[1:]).strip(" ,;:-")
+
+    first_token_match = re.search(r"[A-Za-z0-9(+]", cleaned)
+    if first_token_match and first_token_match.start() > 0:
+        cleaned = cleaned[first_token_match.start():]
+    return cleaned.strip(" ,;:-")
+
+
 def _build_snippet(text: str, start: int, end: int) -> str:
     sentence_left = start
     sentence_right = end
@@ -123,10 +154,9 @@ def _build_snippet(text: str, start: int, end: int) -> str:
     if sentence_right < len(text):
         sentence_right += 1
 
-    sentence = normalize_whitespace(text[sentence_left:sentence_right]).strip(" ,;:-")
+    sentence = _clean_snippet_edges(text[sentence_left:sentence_right])
     if sentence and len(sentence) <= 220:
-        sentence = re.sub(r"^[^\w+(]+", "", sentence)
-        return sentence.strip(" ,;:-")
+        return sentence
 
     left = max(0, start - SNIPPET_WINDOW)
     right = min(len(text), end + SNIPPET_WINDOW)
@@ -135,13 +165,7 @@ def _build_snippet(text: str, start: int, end: int) -> str:
     while right < len(text) and text[right].isalnum():
         right += 1
 
-    snippet = normalize_whitespace(text[left:right]).strip(" ,;:-")
-    snippet = re.sub(r"^[^\w+(]+", "", snippet)
-    snippet = snippet.strip(" ,;:-")
-    first_token_match = re.search(r"[A-Za-z0-9(+]", snippet)
-    if first_token_match and first_token_match.start() > 0:
-        snippet = snippet[first_token_match.start():]
-    return snippet
+    return _clean_snippet_edges(text[left:right])
 
 
 def _exact_skill_pattern(skill: str) -> re.Pattern[str]:
