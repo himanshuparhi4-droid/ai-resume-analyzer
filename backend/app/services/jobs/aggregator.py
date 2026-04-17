@@ -221,17 +221,19 @@ class JobAggregator:
         return collected[:limit]
 
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
-        async def safe_search(provider: object) -> list[dict]:
+        async def safe_search(provider: object, search_query: str, search_location: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             provider_timeout = 4.5 if source_name == "themuse" else 3.5
             provider_diag = {
                 "provider": provider.__class__.__name__,
                 "source": source_name,
                 "timeout_seconds": provider_timeout,
+                "query": search_query,
+                "location": search_location,
             }
             try:
                 items = await asyncio.wait_for(
-                    provider.search(query=query, location=location, limit=max(8, limit)),
+                    provider.search(query=search_query, location=search_location, limit=max(8, limit)),
                     timeout=provider_timeout,
                 )
                 provider_diag["result_count"] = len(items)
@@ -241,15 +243,23 @@ class JobAggregator:
                 logger.warning(
                     "Production job provider search failed for %s (query=%s, location=%s): %s",
                     provider.__class__.__name__,
-                    query,
-                    location,
+                    search_query,
+                    search_location,
                     exc,
                 )
                 provider_diag["error"] = str(exc)
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
 
-        provider_results = await asyncio.gather(*(safe_search(provider) for provider in self.providers))
+        tasks = []
+        for provider in self.providers:
+            search_queries = self._search_queries(provider, query)
+            search_locations = self._search_locations(provider, location)
+            for search_query in search_queries:
+                for search_location in search_locations[:1]:
+                    tasks.append(safe_search(provider, search_query, search_location))
+
+        provider_results = await asyncio.gather(*tasks)
         collected: list[dict] = []
         seen: set[str] = set()
 
