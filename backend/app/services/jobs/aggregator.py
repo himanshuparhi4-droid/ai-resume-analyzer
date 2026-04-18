@@ -32,6 +32,24 @@ from app.utils.text import truncate
 
 logger = logging.getLogger(__name__)
 
+GLOBAL_REMOTE_HINTS = {"remote", "worldwide", "global", "anywhere"}
+INDIA_LOCATION_HINTS = {"india", "indian", "bengaluru", "bangalore", "hyderabad", "pune", "mumbai", "delhi", "gurgaon", "gurugram", "noida", "chennai", "kolkata", "ahmedabad"}
+ASIA_LOCATION_HINTS = {"apac", "asia", "south asia", "southeast asia"}
+NON_INDIA_REGION_HINTS = {
+    "usa",
+    "united states",
+    "north america",
+    "uk",
+    "united kingdom",
+    "emea",
+    "europe",
+    "canada",
+    "australia",
+    "new zealand",
+    "latam",
+    "latin america",
+}
+
 
 class JobAggregator:
     def __init__(self, db: Session | None = None) -> None:
@@ -160,8 +178,9 @@ class JobAggregator:
                         item["normalized_data"] = {**preserved, **refreshed}
                         cached_updated = True
                     item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
-                filtered_cached = self._filter_relevant_jobs(query, cached)
+                    item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
+                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
+                filtered_cached = self._filter_relevant_jobs(query, cached, location=location)
                 if cached_updated and filtered_cached:
                     filtered_cached = cache.store_jobs(jobs=filtered_cached, query=query, location=location)
                 if filtered_cached:
@@ -194,7 +213,8 @@ class JobAggregator:
                         item.setdefault("normalized_data", {})
                         item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                         item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                        item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
+                        item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
+                        item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
                         collected.append(item)
                     if len(collected) >= limit * 2:
                         break
@@ -208,7 +228,7 @@ class JobAggregator:
                 break
 
         if settings.environment == "production":
-            preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+            preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
             if preferred_live:
                 logger.info(
                     "Production live selection kept %s jobs from %s collected candidates for query=%s",
@@ -218,7 +238,7 @@ class JobAggregator:
                 )
                 return preferred_live
 
-        collected = self._filter_relevant_jobs(query, collected)
+        collected = self._filter_relevant_jobs(query, collected, location=location)
 
         if use_cache and collected:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
@@ -281,7 +301,8 @@ class JobAggregator:
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                     item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
+                    item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
+                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
                     collected.append(item)
 
         async def run_stage(stage: str, providers: list[object]) -> list[dict]:
@@ -296,7 +317,7 @@ class JobAggregator:
                 return []
             provider_results = await asyncio.gather(*tasks)
             absorb_results(provider_results)
-            return self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+            return self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
 
         source_groups: dict[str, list[object]] = {}
         for provider in self.providers:
@@ -388,7 +409,7 @@ class JobAggregator:
             return preferred_live
         return []
 
-    def _select_production_live_jobs(self, *, query: str, jobs: list[dict], limit: int) -> list[dict]:
+    def _select_production_live_jobs(self, *, query: str, location: str, jobs: list[dict], limit: int) -> list[dict]:
         live_jobs = [item for item in jobs if item.get("source") != "role-baseline"]
         if not live_jobs:
             return []
@@ -400,6 +421,7 @@ class JobAggregator:
             live_jobs,
             key=lambda item: (
                 self._role_domain_match_score(query, item),
+                self._location_alignment_score(location, item),
                 self._title_hint_overlap(query, item),
                 self._skill_overlap_score(query, item),
                 float(item.get("normalized_data", {}).get("role_fit_score", 0.0)),
@@ -426,15 +448,15 @@ class JobAggregator:
                 if len(selected) >= limit:
                     break
 
-        strong_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=True)]
+        strong_candidates = [item for item in ranked if self._is_production_live_candidate(query, location, item, strict=True)]
         selection_debug["strong_candidates"] = len(strong_candidates)
         maybe_add(strong_candidates, cap_per_company=2)
         if len(selected) < target_live_count:
-            secondary_candidates = [item for item in ranked if self._is_production_live_candidate(query, item, strict=False)]
+            secondary_candidates = [item for item in ranked if self._is_production_live_candidate(query, location, item, strict=False)]
             selection_debug["secondary_candidates"] = len(secondary_candidates)
             maybe_add(secondary_candidates, cap_per_company=3)
         if len(selected) < target_live_count:
-            family_candidates = [item for item in ranked if self._is_family_live_candidate(query, item)]
+            family_candidates = [item for item in ranked if self._is_family_live_candidate(query, location, item)]
             selection_debug["family_candidates"] = len(family_candidates)
             maybe_add(family_candidates, cap_per_company=4)
         if len(selected) < target_live_count:
@@ -490,7 +512,7 @@ class JobAggregator:
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
 
-    def _is_production_live_candidate(self, query: str, item: dict, *, strict: bool) -> bool:
+    def _is_production_live_candidate(self, query: str, location: str, item: dict, *, strict: bool) -> bool:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         market_quality = float(normalized.get("market_quality_score", 0.0))
@@ -498,9 +520,15 @@ class JobAggregator:
         family_overlap = self._family_token_overlap(query, item)
         skill_overlap = self._skill_overlap_score(query, item)
         domain_score = self._role_domain_match_score(query, item)
+        location_score = self._location_alignment_score(location, item)
         source = str(item.get("source", ""))
 
+        if self._is_location_hard_mismatch(location, item):
+            return False
+
         if strict:
+            if location_score < 0.2:
+                return False
             if source in {"themuse", "jobicy"} and domain_score >= 2 and (title_overlap >= 1 or skill_overlap >= 1.5 or family_overlap >= 1):
                 return True
             if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2) and market_quality >= 18.0:
@@ -521,6 +549,8 @@ class JobAggregator:
                 return True
             return False
 
+        if location_score <= 0.0:
+            return False
         if source in {"themuse", "jobicy"} and domain_score >= 2:
             return True
         if source in {"themuse", "jobicy"} and (title_overlap >= 1 or family_overlap >= 2):
@@ -539,7 +569,7 @@ class JobAggregator:
             return True
         return False
 
-    def _is_family_live_candidate(self, query: str, item: dict) -> bool:
+    def _is_family_live_candidate(self, query: str, location: str, item: dict) -> bool:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         market_quality = float(normalized.get("market_quality_score", 0.0))
@@ -547,6 +577,8 @@ class JobAggregator:
         domain_score = self._role_domain_match_score(query, item)
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
+        if self._is_location_hard_mismatch(location, item):
+            return False
         return (
             (domain_score >= 2 and skill_overlap >= 1.0)
             or (domain_score >= 1 and title_overlap >= 1)
@@ -605,21 +637,29 @@ class JobAggregator:
         primary_overlap = len(skills & role_primary_hints(query))
         return (primary_overlap * 1.5) + market_overlap
 
-    def _filter_relevant_jobs(self, query: str, jobs: list[dict]) -> list[dict]:
+    def _filter_relevant_jobs(self, query: str, jobs: list[dict], *, location: str = "") -> list[dict]:
         ordered = sorted(
             jobs,
-            key=lambda item: item.get("normalized_data", {}).get("market_quality_score", 0.0),
+            key=lambda item: (
+                self._location_alignment_score(location, item),
+                item.get("normalized_data", {}).get("market_quality_score", 0.0),
+            ),
             reverse=True,
         )
-        filtered = [item for item in ordered if self._passes_quality_gate(query, item)]
+        filtered = [item for item in ordered if self._passes_quality_gate(query, item, location=location)]
         if filtered:
             return filtered
         if settings.environment == "production":
-            relaxed = [item for item in ordered if float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 6.0]
+            relaxed = [
+                item
+                for item in ordered
+                if float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 6.0
+                and not self._is_location_hard_mismatch(location, item)
+            ]
             return relaxed[: max(1, min(5, len(relaxed)))]
         return filtered if filtered else []
 
-    def _market_quality_score(self, query: str, item: dict) -> float:
+    def _market_quality_score(self, query: str, location: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
@@ -627,14 +667,17 @@ class JobAggregator:
         skill_count = len(skills)
         hint_overlap = len(skills & role_market_hints(query))
         primary_overlap = len(skills & role_primary_hints(query))
-        return round((role_fit * 10) + requirement_quality + min(10, skill_count * 1.5) + (hint_overlap * 8) + (primary_overlap * 12), 2)
+        location_score = self._location_alignment_score(location, item)
+        return round((role_fit * 10) + requirement_quality + min(10, skill_count * 1.5) + (hint_overlap * 8) + (primary_overlap * 12) + (location_score * 18), 2)
 
-    def _passes_quality_gate(self, query: str, item: dict) -> bool:
+    def _passes_quality_gate(self, query: str, item: dict, *, location: str = "") -> bool:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
+        if self._is_location_hard_mismatch(location, item):
+            return False
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0:
             return True
         if role_fit < 2.0:
@@ -662,6 +705,44 @@ class JobAggregator:
             return False
 
         return requirement_quality >= 22.0 or skill_count >= 3 or role_fit >= 4.5
+
+    def _location_alignment_score(self, requested_location: str, item: dict) -> float:
+        requested = normalize_role(str(requested_location or "")).strip().lower()
+        job_location = str(item.get("location", "") or "").strip().lower()
+        remote = bool(item.get("remote"))
+
+        if not requested or requested in GLOBAL_REMOTE_HINTS:
+            return 1.0 if remote or any(hint in job_location for hint in GLOBAL_REMOTE_HINTS) else 0.75
+        if requested in job_location:
+            return 1.0
+
+        if requested == "india":
+            if any(token in job_location for token in INDIA_LOCATION_HINTS):
+                return 1.0
+            if any(token in job_location for token in ASIA_LOCATION_HINTS):
+                return 0.72
+            if remote and not job_location:
+                return 0.78
+            if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
+                return 0.74
+            if any(token in job_location for token in NON_INDIA_REGION_HINTS):
+                return 0.0
+            return 0.18 if remote else 0.0
+
+        if remote and not job_location:
+            return 0.72
+        if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
+            return 0.7
+        return 0.0
+
+    def _is_location_hard_mismatch(self, requested_location: str, item: dict) -> bool:
+        requested = normalize_role(str(requested_location or "")).strip().lower()
+        if not requested or requested in GLOBAL_REMOTE_HINTS:
+            return False
+        job_location = str(item.get("location", "") or "").strip().lower()
+        if requested == "india":
+            return any(token in job_location for token in NON_INDIA_REGION_HINTS)
+        return False
 
     def _needs_requirement_refresh(self, item: dict) -> bool:
         normalized = item.get("normalized_data", {}) or {}

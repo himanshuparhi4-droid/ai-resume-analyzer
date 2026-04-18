@@ -97,6 +97,9 @@ TITLE_IMPLIED_SKILLS = {
     "data engineer": {"sql": 0.62, "etl": 0.72, "data warehousing": 0.58},
     "data scientist": {"python": 0.56, "statistics": 0.56, "machine learning": 0.72},
     "teacher": {"lesson planning": 0.64, "classroom management": 0.66, "curriculum development": 0.6},
+    "lecturer": {"lesson planning": 0.6, "curriculum development": 0.64, "student assessment": 0.52, "pedagogy": 0.48},
+    "professor": {"curriculum development": 0.62, "student assessment": 0.5, "pedagogy": 0.46},
+    "faculty": {"lesson planning": 0.56, "curriculum development": 0.6, "student assessment": 0.48},
     "painter": {"painting": 0.68, "surface preparation": 0.64, "color matching": 0.6, "spray painting": 0.58},
 }
 GENERIC_REQUIREMENT_HEADS = (
@@ -128,12 +131,16 @@ GENERIC_ROLE_TERMS = {
     "teacher",
     "educator",
     "instructor",
+    "lecturer",
+    "faculty",
+    "professor",
     "painter",
     "designer",
     "specialist",
     "consultant",
     "coordinator",
     "representative",
+    "customer success",
     "scientist",
     "administrator",
     "architect",
@@ -147,8 +154,15 @@ GENERIC_SKILL_NOISE = {
     "ability to work independently",
     "attention to detail",
     "data and analytics",
+    "data",
     "communication skills",
+    "customer success",
+    "disability",
+    "disabilities",
+    "education",
+    "higher education",
     "content",
+    "benefits",
     "data annotation",
     "digital nomad",
     "entry level",
@@ -169,6 +183,20 @@ GENERIC_SKILL_NOISE = {
     "problem solving",
     "sales",
     "saas",
+    "gender",
+    "age",
+    "religion",
+    "religious belief",
+    "national origin",
+    "ethnicity",
+    "race",
+    "veteran status",
+    "marital status",
+    "equal opportunity",
+    "equal employment opportunity",
+    "compensation",
+    "salary",
+    "state",
     "senior level",
     "senior",
     "social media",
@@ -260,6 +288,8 @@ def _is_valid_candidate_skill(skill: str) -> bool:
     if any(skill.startswith(prefix) for prefix in NON_SKILL_OPENERS):
         return False
     if any(token in {"degree", "discipline", "required", "preferred", "others", "current", "experience", "knowledge"} for token in tokens):
+        return False
+    if any(token in {"age", "gender", "religion", "disability", "benefits", "salary", "compensation", "state", "origin"} for token in tokens):
         return False
     if skill.endswith(" level"):
         return False
@@ -402,6 +432,8 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
     for item in explicit_matches:
         skill = item["skill"]
         if skill in SOFT_SKILLS:
+            continue
+        if skill in {"reporting", "customer success"} and not any(title_key in title_lower for title_key in {"analyst", "business", "customer", "success", "operations", "manager"}):
             continue
 
         snippet_lower = item["snippet"].lower()

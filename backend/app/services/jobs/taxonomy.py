@@ -40,6 +40,11 @@ ROLE_SYNONYMS = {
     "teacher": "teacher",
     "educator": "teacher",
     "instructor": "teacher",
+    "lecturer": "teacher",
+    "faculty": "teacher",
+    "professor": "teacher",
+    "assistant professor": "teacher",
+    "associate professor": "teacher",
     "carpenter": "carpenter",
     "finish carpenter": "carpenter",
     "rough carpenter": "carpenter",
@@ -120,6 +125,9 @@ ROLE_SEARCH_VARIATIONS = {
         "teacher",
         "educator",
         "instructor",
+        "lecturer",
+        "faculty",
+        "assistant professor",
         "tutor",
     ],
     "carpenter": [
@@ -147,7 +155,7 @@ ROLE_PRODUCTION_VARIATIONS = {
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
-    "teacher": ["teacher", "instructor", "educator", "curriculum", "lesson planning"],
+    "teacher": ["lecturer", "teacher", "faculty", "assistant professor", "instructor", "educator"],
     "carpenter": ["carpenter", "finish carpenter", "rough carpenter", "woodworking", "framing"],
     "painter": ["painter", "painting", "surface preparation", "coating", "spray"],
 }
@@ -163,7 +171,7 @@ ROLE_MARKET_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
-    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy", "differentiated instruction"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy", "differentiated instruction", "teaching", "academic instruction"},
     "carpenter": {"woodworking", "framing", "blueprint reading", "finish carpentry", "power tools", "measuring", "safety compliance"},
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "safety compliance", "coating"},
 }
@@ -179,7 +187,7 @@ ROLE_PRIMARY_HINTS = {
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
-    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction"},
+    "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction", "teaching"},
     "carpenter": {"woodworking", "framing", "blueprint reading", "finish carpentry", "power tools"},
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
@@ -195,7 +203,7 @@ ROLE_TITLE_HINTS = {
     "qa engineer": {"qa", "quality assurance", "test", "automation"},
     "product manager": {"product manager", "product owner", "product"},
     "ui/ux designer": {"designer", "ui", "ux", "product designer"},
-    "teacher": {"teacher", "educator", "instructor", "tutor", "faculty"},
+    "teacher": {"teacher", "educator", "instructor", "lecturer", "professor", "faculty", "tutor", "assistant professor"},
     "carpenter": {"carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"},
     "painter": {"painter", "painting", "coating", "spray", "finisher"},
 }
@@ -211,7 +219,7 @@ ROLE_KEYWORD_FAMILIES = {
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
     "product manager": ("product manager", "product owner", "associate product manager"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
-    "teacher": ("teacher", "educator", "instructor", "tutor", "faculty"),
+    "teacher": ("teacher", "educator", "instructor", "lecturer", "professor", "assistant professor", "faculty", "tutor"),
     "carpenter": ("carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"),
     "painter": ("painter", "painting", "coating", "spray"),
 }

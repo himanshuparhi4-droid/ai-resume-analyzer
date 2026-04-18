@@ -36,7 +36,7 @@ SKILL_PATTERNS = {
     "graphql": [r"\bgraphql\b"],
     "pandas": [r"\bpandas\b"],
     "numpy": [r"\bnumpy\b"],
-    "r": [r"(?<![a-z0-9])r(?![a-z0-9])", r"\br studio\b", r"\brstudio\b"],
+    "r": [r"\br programming\b", r"\br language\b", r"\br studio\b", r"\brstudio\b"],
     "sas": [r"\bsas\b"],
     "scikit-learn": [r"\bscikit[- ]learn\b", r"\bsklearn\b", r"\bscifiit[- ]learn\b"],
     "matplotlib": [r"\bmatplotlib\b"],
