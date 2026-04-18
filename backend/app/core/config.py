@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     enable_live_market_fetch: bool = True
     production_live_fetch_minimum: int = 8
     production_live_fetch_maximum: int = 12
+    production_live_display_minimum: int = 6
+    production_live_candidate_fetch: int = 24
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360

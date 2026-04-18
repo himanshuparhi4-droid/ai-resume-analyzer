@@ -225,14 +225,14 @@ class JobAggregator:
         return collected[:limit]
 
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
-        async def safe_search(provider: object, search_query: str, search_location: str) -> list[dict]:
+        async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
-            if source_name == "themuse":
-                provider_timeout = 8.5
-            elif source_name == "jobicy":
-                provider_timeout = 4.0
+            if source_name == "jobicy":
+                provider_timeout = 6.5
             elif source_name == "remotive":
-                provider_timeout = 4.5
+                provider_timeout = 3.75
+            elif source_name == "themuse":
+                provider_timeout = 8.0
             elif source_name == "remoteok":
                 provider_timeout = 2.5
             else:
@@ -243,6 +243,7 @@ class JobAggregator:
                 "timeout_seconds": provider_timeout,
                 "query": search_query,
                 "location": search_location,
+                "stage": stage,
             }
             try:
                 items = await asyncio.wait_for(
@@ -265,31 +266,112 @@ class JobAggregator:
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
 
-        tasks = []
-        for provider in self.providers:
-            search_queries = self._search_queries(provider, query)
-            search_locations = self._search_locations(provider, location)
-            for search_query in search_queries:
-                for search_location in search_locations[:1]:
-                    tasks.append(safe_search(provider, search_query, search_location))
-
-        provider_results = await asyncio.gather(*tasks)
         collected: list[dict] = []
         seen: set[str] = set()
+        sparse_role = is_sparse_live_market_role(query)
+        live_floor = self._production_display_floor(query=query, limit=limit)
 
-        for items in provider_results:
-            for item in items:
-                key = dedupe_key(item)
-                if key in seen:
-                    continue
-                seen.add(key)
-                item.setdefault("normalized_data", {})
-                item.setdefault("preview", truncate(str(item.get("description", "")), 260))
-                item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
-                collected.append(item)
+        def absorb_results(provider_results: list[list[dict]]) -> None:
+            for items in provider_results:
+                for item in items:
+                    key = dedupe_key(item)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    item.setdefault("normalized_data", {})
+                    item.setdefault("preview", truncate(str(item.get("description", "")), 260))
+                    item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
+                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, item)
+                    collected.append(item)
 
-        preferred_live = self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+        async def run_stage(stage: str, providers: list[object]) -> list[dict]:
+            tasks = []
+            for provider in providers:
+                search_queries = self._search_queries(provider, query)
+                search_locations = self._search_locations(provider, location)
+                for search_query in search_queries:
+                    for search_location in search_locations[:1]:
+                        tasks.append(safe_search(provider, search_query, search_location, stage))
+            if not tasks:
+                return []
+            provider_results = await asyncio.gather(*tasks)
+            absorb_results(provider_results)
+            return self._select_production_live_jobs(query=query, jobs=collected, limit=limit)
+
+        source_groups: dict[str, list[object]] = {}
+        for provider in self.providers:
+            source_groups.setdefault(str(getattr(provider, "source_name", provider.__class__.__name__)).lower(), []).append(provider)
+
+        stage_results: list[dict] = []
+        primary_sources = ["remotive"] if sparse_role else ["jobicy"]
+        primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
+        preferred_live = await run_stage("primary", primary_providers)
+        stage_results.append(
+            {
+                "stage": "primary",
+                "sources": primary_sources,
+                "collected_candidates": len(collected),
+                "selected_live": len(preferred_live),
+            }
+        )
+        if len(preferred_live) >= live_floor:
+            self.last_fetch_diagnostics["stage_results"] = stage_results
+            self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+            self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+            self.last_fetch_diagnostics["selected_live_sources"] = {
+                source: len([item for item in preferred_live if item.get("source") == source])
+                for source in sorted({item.get("source", "unknown") for item in preferred_live})
+            }
+            logger.info(
+                "Production live selection reached floor with %s jobs from %s collected candidates for query=%s",
+                len(preferred_live),
+                len(collected),
+                query,
+            )
+            return preferred_live
+
+        supplemental_sources = [] if sparse_role else ["remotive"]
+        supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
+        if supplemental_providers:
+            preferred_live = await run_stage("supplemental", supplemental_providers)
+            stage_results.append(
+                {
+                    "stage": "supplemental",
+                    "sources": supplemental_sources,
+                    "collected_candidates": len(collected),
+                    "selected_live": len(preferred_live),
+                }
+            )
+            if len(preferred_live) >= live_floor:
+                self.last_fetch_diagnostics["stage_results"] = stage_results
+                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+                self.last_fetch_diagnostics["selected_live_sources"] = {
+                    source: len([item for item in preferred_live if item.get("source") == source])
+                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
+                }
+                logger.info(
+                    "Production live selection reached floor after supplemental fetch with %s jobs from %s candidates for query=%s",
+                    len(preferred_live),
+                    len(collected),
+                    query,
+                )
+                return preferred_live
+
+        fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
+        fallback_providers = [provider for source in fallback_sources for provider in source_groups.get(source, [])]
+        if fallback_providers:
+            preferred_live = await run_stage("fallback", fallback_providers)
+            stage_results.append(
+                {
+                    "stage": "fallback",
+                    "sources": fallback_sources,
+                    "collected_candidates": len(collected),
+                    "selected_live": len(preferred_live),
+                }
+            )
+
+        self.last_fetch_diagnostics["stage_results"] = stage_results
         self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
         self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
         self.last_fetch_diagnostics["selected_live_sources"] = {
@@ -312,6 +394,7 @@ class JobAggregator:
             return []
 
         target_live_count = self._production_live_target(query=query, limit=limit)
+        display_floor = self._production_display_floor(query=query, limit=limit)
 
         ranked = sorted(
             live_jobs,
@@ -355,6 +438,19 @@ class JobAggregator:
             selection_debug["family_candidates"] = len(family_candidates)
             maybe_add(family_candidates, cap_per_company=4)
         if len(selected) < target_live_count:
+            dense_jobicy_candidates = [
+                item
+                for item in ranked
+                if item.get("source") == "jobicy"
+                and (
+                    self._title_hint_overlap(query, item) >= 1
+                    or self._family_token_overlap(query, item) >= 1
+                    or self._role_domain_match_score(query, item) >= 2
+                )
+            ]
+            selection_debug["dense_jobicy_candidates"] = len(dense_jobicy_candidates)
+            maybe_add(dense_jobicy_candidates, cap_per_company=4)
+        if len(selected) < target_live_count:
             tertiary_candidates = [
                 item
                 for item in ranked
@@ -379,6 +475,15 @@ class JobAggregator:
             ]
             selection_debug["fallback_candidates"] = len(fallback_candidates)
             maybe_add(fallback_candidates, cap_per_company=5)
+        if len(selected) < display_floor:
+            last_resort_candidates = [
+                item
+                for item in ranked
+                if item.get("source") == "jobicy"
+                and float(item.get("normalized_data", {}).get("market_quality_score", 0.0)) >= 18.0
+            ]
+            selection_debug["last_resort_jobicy_candidates"] = len(last_resort_candidates)
+            maybe_add(last_resort_candidates, cap_per_company=5)
 
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
@@ -488,6 +593,11 @@ class JobAggregator:
             return min(limit, 4)
         return min(limit, max(8, settings.production_live_fetch_minimum))
 
+    def _production_display_floor(self, *, query: str, limit: int) -> int:
+        if is_sparse_live_market_role(query):
+            return min(limit, 1)
+        return min(limit, max(4, settings.production_live_display_minimum))
+
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
@@ -573,7 +683,7 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             variations = production_query_variations(query)
             if source_name == "remotive":
-                return variations[:4]
+                return variations[:2]
             return variations[:3]
         return query_variations(query)
 

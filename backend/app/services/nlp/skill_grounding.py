@@ -263,7 +263,7 @@ class SkillGroundingService:
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
-                "build_tag": "2026-04-18-livefetch-debug-6",
+                "build_tag": "2026-04-18-livefetch-debug-7",
                 "message": (
                     "Live job providers did not return listings, and the system does not have a strong calibrated baseline for this role. Market-fit scoring is low confidence."
                     if baseline_confidence == "low"
@@ -277,7 +277,7 @@ class SkillGroundingService:
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
-                "build_tag": "2026-04-18-livefetch-debug-6",
+                "build_tag": "2026-04-18-livefetch-debug-7",
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
@@ -286,7 +286,7 @@ class SkillGroundingService:
             "used_role_baseline": False,
             "live_source_counts": live_source_counts,
             "baseline_confidence": baseline_confidence,
-            "build_tag": "2026-04-18-livefetch-debug-6",
+            "build_tag": "2026-04-18-livefetch-debug-7",
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 
@@ -757,7 +757,8 @@ class SkillGroundingService:
             }
         )
         sparse_role = normalized_role in SPARSE_LIVE_MARKET_ROLES
-        sufficient_live_depth = len(live_jobs) >= max(8, settings.production_live_fetch_minimum)
+        target_live_floor = 1 if sparse_role else max(4, settings.production_live_display_minimum)
+        sufficient_live_depth = len(live_jobs) >= target_live_floor
         live_target_reached = (
             not sparse_role
             and sufficient_live_depth
