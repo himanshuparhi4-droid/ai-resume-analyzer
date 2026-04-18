@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import colors from "tailwindcss/colors";
 
 export default {
   darkMode: "class",
@@ -11,7 +12,10 @@ export default {
         sea: "#5ec2b7",
         ember: "#ff8a5b",
         gold: "#f4c95d",
-        slate: "#7c8b95"
+        slate: {
+          ...colors.slate,
+          DEFAULT: "#7c8b95",
+        }
       },
       boxShadow: {
         soft: "0 20px 70px rgba(5, 19, 28, 0.12)"
