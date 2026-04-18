@@ -25,16 +25,16 @@ html.dark {
   color: #e8f3f3;
   background: #07131b;
   --app-bg:
-    radial-gradient(circle at top, rgba(94, 194, 183, 0.18), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(255, 138, 91, 0.12), transparent 26%),
-    linear-gradient(180deg, #07131b 0%, #0c1c24 52%, #112430 100%);
+    radial-gradient(circle at top, rgba(94, 194, 183, 0.14), transparent 18%),
+    radial-gradient(circle at bottom right, rgba(255, 138, 91, 0.08), transparent 20%),
+    linear-gradient(180deg, #061118 0%, #0a1720 48%, #10202c 100%);
   --selection-bg: rgba(94, 194, 183, 0.22);
   --selection-color: #f4fbfb;
-  --chart-grid: rgba(198, 224, 228, 0.14);
-  --chart-axis: #b7c9cf;
+  --chart-grid: rgba(210, 228, 231, 0.18);
+  --chart-axis: #d0e0e3;
   --chart-bar: #ff9e77;
-  --tooltip-bg: rgba(10, 22, 30, 0.96);
-  --tooltip-border: rgba(183, 201, 207, 0.18);
+  --tooltip-bg: rgba(13, 27, 36, 0.98);
+  --tooltip-border: rgba(197, 216, 220, 0.2);
   --tooltip-text: #f4fbfb;
 }
 
@@ -42,9 +42,14 @@ body {
   margin: 0;
   background: var(--app-bg);
   color: inherit;
+  min-height: 100vh;
   transition:
     background 220ms ease,
     color 220ms ease;
+}
+
+html.dark body {
+  text-rendering: optimizeLegibility;
 }
 
 * {

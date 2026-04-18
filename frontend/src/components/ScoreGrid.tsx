@@ -63,35 +63,40 @@ export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype,
 
   return (
     <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-      <div className="rounded-[2rem] bg-ink p-8 text-white shadow-soft transition-colors duration-300 dark:bg-[#071923]">
-        <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/60">Overall Score</p>
+      <div className="rounded-[2rem] bg-ink p-8 text-white shadow-soft transition-colors duration-300 dark:bg-[#0b1821] dark:ring-1 dark:ring-[#294250]">
+        <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/75">Overall Score</p>
         <div className="mt-8 flex items-end gap-3">
           <span className="font-display text-7xl leading-none">{Math.round(overallScore)}</span>
-          <span className="mb-2 text-lg text-white/70">/100</span>
+          <span className="mb-2 text-lg text-white/85">/100</span>
         </div>
-        <p className="mt-4 max-w-sm text-sm leading-6 text-white/75">
+        <p className="mt-4 max-w-sm text-sm leading-6 text-white/85">
           This is the weighted score using skills, semantic fit, experience, market demand, resume quality, and ATS compliance.
         </p>
         {resumeArchetype?.label ? (
-          <div className="mt-5 rounded-[1rem] border border-white/10 bg-white/5 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">Detected Resume Type</p>
+          <div className="mt-5 rounded-[1rem] border border-white/10 bg-white/5 px-4 py-3 dark:border-[#294250] dark:bg-white/[0.06]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/75">Detected Resume Type</p>
             <p className="mt-2 font-semibold text-white">{resumeArchetype.label}</p>
             {resumeArchetype.reasons?.[0] ? (
-              <p className="mt-2 text-sm leading-6 text-white/70">{resumeArchetype.reasons[0]}</p>
+              <p className="mt-2 text-sm leading-6 text-white/85">{resumeArchetype.reasons[0]}</p>
             ) : null}
           </div>
         ) : null}
-        <div className="mt-6 rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">Verdict</p>
+        <div className="mt-6 rounded-[1.4rem] border border-white/10 bg-white/5 p-4 dark:border-[#294250] dark:bg-white/[0.06]">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/75">Verdict</p>
           <h3 className="mt-2 font-display text-3xl text-white">{verdict.label}</h3>
-          <p className="mt-2 text-sm leading-6 text-white/75">{verdict.detail}</p>
+          <p className="mt-2 text-sm leading-6 text-white/85">{verdict.detail}</p>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Object.entries(breakdown).map(([key, value]) => (
-          <div key={key} className="rounded-[1.5rem] border border-ink/10 bg-white p-5 shadow-soft transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.04]">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{LABELS[key as keyof ScoreBreakdown]}</p>
-            <div className="mt-4 h-3 rounded-full bg-mist transition-colors duration-300 dark:bg-white/[0.06]">
+        {Object.entries(breakdown).map(([key, value], index) => (
+          <div
+            key={key}
+            className={`rounded-[1.5rem] border border-ink/10 bg-white p-5 shadow-soft transition-colors duration-300 dark:border-[#223543] dark:bg-[#10202b] ${
+              index === 0 ? "md:col-span-2 xl:col-span-1" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{LABELS[key as keyof ScoreBreakdown]}</p>
+            <div className="mt-4 h-3 rounded-full bg-mist transition-colors duration-300 dark:bg-[#132531]">
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-sea to-ember"
                 style={{ width: `${Math.max(8, Math.min(value, 100))}%` }}
@@ -101,7 +106,7 @@ export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype,
             {componentFeedback[key as keyof ScoreBreakdown]?.length ? (
               <div className="mt-3 space-y-2">
                 {componentFeedback[key as keyof ScoreBreakdown]?.slice(0, 2).map((item) => (
-                  <p key={item} className="text-sm leading-6 text-slate-700 dark:text-slate-300">
+                  <p key={item} className="text-sm leading-6 text-slate-700 dark:text-slate-200">
                     {item}
                   </p>
                 ))}
