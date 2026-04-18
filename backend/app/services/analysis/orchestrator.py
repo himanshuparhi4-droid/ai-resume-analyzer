@@ -326,7 +326,13 @@ class AnalysisOrchestrator:
     def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict], role_query: str) -> dict:
         resume_text = resume_data.get("raw_text", "")
         resume_skills = set(resume_data.get("skills", []))
-        skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
+        baseline_only = bool(jobs) and all(job.get("source") == "role-baseline" for job in jobs)
+        low_confidence_baseline_only = baseline_only and not any(
+            str(job.get("normalized_data", {}).get("baseline_confidence", "medium")) == "high"
+            for job in jobs
+        )
+        scoring_jobs = [] if low_confidence_baseline_only else jobs
+        skill_frequency = infer_skill_frequency(scoring_jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
         role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query)
@@ -338,9 +344,9 @@ class AnalysisOrchestrator:
         ][:10]
 
         skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
-        relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in jobs]
+        relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in scoring_jobs]
         semantic_match = round(mean(relevance_scores), 2) if relevance_scores else 0.0
-        experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), jobs)
+        experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), scoring_jobs)
         total_demand = sum(demand_map.values())
         covered_demand = sum(demand_map.get(skill, 0) for skill in matched_skills)
         market_demand = round((covered_demand / total_demand) * 100, 2) if total_demand else 0.0
@@ -363,9 +369,11 @@ class AnalysisOrchestrator:
             semantic_match=semantic_match,
             market_demand=market_demand,
         )
+        if low_confidence_baseline_only:
+            overall_score = min(overall_score, 35.0)
 
         ranked_jobs = []
-        for job, relevance in zip(jobs, relevance_scores):
+        for job, relevance in zip(scoring_jobs, relevance_scores):
             normalized = {**(job.get("normalized_data", {}) or {})}
             filtered_skills = [
                 skill
@@ -415,7 +423,7 @@ class AnalysisOrchestrator:
         stored_matches = ranked_jobs[: max(display_limit, min(len(ranked_jobs), 24))]
         if (
             len(live_top_matches) < display_limit
-            and any(item.get("source") == "role-baseline" for item in jobs)
+            and any(item.get("source") == "role-baseline" for item in scoring_jobs)
             and not any(item.get("source") == "role-baseline" for item in stored_matches)
         ):
             baseline_candidate = next((item for item in ranked_jobs if item.get("source") == "role-baseline"), None)
@@ -704,6 +712,8 @@ class AnalysisOrchestrator:
                 (
                     "Demand is estimated from a blended market sample because the live jobs were too narrow."
                     if analysis_context.get("market_source") == "blended-market"
+                    else "Demand is estimated from a weak fallback baseline because live jobs were unavailable, so role-fit confidence is limited."
+                    if analysis_context.get("market_source") == "role-baseline" and analysis_context.get("baseline_confidence") == "low"
                     else "Demand is estimated from a role baseline because live jobs were unavailable."
                     if analysis_context.get("market_source") == "role-baseline"
                     else "Demand reflects the repeated tools and concepts found across the sampled jobs."

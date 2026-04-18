@@ -33,6 +33,9 @@ ROLE_SYNONYMS = {
     "teacher": "teacher",
     "educator": "teacher",
     "instructor": "teacher",
+    "carpenter": "carpenter",
+    "finish carpenter": "carpenter",
+    "rough carpenter": "carpenter",
     "painter": "painter",
     "industrial painter": "painter",
     "spray painter": "painter",
@@ -110,6 +113,12 @@ ROLE_SEARCH_VARIATIONS = {
         "instructor",
         "tutor",
     ],
+    "carpenter": [
+        "carpenter",
+        "finish carpenter",
+        "rough carpenter",
+        "construction carpenter",
+    ],
     "painter": [
         "painter",
         "industrial painter",
@@ -130,6 +139,7 @@ ROLE_PRODUCTION_VARIATIONS = {
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
     "teacher": ["teacher", "instructor", "educator", "curriculum", "lesson planning"],
+    "carpenter": ["carpenter", "finish carpenter", "rough carpenter", "woodworking", "framing"],
     "painter": ["painter", "painting", "surface preparation", "coating", "spray"],
 }
 ROLE_MARKET_HINTS = {
@@ -145,6 +155,7 @@ ROLE_MARKET_HINTS = {
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
     "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "pedagogy", "differentiated instruction"},
+    "carpenter": {"woodworking", "framing", "blueprint reading", "finish carpentry", "power tools", "measuring", "safety compliance"},
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "safety compliance", "coating"},
 }
 ROLE_PRIMARY_HINTS = {
@@ -160,6 +171,7 @@ ROLE_PRIMARY_HINTS = {
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
     "teacher": {"lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction"},
+    "carpenter": {"woodworking", "framing", "blueprint reading", "finish carpentry", "power tools"},
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
 ROLE_TITLE_HINTS = {
@@ -175,6 +187,7 @@ ROLE_TITLE_HINTS = {
     "product manager": {"product manager", "product owner", "product"},
     "ui/ux designer": {"designer", "ui", "ux", "product designer"},
     "teacher": {"teacher", "educator", "instructor", "tutor", "faculty"},
+    "carpenter": {"carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"},
     "painter": {"painter", "painting", "coating", "spray", "finisher"},
 }
 ROLE_KEYWORD_FAMILIES = {
@@ -190,6 +203,7 @@ ROLE_KEYWORD_FAMILIES = {
     "product manager": ("product manager", "product owner", "associate product manager"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
     "teacher": ("teacher", "educator", "instructor", "tutor", "faculty"),
+    "carpenter": ("carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"),
     "painter": ("painter", "painting", "coating", "spray"),
 }
 ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
@@ -206,9 +220,10 @@ ROLE_DOMAIN_MAP = {
     "product manager": "product",
     "ui/ux designer": "design",
     "teacher": "education",
+    "carpenter": "trades",
     "painter": "trades",
 }
-SPARSE_LIVE_MARKET_ROLES = {"teacher", "painter"}
+SPARSE_LIVE_MARKET_ROLES = {"teacher", "carpenter", "painter"}
 
 
 def normalize_role(query: str) -> str:
