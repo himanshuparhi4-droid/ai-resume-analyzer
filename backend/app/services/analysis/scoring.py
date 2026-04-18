@@ -138,17 +138,40 @@ class ScoringEngine:
             matches = JOB_YEARS_RE.findall(job.get("description", "").lower())
             if matches:
                 target_years.append(int(matches[0]))
+        baseline_credit = self._baseline_experience_credit(candidate_years)
         if not target_years:
-            if candidate_years >= 3:
-                return 80.0
-            if candidate_years >= 1:
-                return 62.0
-            if candidate_years >= 0.25:
-                return 42.0
-            return 30.0
+            return baseline_credit
         average_target = sum(target_years) / len(target_years)
-        gap = abs(candidate_years - average_target)
-        return round(max(0.0, 100 - (gap * 18)), 2)
+        if average_target <= 0:
+            return baseline_credit
+
+        if candidate_years >= average_target:
+            upside = min(14.0, (candidate_years - average_target) * 5.0)
+            return round(min(92.0, baseline_credit + 10.0 + upside), 2)
+
+        shortage_ratio = max(0.0, min(candidate_years / max(average_target, 0.25), 1.0))
+        floor = 10.0 if candidate_years <= 0 else max(16.0, baseline_credit * 0.5)
+        score = floor + (baseline_credit - floor) * (0.45 + (0.55 * shortage_ratio))
+        return round(max(floor, min(score, 88.0)), 2)
+
+    def _baseline_experience_credit(self, candidate_years: float) -> float:
+        if candidate_years >= 8:
+            return 86.0
+        if candidate_years >= 5:
+            return 76.0
+        if candidate_years >= 3:
+            return 64.0
+        if candidate_years >= 2:
+            return 58.0
+        if candidate_years >= 1:
+            return 50.0
+        if candidate_years >= 0.5:
+            return 32.0
+        if candidate_years >= 0.17:
+            return 24.0
+        if candidate_years > 0:
+            return 18.0
+        return 10.0
 
     def _market_demand_score(self, matched_skills: list[str], demand_map: dict[str, float]) -> float:
         if not demand_map:

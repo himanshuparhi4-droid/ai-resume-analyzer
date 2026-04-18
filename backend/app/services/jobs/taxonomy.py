@@ -22,6 +22,13 @@ ROLE_SYNONYMS = {
     "ml engineer": "machine learning engineer",
     "ai engineer": "machine learning engineer",
     "devops engineer": "devops engineer",
+    "aws": "devops engineer",
+    "amazon web services": "devops engineer",
+    "aws engineer": "devops engineer",
+    "aws devops engineer": "devops engineer",
+    "cloud engineer": "devops engineer",
+    "cloud architect": "devops engineer",
+    "cloud infrastructure engineer": "devops engineer",
     "site reliability engineer": "devops engineer",
     "sre": "devops engineer",
     "qa engineer": "qa engineer",
@@ -86,9 +93,11 @@ ROLE_SEARCH_VARIATIONS = {
     ],
     "devops engineer": [
         "devops engineer",
+        "aws engineer",
         "site reliability engineer",
         "cloud engineer",
         "platform engineer",
+        "cloud architect",
     ],
     "qa engineer": [
         "qa engineer",
@@ -134,7 +143,7 @@ ROLE_PRODUCTION_VARIATIONS = {
     "software engineer": ["software engineer", "developer", "backend"],
     "frontend developer": ["frontend developer", "frontend", "react"],
     "full stack developer": ["full stack developer", "full stack", "developer"],
-    "devops engineer": ["devops engineer", "devops", "cloud"],
+    "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer", "aws"],
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
@@ -150,7 +159,7 @@ ROLE_MARKET_HINTS = {
     "software engineer": {"python", "java", "javascript", "sql", "docker", "api", "backend"},
     "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css", "figma"},
     "full stack developer": {"react", "javascript", "typescript", "node.js", "sql", "api"},
-    "devops engineer": {"aws", "docker", "kubernetes", "terraform", "linux", "ci/cd"},
+    "devops engineer": {"aws", "amazon web services", "docker", "kubernetes", "terraform", "linux", "ci/cd", "ec2", "lambda", "iam", "cloudformation", "monitoring"},
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
@@ -166,7 +175,7 @@ ROLE_PRIMARY_HINTS = {
     "software engineer": {"python", "java", "javascript", "api", "docker", "sql"},
     "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css"},
     "full stack developer": {"javascript", "typescript", "react", "node.js", "sql", "api"},
-    "devops engineer": {"aws", "docker", "kubernetes", "terraform", "linux", "ci/cd"},
+    "devops engineer": {"aws", "amazon web services", "docker", "kubernetes", "terraform", "linux", "ci/cd", "ec2", "lambda", "iam"},
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
@@ -182,7 +191,7 @@ ROLE_TITLE_HINTS = {
     "software engineer": {"software engineer", "backend", "developer", "engineer"},
     "frontend developer": {"frontend", "react", "web developer", "ui"},
     "full stack developer": {"full stack", "fullstack", "developer", "engineer"},
-    "devops engineer": {"devops", "site reliability", "sre", "platform", "cloud"},
+    "devops engineer": {"devops", "site reliability", "sre", "platform", "cloud", "aws", "cloud engineer", "cloud architect"},
     "qa engineer": {"qa", "quality assurance", "test", "automation"},
     "product manager": {"product manager", "product owner", "product"},
     "ui/ux designer": {"designer", "ui", "ux", "product designer"},
@@ -198,7 +207,7 @@ ROLE_KEYWORD_FAMILIES = {
     "frontend developer": ("frontend", "react developer", "web developer"),
     "software engineer": ("backend", "api developer", "python developer", "software engineer"),
     "full stack developer": ("full stack", "fullstack"),
-    "devops engineer": ("devops", "site reliability", "sre", "platform engineer", "cloud engineer"),
+    "devops engineer": ("aws", "aws engineer", "devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"),
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
     "product manager": ("product manager", "product owner", "associate product manager"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
@@ -239,17 +248,25 @@ def normalize_role(query: str) -> str:
 
 def query_variations(query: str) -> list[str]:
     normalized = normalize_role(query)
+    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
+    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
     variations = ROLE_SEARCH_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
+    if raw_cleaned and raw_cleaned not in variations:
+        variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))
 
 
 def production_query_variations(query: str) -> list[str]:
     normalized = normalize_role(query)
+    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
+    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
     variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
+    if raw_cleaned and raw_cleaned not in variations:
+        variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
 
 
@@ -287,8 +304,16 @@ def dedupe_key(item: dict) -> str:
 
 
 def role_fit_score(query: str, item: dict) -> float:
+    raw_query = re.sub(r"[^a-z0-9+ ]+", " ", str(query).lower()).strip()
+    raw_query = re.sub(r"\s+", " ", raw_query)
     normalized_query = normalize_role(query)
-    query_tokens = [token for token in normalized_query.split() if token and token not in STOPWORDS]
+    query_tokens = list(
+        dict.fromkeys(
+            token
+            for token in [*raw_query.split(), *normalized_query.split()]
+            if token and token not in STOPWORDS
+        )
+    )
     title = normalize_role(item.get("title", ""))
     raw_title = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower())
     description = re.sub(r"[^a-z0-9+ ]+", " ", item.get("description", "").lower())
@@ -299,6 +324,12 @@ def role_fit_score(query: str, item: dict) -> float:
     extracted_skills = {str(skill).lower() for skill in normalized_data.get("skills", []) or []}
 
     score = 0.0
+    if raw_query and raw_query in raw_title:
+        score += 4.0
+    elif raw_query and raw_query in description:
+        score += 1.75
+    elif raw_query and raw_query in tags:
+        score += 1.0
     if normalized_query and normalized_query in title:
         score += 6.0
     if normalized_query and normalized_query in description:

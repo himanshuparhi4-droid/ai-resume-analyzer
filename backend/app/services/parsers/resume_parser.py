@@ -43,7 +43,11 @@ DATE_RANGE_RE = re.compile(
     re.IGNORECASE,
 )
 WORK_CONTEXT_RE = re.compile(
-    r"\b(intern|internship|analyst|engineer|developer|consultant|associate|scientist|systems|techworld|solutions|ltd|pvt|company|corp)\b",
+    r"\b(intern|internship|apprentice|trainee|analyst|engineer|developer|consultant|associate|scientist|specialist|coordinator|representative|manager|assistant|freelance|contract|systems|techworld|solutions|ltd|pvt|company|corp)\b",
+    re.IGNORECASE,
+)
+PROJECT_CONTEXT_RE = re.compile(
+    r"\b(project|capstone|case study|prototype|portfolio|thesis|implementation|dashboard|analysis|model|build)\b",
     re.IGNORECASE,
 )
 EDUCATION_CONTEXT_RE = re.compile(
@@ -378,48 +382,68 @@ class ResumeParser:
         return {"type": "general_resume", "label": "General Resume", "confidence": 0.6, "reasons": ["Detected a general-purpose resume structure."]}
 
     def _estimate_experience_years(self, text: str, sections: dict[str, str]) -> float:
+        focus_keys = {"experience", "projects", "summary", "teaching", "research"}
         section_focus = normalize_whitespace(
-            " ".join(
-                section_text
-                for key, section_text in sections.items()
-                if key in {"experience", "projects", "summary"}
-            )
+            " ".join(section_text for key, section_text in sections.items() if key in focus_keys)
         )
         relevant_text = (section_focus or text).replace("\u2013", "-").replace("\u2014", "-")
         lowered = relevant_text.lower()
 
         direct = YEARS_EXPERIENCE_RE.search(lowered)
-        if direct:
-            return round(float(direct.group(1)), 2)
+        direct_years = round(float(direct.group(1)), 2) if direct else 0.0
 
         direct_months = MONTHS_EXPERIENCE_RE.search(lowered)
-        if direct_months:
-            return round(int(direct_months.group(1)) / 12, 2)
+        direct_month_years = round(int(direct_months.group(1)) / 12, 2) if direct_months else 0.0
 
-        intervals = []
-        for match in DATE_RANGE_RE.finditer(relevant_text):
-            context = relevant_text[max(0, match.start() - 120): min(len(relevant_text), match.end() + 120)]
-            has_work_signal = bool(WORK_CONTEXT_RE.search(context))
-            has_education_signal = bool(EDUCATION_CONTEXT_RE.search(context))
-            if not has_work_signal or (has_education_signal and not has_work_signal):
+        primary_section_intervals: list[tuple[date, date]] = []
+        project_section_intervals: list[tuple[date, date]] = []
+        weighted_project_months = 0.0
+
+        for key, section_text in sections.items():
+            if key not in focus_keys:
+                continue
+            normalized_section = normalize_whitespace(section_text).replace("\u2013", "-").replace("\u2014", "-")
+            if not normalized_section:
                 continue
 
-            start_raw, end_raw = match.groups()
-            start_date = self._parse_resume_date(start_raw)
-            end_date = self._parse_resume_date(end_raw)
-            if start_date and end_date and start_date <= end_date:
-                intervals.append((start_date, end_date))
+            target_bucket = primary_section_intervals
+            if key in {"projects", "summary"}:
+                target_bucket = project_section_intervals
 
-        if not intervals:
-            return 0.0
+            for match in DATE_RANGE_RE.finditer(normalized_section):
+                context = normalized_section[max(0, match.start() - 120): min(len(normalized_section), match.end() + 120)]
+                has_work_signal = key in {"experience", "teaching", "research"} or bool(WORK_CONTEXT_RE.search(context))
+                has_project_signal = key == "projects" or bool(PROJECT_CONTEXT_RE.search(context))
+                has_education_signal = bool(EDUCATION_CONTEXT_RE.search(context))
+                if not (has_work_signal or has_project_signal):
+                    continue
+                if has_education_signal and key not in {"projects", "summary"} and not has_work_signal:
+                    continue
 
-        merged = self._merge_date_ranges(intervals)
-        total_months = 0
-        for start_date, end_date in merged:
-            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
-            total_months += max(months, 0)
+                start_raw, end_raw = match.groups()
+                start_date = self._parse_resume_date(start_raw)
+                end_date = self._parse_resume_date(end_raw)
+                if start_date and end_date and start_date <= end_date:
+                    target_bucket.append((start_date, end_date))
 
-        return round(total_months / 12, 2)
+        if project_section_intervals:
+            merged_projects = self._merge_date_ranges(project_section_intervals)
+            for start_date, end_date in merged_projects:
+                months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+                weighted_project_months += max(months, 0) * 0.55
+
+        primary_months = 0
+        if primary_section_intervals:
+            merged_primary = self._merge_date_ranges(primary_section_intervals)
+            for start_date, end_date in merged_primary:
+                months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+                primary_months += max(months, 0)
+
+        interval_years = round((primary_months + min(weighted_project_months, 12)) / 12, 2)
+        if interval_years <= 0:
+            return max(direct_years, direct_month_years)
+
+        return round(max(interval_years, direct_years, direct_month_years), 2)
 
     def _parse_resume_date(self, value: str) -> date | None:
         token = value.strip().lower()
