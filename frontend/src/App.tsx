@@ -12,6 +12,9 @@ import type { AnalysisResponse, ComparisonResponse, HistoryItem, User } from "./
 
 const TOKEN_KEY = "resume-analyzer-token";
 const USER_KEY = "resume-analyzer-user";
+const THEME_KEY = "resume-analyzer-theme";
+
+type ThemeMode = "light" | "dark";
 
 function getBackendErrorMessage(err: any, fallback: string): string {
   const backendDetail = err?.response?.data?.detail;
@@ -35,16 +38,25 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const analyzeRequestId = useRef(0);
 
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_KEY);
     const savedUser = localStorage.getItem(USER_KEY);
+    const savedTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
     if (savedToken) {
       setAuthToken(savedToken);
     }
     if (savedUser) {
       setUser(JSON.parse(savedUser));
+    }
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setTheme(savedTheme);
+      return;
+    }
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark");
     }
   }, []);
 
@@ -53,6 +65,12 @@ function App() {
       void refreshHistory();
     }
   }, [user]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   async function refreshHistory() {
     try {
@@ -143,16 +161,20 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-mist text-ink">
+    <main className="min-h-screen bg-transparent text-ink transition-colors duration-300 dark:text-slate-100">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
-        <Header />
+        <Header theme={theme} onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))} />
         <AuthPanel user={user} onRegister={handleRegister} onLogin={handleLogin} onLogout={handleLogout} busy={authLoading} />
         <UploadPanel loading={loading} onSubmit={handleAnalyze} />
-        {error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
+        {error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+            {error}
+          </div>
+        ) : null}
         {result ? (
           <div className="grid gap-6 pb-8">
             {result.analysis_context?.message ? (
-              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 transition-colors duration-300 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
                 <span className="font-semibold">Scoring context:</span> {result.analysis_context.message}
               </div>
             ) : null}
@@ -173,9 +195,11 @@ function App() {
             <JobMatchesTable jobs={result.top_job_matches} />
           </div>
         ) : (
-          <section className="rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-soft">
-            <p className="font-display text-3xl text-ink">Your first review will populate this workspace.</p>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-700">Upload a resume, choose a target role, and the app will compare the document against live market requirements, ATS signals, and role-fit evidence.</p>
+          <section className="rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-soft transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.04]">
+            <p className="font-display text-3xl text-ink transition-colors duration-300 dark:text-slate-50">Your first review will populate this workspace.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
+              Upload a resume, choose a target role, and the app will compare the document against live market requirements, ATS signals, and role-fit evidence.
+            </p>
           </section>
         )}
         <HistoryPanel history={history} comparison={comparison} onCompare={handleCompare} />

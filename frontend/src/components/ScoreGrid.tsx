@@ -63,7 +63,7 @@ export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype,
 
   return (
     <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-      <div className="rounded-[2rem] bg-ink p-8 text-white shadow-soft">
+      <div className="rounded-[2rem] bg-ink p-8 text-white shadow-soft transition-colors duration-300 dark:bg-[#071923]">
         <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/60">Overall Score</p>
         <div className="mt-8 flex items-end gap-3">
           <span className="font-display text-7xl leading-none">{Math.round(overallScore)}</span>
@@ -89,19 +89,19 @@ export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype,
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Object.entries(breakdown).map(([key, value]) => (
-          <div key={key} className="rounded-[1.5rem] border border-ink/10 bg-white p-5 shadow-soft">
-            <p className="text-sm font-semibold text-slate-700">{LABELS[key as keyof ScoreBreakdown]}</p>
-            <div className="mt-4 h-3 rounded-full bg-mist">
+          <div key={key} className="rounded-[1.5rem] border border-ink/10 bg-white p-5 shadow-soft transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.04]">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{LABELS[key as keyof ScoreBreakdown]}</p>
+            <div className="mt-4 h-3 rounded-full bg-mist transition-colors duration-300 dark:bg-white/[0.06]">
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-sea to-ember"
                 style={{ width: `${Math.max(8, Math.min(value, 100))}%` }}
               />
             </div>
-            <p className="mt-4 font-display text-3xl text-ink">{Math.round(value)}%</p>
+            <p className="mt-4 font-display text-3xl text-ink dark:text-slate-50">{Math.round(value)}%</p>
             {componentFeedback[key as keyof ScoreBreakdown]?.length ? (
               <div className="mt-3 space-y-2">
                 {componentFeedback[key as keyof ScoreBreakdown]?.slice(0, 2).map((item) => (
-                  <p key={item} className="text-sm leading-6 text-slate-700">
+                  <p key={item} className="text-sm leading-6 text-slate-700 dark:text-slate-300">
                     {item}
                   </p>
                 ))}

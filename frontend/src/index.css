@@ -8,13 +8,43 @@
   color: #06131c;
   background: #f3f7f4;
   font-family: "Manrope", sans-serif;
+  --app-bg:
+    radial-gradient(circle at top, rgba(94, 194, 183, 0.16), transparent 28%),
+    linear-gradient(180deg, #f6faf8 0%, #eef4f1 100%);
+  --selection-bg: rgba(6, 19, 28, 0.12);
+  --selection-color: #06131c;
+  --chart-grid: #dbe5e3;
+  --chart-axis: #52606b;
+  --chart-bar: #ff8a5b;
+  --tooltip-bg: rgba(255, 255, 255, 0.96);
+  --tooltip-border: rgba(6, 19, 28, 0.12);
+  --tooltip-text: #06131c;
+}
+
+html.dark {
+  color: #e8f3f3;
+  background: #07131b;
+  --app-bg:
+    radial-gradient(circle at top, rgba(94, 194, 183, 0.18), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(255, 138, 91, 0.12), transparent 26%),
+    linear-gradient(180deg, #07131b 0%, #0c1c24 52%, #112430 100%);
+  --selection-bg: rgba(94, 194, 183, 0.22);
+  --selection-color: #f4fbfb;
+  --chart-grid: rgba(198, 224, 228, 0.14);
+  --chart-axis: #b7c9cf;
+  --chart-bar: #ff9e77;
+  --tooltip-bg: rgba(10, 22, 30, 0.96);
+  --tooltip-border: rgba(183, 201, 207, 0.18);
+  --tooltip-text: #f4fbfb;
 }
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(94, 194, 183, 0.16), transparent 28%),
-    linear-gradient(180deg, #f6faf8 0%, #eef4f1 100%);
+  background: var(--app-bg);
+  color: inherit;
+  transition:
+    background 220ms ease,
+    color 220ms ease;
 }
 
 * {
@@ -24,6 +54,11 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-color);
 }
 
 input,

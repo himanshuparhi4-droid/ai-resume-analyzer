@@ -41,31 +41,39 @@ export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
 
   function renderJob(job: JobMatch) {
     return (
-      <article key={`${job.source}-${job.external_id ?? job.title}-${job.company}-${job.location}`} className="rounded-[1.5rem] border border-ink/10 p-5">
+      <article
+        key={`${job.source}-${job.external_id ?? job.title}-${job.company}-${job.location}`}
+        className="rounded-[1.5rem] border border-ink/10 p-5 transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.02]"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h4 className="text-lg font-semibold text-ink">{job.title}</h4>
-            <p className="text-sm text-slate-700">{job.company} - {job.location}</p>
+            <h4 className="text-lg font-semibold text-ink dark:text-slate-50">{job.title}</h4>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{job.company} - {job.location}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink">{describeJobSource(job.source)}</span>
-            {job.remote ? <span className="rounded-full bg-sea/15 px-3 py-1 text-xs font-semibold text-ink">Remote</span> : null}
+            <span className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink transition-colors duration-300 dark:bg-white/[0.06] dark:text-slate-100">
+              {describeJobSource(job.source)}
+            </span>
+            {job.remote ? <span className="rounded-full bg-sea/15 px-3 py-1 text-xs font-semibold text-ink dark:text-slate-100">Remote</span> : null}
             {typeof job.relevance_score === "number" ? (
-              <span className="rounded-full bg-ember/15 px-3 py-1 text-xs font-semibold text-ink">
+              <span className="rounded-full bg-ember/15 px-3 py-1 text-xs font-semibold text-ink dark:text-slate-100">
                 Relevance {Math.round(job.relevance_score)}%
               </span>
             ) : null}
             {typeof job.normalized_data.skill_extraction_mode === "string" ? (
-              <span className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink">
+              <span className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink transition-colors duration-300 dark:bg-white/[0.06] dark:text-slate-100">
                 {describeExtractionMode(job.normalized_data.skill_extraction_mode)}
               </span>
             ) : null}
           </div>
         </div>
-        <p className="mt-4 text-sm leading-6 text-slate-700">{job.preview ?? job.description}</p>
+        <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">{job.preview ?? job.description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {(job.normalized_data.skills ?? []).slice(0, 8).map((skill) => (
-            <span key={`${job.source}-${job.title}-${skill}`} className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink">
+            <span
+              key={`${job.source}-${job.title}-${skill}`}
+              className="rounded-full bg-mist px-3 py-1 text-xs font-semibold text-ink transition-colors duration-300 dark:bg-white/[0.06] dark:text-slate-100"
+            >
               {skill}
             </span>
           ))}
@@ -73,19 +81,19 @@ export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
         {Array.isArray(job.normalized_data.skill_evidence) && job.normalized_data.skill_evidence.length ? (
           <div className="mt-4 grid gap-2">
             {job.normalized_data.skill_evidence.slice(0, 2).map((item, index) => (
-              <p key={`${job.source}-${job.external_id ?? job.title}-${item.skill}-${index}`} className="text-xs leading-5 text-slate-600">
-                <span className="font-semibold text-ink">{item.skill}:</span> {item.snippet}
+              <p key={`${job.source}-${job.external_id ?? job.title}-${item.skill}-${index}`} className="text-xs leading-5 text-slate-600 dark:text-slate-400">
+                <span className="font-semibold text-ink dark:text-slate-100">{item.skill}:</span> {item.snippet}
               </p>
             ))}
           </div>
         ) : null}
         {job.source === "role-baseline" ? (
-          <p className="mt-4 text-xs leading-5 text-slate-600">
+          <p className="mt-4 text-xs leading-5 text-slate-600 dark:text-slate-400">
             This card is a modeled role benchmark used only to widen the market sample when live listings were too sparse.
           </p>
         ) : (
           <a
-            className="mt-4 inline-flex rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink transition hover:border-sea hover:bg-sea/10"
+            className="mt-4 inline-flex rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-white/10 dark:text-slate-100 dark:hover:border-sea dark:hover:bg-white/[0.05]"
             href={job.url}
             target="_blank"
             rel="noreferrer"
@@ -98,13 +106,13 @@ export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
   }
 
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft md:p-8">
+    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-white/10 dark:bg-white/[0.04]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate">Job Matches</p>
-          <h3 className="mt-2 font-display text-3xl text-ink">Market sample behind this score</h3>
+          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-400">Job Matches</p>
+          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Market sample behind this score</h3>
         </div>
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-slate-700 dark:text-slate-300">
           Showing {displayedLiveJobs.length} of {liveJobs.length} live listings used for ranking. Listings are sorted by role fit and requirement quality before they influence scoring.
         </p>
       </div>
@@ -115,7 +123,7 @@ export function JobMatchesTable({ jobs }: JobMatchesTableProps) {
       ) : null}
       {displayedBaselineJobs.length ? (
         <div className={displayedLiveJobs.length ? "mt-6" : ""}>
-          <div className="mb-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          <div className="mb-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900 transition-colors duration-300 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">
             <span className="font-semibold">Calibration baselines:</span> live listings were too sparse for a complete market map, so these role benchmarks were added only to widen skill coverage.
           </div>
           <div className="grid gap-4">

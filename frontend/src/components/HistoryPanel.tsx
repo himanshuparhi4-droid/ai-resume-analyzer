@@ -25,32 +25,48 @@ function formatAnalysisTime(value: string) {
 export function HistoryPanel({ history, comparison, onCompare }: HistoryPanelProps) {
   const root = getBackendRoot();
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft md:p-8">
+    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-white/10 dark:bg-white/[0.04]">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate">History</p>
-          <h3 className="mt-2 font-display text-3xl text-ink">Saved analyses and version comparisons</h3>
+          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-400">History</p>
+          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Saved analyses and version comparisons</h3>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid gap-3">
           {history.length ? history.map((item) => (
-            <article key={item.analysis_id} className="rounded-[1.5rem] bg-mist p-5">
+            <article key={item.analysis_id} className="rounded-[1.5rem] bg-mist p-5 transition-colors duration-300 dark:bg-white/[0.03]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h4 className="font-semibold text-ink">{item.role_query}</h4>
-                  <p className="text-sm text-slate-700">Score {Math.round(item.overall_score)} • {formatAnalysisTime(item.created_at)}</p>
+                  <h4 className="font-semibold text-ink dark:text-slate-100">{item.role_query}</h4>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Score {Math.round(item.overall_score)} • {formatAnalysisTime(item.created_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <a className="rounded-full border border-ink/15 px-3 py-2 text-xs font-semibold text-ink" href={`${root}/api/v1/reports/analyses/${item.analysis_id}.pdf`} target="_blank" rel="noreferrer">PDF</a>
-                  {item.share_token ? <a className="rounded-full border border-ink/15 px-3 py-2 text-xs font-semibold text-ink" href={`${root}/api/v1/public/analyses/${item.share_token}`} target="_blank" rel="noreferrer">Share</a> : null}
-                  <button className="rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white" onClick={() => onCompare(item.analysis_id)} type="button">Compare</button>
+                  <a
+                    className="rounded-full border border-ink/15 px-3 py-2 text-xs font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-white/10 dark:text-slate-100 dark:hover:border-sea dark:hover:bg-white/[0.05]"
+                    href={`${root}/api/v1/reports/analyses/${item.analysis_id}.pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    PDF
+                  </a>
+                  {item.share_token ? (
+                    <a
+                      className="rounded-full border border-ink/15 px-3 py-2 text-xs font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-white/10 dark:text-slate-100 dark:hover:border-sea dark:hover:bg-white/[0.05]"
+                      href={`${root}/api/v1/public/analyses/${item.share_token}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Share
+                    </a>
+                  ) : null}
+                  <button className="rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white transition dark:bg-sea dark:text-ink" onClick={() => onCompare(item.analysis_id)} type="button">Compare</button>
                 </div>
               </div>
             </article>
-          )) : <p className="text-sm leading-6 text-slate-700">Login and run analyses to build your score history.</p>}
+          )) : <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">Login and run analyses to build your score history.</p>}
         </div>
-        <div className="rounded-[1.5rem] bg-ink p-6 text-white">
+        <div className="rounded-[1.5rem] bg-ink p-6 text-white transition-colors duration-300 dark:bg-[#071923]">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/60">Comparison</p>
           {comparison ? (
             <div className="mt-4 grid gap-4 text-sm leading-6 text-white/85">
