@@ -108,6 +108,16 @@ COMPILED_SKILL_PATTERNS = {
     for skill, patterns in SKILL_PATTERNS.items()
 }
 KNOWN_SKILLS = set(SKILL_PATTERNS.keys())
+SOURCE_TRUST_WEIGHTS = {
+    "jobicy": 1.0,
+    "remotive": 0.94,
+    "themuse": 0.92,
+    "adzuna": 0.97,
+    "usajobs": 0.88,
+    "remoteok": 0.72,
+    "arbeitnow": 0.62,
+    "role-baseline": 0.58,
+}
 SNIPPET_WINDOW = 84
 SENTENCE_PUNCTUATION = ".!?;\n"
 
@@ -241,16 +251,24 @@ def _job_signature(job_item: dict) -> str:
     title = normalize_whitespace(str(job_item.get("title", ""))).lower()
     company = normalize_whitespace(str(job_item.get("company", ""))).lower()
     description = normalize_whitespace(str(job_item.get("description", ""))).lower()
-    return f"{job_item.get('source', 'unknown')}|{company}|{title}|{description[:240]}"
+    description = URL_RE.sub("", description)
+    description = re.sub(r"[^a-z0-9\s]", " ", description)
+    description = normalize_whitespace(description)
+    description_head = " ".join(description.split()[:36])
+    return f"{job_item.get('source', 'unknown')}|{company}|{title}|{description_head}"
 
 
 def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = None) -> list[dict]:
     frequency: defaultdict[str, float] = defaultdict(float)
     mention_count = Counter()
+    live_mention_count = Counter()
+    company_mentions: defaultdict[str, set[str]] = defaultdict(set)
+    source_mentions: defaultdict[str, set[str]] = defaultdict(set)
     signatures = Counter(_job_signature(item) for item in job_items) or Counter()
     denominator = 0.0
     market_hints = role_market_hints(role_query or "") if role_query else set()
     primary_hints = role_primary_hints(role_query or "") if role_query else set()
+    live_jobs_present = any(item.get("source") != "role-baseline" for item in job_items)
 
     for item in job_items:
         normalized_data = item.get("normalized_data", {}) or {}
@@ -260,10 +278,15 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
 
         signature = _job_signature(item)
         duplicate_divisor = max(1, signatures.get(signature, 1))
-        source_weight = 1.0 if item.get("source") != "role-baseline" else 0.65
+        source_name = str(item.get("source", "unknown")).lower()
+        source_weight = SOURCE_TRUST_WEIGHTS.get(source_name, 0.84)
+        if live_jobs_present and source_name == "role-baseline":
+            source_weight *= 0.62
         role_fit = float(normalized_data.get("role_fit_score", 0.0))
+        listing_quality = float(normalized_data.get("listing_quality_score", 10.0))
         relevance_weight = 0.45 + min(role_fit, 8.0) / 8.0
-        job_weight = (source_weight * relevance_weight) / duplicate_divisor
+        quality_weight = 0.65 + min(listing_quality, 20.0) / 28.0
+        job_weight = (source_weight * relevance_weight * quality_weight) / duplicate_divisor
         denominator += job_weight
 
         title_text = normalize_whitespace(str(item.get("title", ""))).lower()
@@ -273,6 +296,7 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
             for evidence in normalized_data.get("skill_evidence", [])
             if evidence.get("skill")
         )
+        company = normalize_whitespace(str(item.get("company", ""))).lower() or f"{source_name}:{title_text[:48]}"
 
         for skill in skills:
             default_weight = 0.82 if item.get("source") != "role-baseline" else 0.7
@@ -283,6 +307,10 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
                 base_weight = min(1.0, base_weight + 0.06)
             frequency[skill] += job_weight * base_weight
             mention_count[skill] += 1
+            if source_name != "role-baseline":
+                live_mention_count[skill] += 1
+            company_mentions[skill].add(company)
+            source_mentions[skill].add(source_name)
 
     result = []
     if denominator <= 0:
@@ -290,20 +318,41 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
 
     for skill, weighted_score in sorted(frequency.items(), key=lambda item: item[1], reverse=True):
         share = round((weighted_score / denominator) * 100, 1)
+        company_count = len(company_mentions[skill])
+        live_count = live_mention_count[skill]
+        source_count = len(source_mentions[skill])
+        primary_skill = skill in primary_hints
+        hinted_skill = skill in market_hints or primary_skill
+
+        if live_jobs_present and live_count == 0 and source_mentions[skill] == {"role-baseline"}:
+            if not primary_skill or share < 18.0:
+                continue
+
         if role_query:
-            if skill not in market_hints and skill not in primary_hints:
+            if primary_skill:
+                if live_jobs_present and live_count == 0 and share < 18.0:
+                    continue
+            elif hinted_skill:
+                if live_jobs_present and live_count < 2 and company_count < 2 and share < 11.0:
+                    continue
+            else:
                 if skill in KNOWN_SKILLS:
-                    if mention_count[skill] < 2 and share < 8.5:
+                    if live_count < 2 and company_count < 2 and share < 13.0:
+                        continue
+                    if mention_count[skill] < 2 and company_count < 2:
                         continue
                 else:
-                    if mention_count[skill] < 3:
+                    if mention_count[skill] < 3 or company_count < 2:
                         continue
-                    if share < 9.0:
+                    if share < 10.0:
                         continue
         result.append(
             {
                 "skill": skill,
                 "count": mention_count[skill],
+                "live_count": live_count,
+                "company_count": company_count,
+                "source_count": source_count,
                 "share": share,
             }
         )

@@ -244,6 +244,13 @@ class SkillGroundingService:
     def build_analysis_context(self, jobs: list[dict]) -> dict[str, Any]:
         live_job_count = sum(1 for job in jobs if job.get("source") != "role-baseline")
         baseline_job_count = sum(1 for job in jobs if job.get("source") == "role-baseline")
+        live_company_count = len(
+            {
+                normalize_role(str(job.get("company", "")))
+                for job in jobs
+                if job.get("source") != "role-baseline" and normalize_role(str(job.get("company", "")))
+            }
+        )
         baseline_confidences = {
             str(job.get("normalized_data", {}).get("baseline_confidence", "medium"))
             for job in jobs
@@ -257,14 +264,24 @@ class SkillGroundingService:
             live_source_counts[source] = live_source_counts.get(source, 0) + 1
         used_role_baseline = baseline_job_count > 0
         baseline_confidence = "low" if baseline_confidences == {"low"} else "high" if baseline_confidences == {"high"} else "medium"
+        if live_job_count >= 6 and live_company_count >= 3 and not used_role_baseline:
+            market_confidence = "high"
+        elif live_job_count >= 3:
+            market_confidence = "medium"
+        elif used_role_baseline:
+            market_confidence = "baseline-assisted"
+        else:
+            market_confidence = "low"
         if used_role_baseline and live_job_count == 0:
             return {
                 "market_source": "role-baseline",
                 "live_job_count": 0,
+                "live_company_count": live_company_count,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
-                "build_tag": "2026-04-18-livefetch-debug-7",
+                "market_confidence": market_confidence,
+                "build_tag": "2026-04-19-livefetch-debug-8",
                 "message": (
                     "Live job providers did not return listings, and the system does not have a strong calibrated baseline for this role. Market-fit scoring is low confidence."
                     if baseline_confidence == "low"
@@ -275,19 +292,23 @@ class SkillGroundingService:
             return {
                 "market_source": "blended-market",
                 "live_job_count": live_job_count,
+                "live_company_count": live_company_count,
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
-                "build_tag": "2026-04-18-livefetch-debug-7",
+                "market_confidence": market_confidence,
+                "build_tag": "2026-04-19-livefetch-debug-8",
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
             "market_source": "live-jobs" if live_job_count else "none",
             "live_job_count": live_job_count,
+            "live_company_count": live_company_count,
             "used_role_baseline": False,
             "live_source_counts": live_source_counts,
             "baseline_confidence": baseline_confidence,
-            "build_tag": "2026-04-18-livefetch-debug-7",
+            "market_confidence": market_confidence,
+            "build_tag": "2026-04-19-livefetch-debug-8",
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 

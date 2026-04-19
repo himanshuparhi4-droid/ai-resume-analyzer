@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import re
+import time
 
 from sqlalchemy.orm import Session
 
@@ -50,6 +52,38 @@ NON_INDIA_REGION_HINTS = {
     "latam",
     "latin america",
 }
+SOURCE_TRUST_WEIGHTS = {
+    "jobicy": 1.0,
+    "remotive": 0.94,
+    "themuse": 0.92,
+    "adzuna": 0.97,
+    "usajobs": 0.88,
+    "remoteok": 0.72,
+    "arbeitnow": 0.62,
+    "role-baseline": 0.58,
+}
+LOW_SIGNAL_DESCRIPTION_HINTS = (
+    "equal opportunity",
+    "equal employment opportunity",
+    "all qualified applicants",
+    "regard to race",
+    "without regard to",
+    "compensation and benefits",
+    "employee benefits",
+    "benefits package",
+    "salary range",
+    "country by country reporting",
+    "transfer pricing",
+)
+GENERIC_TITLE_WEAKENERS = {
+    "associate",
+    "coordinator",
+    "representative",
+    "specialist",
+    "support",
+    "manager",
+}
+_PRODUCTION_JOB_CACHE: dict[str, dict] = {}
 
 
 class JobAggregator:
@@ -82,6 +116,48 @@ class JobAggregator:
             self.providers.append(ArbeitnowProvider())
         if not self.providers:
             self.providers = [TheMuseProvider(), RemotiveProvider(), RemoteOKProvider(), ArbeitnowProvider()]
+
+    def _production_cache_key(self, *, query: str, location: str, limit: int) -> str:
+        return "|".join(
+            [
+                normalize_role(query),
+                normalize_role(location),
+                str(limit),
+                normalize_role(settings.default_job_source or "auto"),
+            ]
+        )
+
+    def _get_production_cached_jobs(self, *, query: str, location: str, limit: int) -> list[dict] | None:
+        if settings.environment != "production":
+            return None
+        cache_key = self._production_cache_key(query=query, location=location, limit=limit)
+        cached = _PRODUCTION_JOB_CACHE.get(cache_key)
+        if not cached:
+            return None
+        ttl_seconds = max(300, settings.production_live_cache_ttl_minutes * 60)
+        if (time.time() - float(cached.get("stored_at", 0))) > ttl_seconds:
+            _PRODUCTION_JOB_CACHE.pop(cache_key, None)
+            return None
+        self.last_fetch_diagnostics = copy.deepcopy(cached.get("diagnostics", {})) or {}
+        self.last_fetch_diagnostics["cache_hit"] = True
+        return copy.deepcopy(cached.get("jobs", []))
+
+    def _store_production_cached_jobs(self, *, query: str, location: str, limit: int, jobs: list[dict]) -> None:
+        if settings.environment != "production" or not jobs:
+            return
+        cache_key = self._production_cache_key(query=query, location=location, limit=limit)
+        _PRODUCTION_JOB_CACHE[cache_key] = {
+            "stored_at": time.time(),
+            "jobs": copy.deepcopy(jobs),
+            "diagnostics": copy.deepcopy(self.last_fetch_diagnostics),
+        }
+
+    def _annotate_item_scores(self, *, query: str, location: str, item: dict) -> None:
+        normalized = item.setdefault("normalized_data", {})
+        normalized["role_fit_score"] = role_fit_score(query, item)
+        normalized["location_alignment_score"] = self._location_alignment_score(location, item)
+        normalized["listing_quality_score"] = self._listing_quality_score(query, item)
+        normalized["market_quality_score"] = self._market_quality_score(query, location, item)
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -146,8 +222,12 @@ class JobAggregator:
             "providers": [],
         }
         if settings.environment == "production":
+            cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
+            if cached_live:
+                return cached_live
             live_jobs = await self._fetch_production_jobs(query=query, location=location, limit=limit)
             if live_jobs:
+                self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 return live_jobs
 
         use_cache = self._use_cache()
@@ -178,9 +258,7 @@ class JobAggregator:
                         }
                         item["normalized_data"] = {**preserved, **refreshed}
                         cached_updated = True
-                    item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                    item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
-                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
+                    self._annotate_item_scores(query=query, location=location, item=item)
                 filtered_cached = self._filter_relevant_jobs(query, cached, location=location)
                 if cached_updated and filtered_cached:
                     filtered_cached = cache.store_jobs(jobs=filtered_cached, query=query, location=location)
@@ -213,9 +291,7 @@ class JobAggregator:
                         seen.add(key)
                         item.setdefault("normalized_data", {})
                         item.setdefault("preview", truncate(str(item.get("description", "")), 260))
-                        item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                        item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
-                        item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
+                        self._annotate_item_scores(query=query, location=location, item=item)
                         collected.append(item)
                     if len(collected) >= limit * 2:
                         break
@@ -301,9 +377,7 @@ class JobAggregator:
                     seen.add(key)
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
-                    item["normalized_data"]["role_fit_score"] = role_fit_score(query, item)
-                    item["normalized_data"]["location_alignment_score"] = self._location_alignment_score(location, item)
-                    item["normalized_data"]["market_quality_score"] = self._market_quality_score(query, location, item)
+                    self._annotate_item_scores(query=query, location=location, item=item)
                     collected.append(item)
 
         async def run_stage(stage: str, providers: list[object]) -> list[dict]:
@@ -699,16 +773,57 @@ class JobAggregator:
             return relaxed[: max(1, min(5, len(relaxed)))]
         return filtered if filtered else []
 
+    def _listing_quality_score(self, query: str, item: dict) -> float:
+        normalized = item.get("normalized_data", {}) or {}
+        title = normalize_role(str(item.get("title", "")))
+        description = normalize_role(str(item.get("description", "")))
+        skill_count = len({str(skill).lower() for skill in normalized.get("skills", []) or []})
+        requirement_quality = float(normalized.get("requirement_quality", 0.0))
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+
+        score = 6.0
+        word_count = len(description.split())
+        if 90 <= word_count <= 950:
+            score += 4.0
+        elif 45 <= word_count <= 1200:
+            score += 2.0
+        if skill_count >= 6:
+            score += 4.0
+        elif skill_count >= 3:
+            score += 2.0
+        if requirement_quality >= 36.0:
+            score += 3.0
+        elif requirement_quality >= 22.0:
+            score += 1.5
+        if title_overlap >= 1:
+            score += 2.0
+        if family_overlap >= 1:
+            score += 1.5
+        if domain_score >= 2:
+            score += 2.5
+        if any(hint in description for hint in LOW_SIGNAL_DESCRIPTION_HINTS):
+            score -= 4.0
+        if title_overlap == 0 and family_overlap == 0:
+            weakener_hits = sum(1 for token in GENERIC_TITLE_WEAKENERS if re.search(rf"\b{re.escape(token)}\b", title))
+            score -= min(3.0, weakener_hits * 1.25)
+        return round(max(0.0, min(score, 20.0)), 2)
+
     def _market_quality_score(self, query: str, location: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
+        listing_quality = float(normalized.get("listing_quality_score", self._listing_quality_score(query, item)))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
         hint_overlap = len(skills & role_market_hints(query))
         primary_overlap = len(skills & role_primary_hints(query))
         location_score = self._location_alignment_score(location, item)
-        return round((role_fit * 10) + requirement_quality + min(10, skill_count * 1.5) + (hint_overlap * 8) + (primary_overlap * 12) + (location_score * 18), 2)
+        listing_quality = float(normalized.get("listing_quality_score", self._listing_quality_score(query, item)))
+        source_weight = SOURCE_TRUST_WEIGHTS.get(str(item.get("source", "")).lower(), 0.86)
+        base_score = (role_fit * 10) + requirement_quality + min(10, skill_count * 1.5) + (hint_overlap * 8) + (primary_overlap * 12) + (location_score * 18) + (listing_quality * 1.7)
+        return round(base_score * source_weight, 2)
 
     def _passes_quality_gate(self, query: str, item: dict, *, location: str = "") -> bool:
         normalized = item.get("normalized_data", {}) or {}
@@ -727,6 +842,8 @@ class JobAggregator:
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True
         if not explicit_alignment and (title_overlap + family_overlap + domain_score) == 0:
+            return False
+        if listing_quality < 4.5 and not explicit_alignment:
             return False
         if role_fit < 2.0:
             return False
@@ -754,7 +871,7 @@ class JobAggregator:
         if title_overlap == 0 and core_title_overlap == 0 and family_overlap == 0 and domain_score < 2 and skill_overlap < 1.5:
             return False
 
-        return requirement_quality >= 22.0 or skill_count >= 3 or role_fit >= 4.5
+        return requirement_quality >= 22.0 or listing_quality >= 8.0 or skill_count >= 3 or role_fit >= 4.5
 
     def _location_alignment_score(self, requested_location: str, item: dict) -> float:
         requested = normalize_role(str(requested_location or "")).strip().lower()

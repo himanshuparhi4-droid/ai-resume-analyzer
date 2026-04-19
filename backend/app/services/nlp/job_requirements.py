@@ -247,6 +247,19 @@ NON_SKILL_OPENERS = (
     "excellent",
     "good",
 )
+LOW_SIGNAL_SENTENCE_HINTS = (
+    "equal opportunity",
+    "equal employment opportunity",
+    "all qualified applicants",
+    "regard to race",
+    "without regard to",
+    "compensation and benefits",
+    "employee benefits",
+    "benefits package",
+    "salary range",
+    "country by country reporting",
+    "transfer pricing",
+)
 CANONICAL_SKILL_ALIASES = {
     "analytics": "data analysis",
     "bi": "business intelligence",
@@ -341,6 +354,8 @@ def _collect_dynamic_skill_candidates(*, title_text: str, description_text: str,
 
     for sentence in sentences:
         sentence_lower = sentence.lower()
+        if any(hint in sentence_lower for hint in LOW_SIGNAL_SENTENCE_HINTS):
+            continue
         relevant = any(head in sentence_lower for head in GENERIC_REQUIREMENT_HEADS)
         if not relevant and ":" not in sentence_lower:
             continue
@@ -437,6 +452,8 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
             continue
 
         snippet_lower = item["snippet"].lower()
+        if any(hint in snippet_lower for hint in LOW_SIGNAL_SENTENCE_HINTS):
+            continue
         weight = 0.36
         if skill in title_lower:
             weight += 0.18
@@ -475,6 +492,8 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
 
     for sentence in [segment.strip() for segment in SENTENCE_SPLIT_RE.split(full_text) if segment.strip()]:
         sentence_lower = sentence.lower()
+        if any(hint in sentence_lower for hint in LOW_SIGNAL_SENTENCE_HINTS):
+            continue
         sentence_explicit = {item["skill"] for item in extract_skill_matches(sentence, source=source)}
         for skill, patterns in PROXY_SKILL_PATTERNS.items():
             if skill in SOFT_SKILLS:

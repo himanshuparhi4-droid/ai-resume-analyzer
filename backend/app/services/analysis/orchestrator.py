@@ -343,6 +343,29 @@ class AnalysisOrchestrator:
             for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
         ][:10]
 
+        live_jobs = [job for job in scoring_jobs if job.get("source") != "role-baseline"]
+        live_company_count = len(
+            {
+                str(job.get("company", "")).strip().lower()
+                for job in live_jobs
+                if str(job.get("company", "")).strip()
+            }
+        )
+        market_confidence_factor = 1.0
+        if live_jobs:
+            if len(live_jobs) >= 6 and live_company_count >= 3:
+                market_confidence_factor = 1.0
+            elif len(live_jobs) >= 4:
+                market_confidence_factor = 0.92
+            elif len(live_jobs) >= 2:
+                market_confidence_factor = 0.84
+            else:
+                market_confidence_factor = 0.76
+            if any(job.get("source") == "role-baseline" for job in jobs):
+                market_confidence_factor = min(market_confidence_factor, 0.9)
+        elif jobs:
+            market_confidence_factor = 0.78
+
         skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
         relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in scoring_jobs]
         semantic_match = round(mean(relevance_scores), 2) if relevance_scores else 0.0
@@ -350,6 +373,8 @@ class AnalysisOrchestrator:
         total_demand = sum(demand_map.values())
         covered_demand = sum(demand_map.get(skill, 0) for skill in matched_skills)
         market_demand = round((covered_demand / total_demand) * 100, 2) if total_demand else 0.0
+        skill_match = round(skill_match * market_confidence_factor, 2)
+        market_demand = round(market_demand * market_confidence_factor, 2)
         resume_quality = self.scoring_engine._resume_quality_score(resume_data)
         ats_compliance = self.scoring_engine._ats_score(resume_data)
 
