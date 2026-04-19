@@ -901,6 +901,8 @@ class JobAggregator:
                 return 0.78
             if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
                 return 0.74
+            if remote and any(token in job_location for token in NON_INDIA_REGION_HINTS):
+                return 0.22
             if any(token in job_location for token in NON_INDIA_REGION_HINTS):
                 return 0.0
             return 0.18 if remote else 0.0
@@ -917,6 +919,8 @@ class JobAggregator:
             return False
         job_location = str(item.get("location", "") or "").strip().lower()
         if requested == "india":
+            if bool(item.get("remote")) and any(token in job_location for token in NON_INDIA_REGION_HINTS):
+                return False
             return any(token in job_location for token in NON_INDIA_REGION_HINTS)
         return False
 
@@ -941,6 +945,8 @@ class JobAggregator:
             variations = production_query_variations(query)
             if source_name == "remotive":
                 return variations[:2]
+            if source_name == "jobicy":
+                return variations[:4]
             return variations[:3]
         return query_variations(query)
 

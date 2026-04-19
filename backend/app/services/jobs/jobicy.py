@@ -9,24 +9,6 @@ from app.services.jobs.taxonomy import normalize_role, role_fit_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
-ROLE_TAG_MAP = {
-    "data analyst": "data",
-    "data scientist": "data",
-    "data engineer": "data",
-    "machine learning engineer": "data",
-    "software engineer": "software",
-    "frontend developer": "software",
-    "full stack developer": "software",
-    "devops engineer": "software",
-    "cybersecurity engineer": "security",
-    "qa engineer": "software",
-    "product manager": "product",
-    "ui/ux designer": "design",
-    "graphic designer": "design",
-    "teacher": "teacher",
-    "painter": "painter",
-}
-
 class JobicyProvider:
     source_name = "jobicy"
     supports_query_variations = True
@@ -42,7 +24,7 @@ class JobicyProvider:
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
         params = {"count": min(max(limit * 2, settings.production_live_candidate_fetch), 50)}
-        role_tag = ROLE_TAG_MAP.get(normalized_role, query)
+        role_tag = (query or normalized_role).strip()
         if role_tag:
             params["tag"] = role_tag
 
