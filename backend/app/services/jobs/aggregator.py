@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
+from app.services.jobs.indianapi import IndianAPIProvider
 from app.services.jobs.jobicy import JobicyProvider
 from app.services.jobs.jooble import JoobleProvider
 from app.services.jobs.remoteok import RemoteOKProvider
@@ -56,6 +57,7 @@ NON_INDIA_REGION_HINTS = {
     "latin america",
 }
 SOURCE_TRUST_WEIGHTS = {
+    "indianapi": 1.03,
     "jooble": 1.02,
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -101,6 +103,8 @@ class JobAggregator:
                 return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
+        if settings.default_job_source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
+            self.providers.append(IndianAPIProvider())
         if settings.default_job_source in {"auto", "jooble"} and settings.has_jooble_credentials:
             self.providers.append(JoobleProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -176,6 +180,8 @@ class JobAggregator:
 
         if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             add(AdzunaProvider())
+        if source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
+            add(IndianAPIProvider())
         if source in {"auto", "jooble"} and settings.has_jooble_credentials:
             add(JoobleProvider())
         if source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -419,6 +425,8 @@ class JobAggregator:
                 primary_sources.append("jooble")
             if "adzuna" in source_groups:
                 primary_sources.append("adzuna")
+            if "indianapi" in source_groups:
+                primary_sources.append("indianapi")
             primary_sources.extend(source for source in ["jobicy", "themuse"] if source in source_groups and source not in primary_sources)
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
