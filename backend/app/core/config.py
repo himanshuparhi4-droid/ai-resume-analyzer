@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     remoteok_base_url: str = "https://remoteok.com/api"
     themuse_base_url: str = "https://www.themuse.com/api/public/jobs"
     themuse_api_key: str | None = None
+    jooble_base_url: str = "https://jooble.org/api"
+    jooble_api_key: str | None = None
     jobicy_base_url: str = "https://jobicy.com/api/v2/remote-jobs"
     arbeitnow_base_url: str = "https://www.arbeitnow.com/api/job-board-api"
     adzuna_base_url: str = "https://api.adzuna.com/v1/api/jobs"
@@ -82,6 +84,11 @@ class Settings(BaseSettings):
     @property
     def has_adzuna_credentials(self) -> bool:
         return bool(self.adzuna_app_id and self.adzuna_app_key)
+
+    @computed_field
+    @property
+    def has_jooble_credentials(self) -> bool:
+        return bool(self.jooble_api_key)
 
     @computed_field
     @property

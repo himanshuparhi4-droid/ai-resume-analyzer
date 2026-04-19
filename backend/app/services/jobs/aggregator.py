@@ -13,6 +13,7 @@ from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
 from app.services.jobs.jobicy import JobicyProvider
+from app.services.jobs.jooble import JoobleProvider
 from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
@@ -55,6 +56,7 @@ NON_INDIA_REGION_HINTS = {
     "latin america",
 }
 SOURCE_TRUST_WEIGHTS = {
+    "jooble": 1.02,
     "jobicy": 1.0,
     "remotive": 0.94,
     "themuse": 0.92,
@@ -99,6 +101,8 @@ class JobAggregator:
                 return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
+        if settings.default_job_source in {"auto", "jooble"} and settings.has_jooble_credentials:
+            self.providers.append(JoobleProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
             self.providers.append(USAJobsProvider())
         if settings.default_job_source in {"auto", "themuse"}:
@@ -172,6 +176,8 @@ class JobAggregator:
 
         if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             add(AdzunaProvider())
+        if source in {"auto", "jooble"} and settings.has_jooble_credentials:
+            add(JoobleProvider())
         if source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
             add(USAJobsProvider())
 
@@ -404,7 +410,12 @@ class JobAggregator:
         if sparse_role:
             primary_sources = ["remotive"]
         else:
-            primary_sources = ["adzuna", "jobicy", "themuse"] if "adzuna" in source_groups else ["jobicy", "themuse"]
+            primary_sources = []
+            if "jooble" in source_groups:
+                primary_sources.append("jooble")
+            if "adzuna" in source_groups:
+                primary_sources.append("adzuna")
+            primary_sources.extend(source for source in ["jobicy", "themuse"] if source in source_groups and source not in primary_sources)
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -431,7 +442,7 @@ class JobAggregator:
             )
             return preferred_live
 
-        supplemental_sources = [] if sparse_role else (["remotive"] if "remotive" in source_groups else [])
+        supplemental_sources = [] if sparse_role else ([source for source in ["remotive", "themuse"] if source in source_groups and source not in primary_sources])
         supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
         if supplemental_providers:
             preferred_live = await run_stage("supplemental", supplemental_providers)
