@@ -970,7 +970,7 @@ class JobAggregator:
         remote = bool(item.get("remote"))
 
         if not requested or requested in GLOBAL_REMOTE_HINTS:
-            return 1.0 if remote or any(hint in job_location for hint in GLOBAL_REMOTE_HINTS) else 0.75
+            return 1.0 if remote or any(hint in job_location for hint in GLOBAL_REMOTE_HINTS) else 0.82
         if requested in job_location:
             return 1.0
 
@@ -978,32 +978,26 @@ class JobAggregator:
             if any(token in job_location for token in INDIA_LOCATION_HINTS):
                 return 1.0
             if any(token in job_location for token in ASIA_LOCATION_HINTS):
-                return 0.72
+                return 0.88
             if remote and not job_location:
-                return 0.78
+                return 0.84
             if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
-                return 0.74
+                return 0.82
             if remote and any(token in job_location for token in NON_INDIA_REGION_HINTS):
-                return 0.22
+                return 0.72
             if any(token in job_location for token in NON_INDIA_REGION_HINTS):
-                return 0.0
-            return 0.18 if remote else 0.0
+                return 0.58
+            return 0.66 if remote else 0.52
 
         if remote and not job_location:
-            return 0.72
+            return 0.8
         if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
-            return 0.7
-        return 0.0
+            return 0.78
+        if remote:
+            return 0.68
+        return 0.52
 
     def _is_location_hard_mismatch(self, requested_location: str, item: dict) -> bool:
-        requested = normalize_role(str(requested_location or "")).strip().lower()
-        if not requested or requested in GLOBAL_REMOTE_HINTS:
-            return False
-        job_location = str(item.get("location", "") or "").strip().lower()
-        if requested == "india":
-            if bool(item.get("remote")) and any(token in job_location for token in NON_INDIA_REGION_HINTS):
-                return False
-            return any(token in job_location for token in NON_INDIA_REGION_HINTS)
         return False
 
     def _needs_requirement_refresh(self, item: dict) -> bool:

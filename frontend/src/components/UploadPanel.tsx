@@ -29,13 +29,13 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
 
   return (
     <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-400">Analyzer</p>
           <h2 className="font-display text-3xl text-ink dark:text-slate-50">Run a role-fit review</h2>
         </div>
         <div className="rounded-full border border-ink/10 bg-mist/85 px-4 py-2 text-sm text-slate-700 transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-          Location-aware live job sampling with evidence-backed scoring
+          Role-first live job sampling with evidence-backed scoring
         </div>
       </div>
       <form className="grid gap-5" onSubmit={handleSubmit}>
@@ -81,7 +81,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
               placeholder="India"
             />
             <span className="mt-3 min-h-[3.5rem] text-sm leading-6 text-slate-600 dark:text-slate-300">
-              We prefer local or region-fit jobs first, then widen to global remote only if the live market is sparse.
+              This is a soft hint, not a strict filter. The review now prioritizes role relevance first, then uses location only as a light ranking preference.
             </span>
           </label>
 
