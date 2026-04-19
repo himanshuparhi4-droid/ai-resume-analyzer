@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     remotive_base_url: str = "https://remotive.com/api/remote-jobs"
     remoteok_base_url: str = "https://remoteok.com/api"
     themuse_base_url: str = "https://www.themuse.com/api/public/jobs"
+    themuse_api_key: str | None = None
     jobicy_base_url: str = "https://jobicy.com/api/v2/remote-jobs"
     arbeitnow_base_url: str = "https://www.arbeitnow.com/api/job-board-api"
     adzuna_base_url: str = "https://api.adzuna.com/v1/api/jobs"

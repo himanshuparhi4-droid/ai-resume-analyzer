@@ -73,6 +73,8 @@ class TheMuseProvider:
             for spec in request_specs:
                 for page in range(1, page_count + 1):
                     params = {"page": page, "items_per_page": items_per_page, **spec}
+                    if settings.themuse_api_key:
+                        params["api_key"] = settings.themuse_api_key
                     response = await client.get(settings.themuse_base_url, params=params)
                     response.raise_for_status()
                     payload = response.json()
