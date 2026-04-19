@@ -29,6 +29,20 @@ class JobCacheService:
         )
         return [self._to_dict(item) for item in self.db.scalars(stmt).all()]
 
+    def get_cached_jobs_any_location(self, query: str, limit: int) -> list[dict]:
+        normalized_role = normalize_role(query)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        stmt = (
+            select(JobListing)
+            .where(
+                JobListing.normalized_role == normalized_role,
+                or_(JobListing.cached_until.is_(None), JobListing.cached_until > now),
+            )
+            .order_by(desc(JobListing.last_seen_at))
+            .limit(limit)
+        )
+        return [self._to_dict(item) for item in self.db.scalars(stmt).all()]
+
     def store_jobs(self, *, jobs: list[dict], query: str, location: str) -> list[dict]:
         normalized_role = normalize_role(query)
         now = datetime.now(UTC).replace(tzinfo=None)

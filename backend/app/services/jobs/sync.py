@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.services.jobs.aggregator import JobAggregator
+from app.services.jobs.taxonomy import production_query_variations
 
 
 class JobSyncService:
@@ -14,7 +15,10 @@ class JobSyncService:
     async def sync_defaults(self) -> dict:
         synced_jobs = 0
         synced_queries = 0
+        expanded_queries: list[str] = []
         for query in settings.sync_default_queries:
+            expanded_queries.extend(production_query_variations(query)[:3])
+        for query in list(dict.fromkeys([*settings.sync_default_queries, *expanded_queries])):
             for location in settings.sync_default_locations:
                 items = await self.aggregator.fetch_jobs(query=query, location=location, limit=settings.fetch_limit, force_refresh=True)
                 synced_queries += 1

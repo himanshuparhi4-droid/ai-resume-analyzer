@@ -12,9 +12,11 @@ from app.core.config import settings
 from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
+from app.services.jobs.greenhouse import GreenhouseProvider
 from app.services.jobs.indianapi import IndianAPIProvider
 from app.services.jobs.jobicy import JobicyProvider
 from app.services.jobs.jooble import JoobleProvider
+from app.services.jobs.lever import LeverProvider
 from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
@@ -57,6 +59,8 @@ NON_INDIA_REGION_HINTS = {
     "latin america",
 }
 SOURCE_TRUST_WEIGHTS = {
+    "greenhouse": 1.08,
+    "lever": 1.07,
     "indianapi": 1.03,
     "jooble": 1.02,
     "jobicy": 1.0,
@@ -103,6 +107,10 @@ class JobAggregator:
                 return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
+        if settings.default_job_source in {"auto", "greenhouse"} and settings.has_greenhouse_boards:
+            self.providers.append(GreenhouseProvider())
+        if settings.default_job_source in {"auto", "lever"} and settings.has_lever_companies:
+            self.providers.append(LeverProvider())
         if settings.default_job_source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
             self.providers.append(IndianAPIProvider())
         if settings.default_job_source in {"auto", "jooble"} and settings.has_jooble_credentials:
@@ -180,6 +188,10 @@ class JobAggregator:
 
         if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             add(AdzunaProvider())
+        if source in {"auto", "greenhouse"} and settings.has_greenhouse_boards:
+            add(GreenhouseProvider())
+        if source in {"auto", "lever"} and settings.has_lever_companies:
+            add(LeverProvider())
         if source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
             add(IndianAPIProvider())
         if source in {"auto", "jooble"} and settings.has_jooble_credentials:
@@ -243,6 +255,9 @@ class JobAggregator:
             if live_jobs:
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 return live_jobs
+            cached_fallback = self._get_cached_production_fallback(query=query, location=location, limit=limit)
+            if cached_fallback:
+                return cached_fallback
 
         use_cache = self._use_cache()
         if use_cache and not force_refresh:
@@ -335,11 +350,33 @@ class JobAggregator:
             collected = JobCacheService(self.db).store_jobs(jobs=collected[:limit], query=query, location=location)
         return collected[:limit]
 
+    def _get_cached_production_fallback(self, *, query: str, location: str, limit: int) -> list[dict]:
+        if self.db is None or not settings.enable_job_cache:
+            return []
+        try:
+            cache = JobCacheService(self.db)
+            cached = cache.get_cached_jobs_any_location(query=query, limit=max(limit * 6, settings.production_live_candidate_fetch))
+        except Exception as exc:
+            logger.warning("Production cache fallback lookup failed for query=%s: %s", query, exc)
+            return []
+        if not cached:
+            return []
+        for item in cached:
+            item.setdefault("normalized_data", {})
+            self._annotate_item_scores(query=query, location=location, item=item)
+        selected = self._select_production_live_jobs(query=query, location=location, jobs=cached, limit=limit)
+        if selected:
+            self.last_fetch_diagnostics["cache_fallback_hit"] = True
+            self.last_fetch_diagnostics["cache_fallback_count"] = len(selected)
+        return selected
+
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
                 provider_timeout = 6.5
+            elif source_name in {"greenhouse", "lever"}:
+                provider_timeout = 9.0
             elif source_name == "jooble":
                 provider_timeout = 8.5
             elif source_name == "adzuna":
@@ -421,6 +458,10 @@ class JobAggregator:
             primary_sources = ["remotive"]
         else:
             primary_sources = []
+            if "greenhouse" in source_groups:
+                primary_sources.append("greenhouse")
+            if "lever" in source_groups:
+                primary_sources.append("lever")
             if "jooble" in source_groups:
                 primary_sources.append("jooble")
             if "adzuna" in source_groups:

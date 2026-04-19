@@ -16,7 +16,7 @@ from app.models import analysis, job, resume, user  # noqa: F401
 from app.services.jobs.sync import JobSyncService
 
 scheduler = AsyncIOScheduler()
-BUILD_TAG = "2026-04-20-livefetch-debug-18"
+BUILD_TAG = "2026-04-20-livefetch-debug-19"
 
 
 async def _scheduled_sync() -> None:

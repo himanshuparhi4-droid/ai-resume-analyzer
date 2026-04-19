@@ -1,4 +1,5 @@
 from functools import lru_cache
+import re
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,6 +24,10 @@ class Settings(BaseSettings):
     themuse_api_key: str | None = None
     indianapi_jobs_base_url: str = "https://jobs.indianapi.in/jobs"
     indianapi_api_key: str | None = None
+    greenhouse_base_url: str = "https://boards-api.greenhouse.io/v1/boards"
+    greenhouse_board_tokens_raw: str = ""
+    lever_base_url: str = "https://api.lever.co/v0/postings"
+    lever_company_tokens_raw: str = ""
     jooble_base_url: str = "https://jooble.org/api"
     jooble_api_key: str | None = None
     jobicy_base_url: str = "https://jobicy.com/api/v2/remote-jobs"
@@ -53,6 +58,7 @@ class Settings(BaseSettings):
     production_live_display_minimum: int = 6
     production_live_candidate_fetch: int = 60
     production_live_cache_ttl_minutes: int = 180
+    ats_board_cache_ttl_minutes: int = 360
 
     fetch_limit: int = 12
     job_cache_ttl_minutes: int = 360
@@ -91,6 +97,26 @@ class Settings(BaseSettings):
     @property
     def has_indianapi_credentials(self) -> bool:
         return bool(self.indianapi_api_key)
+
+    @computed_field
+    @property
+    def greenhouse_board_tokens(self) -> list[str]:
+        return [token for token in re.split(r"[\s,;]+", self.greenhouse_board_tokens_raw.strip()) if token]
+
+    @computed_field
+    @property
+    def has_greenhouse_boards(self) -> bool:
+        return bool(self.greenhouse_board_tokens)
+
+    @computed_field
+    @property
+    def lever_company_tokens(self) -> list[str]:
+        return [token for token in re.split(r"[\s,;]+", self.lever_company_tokens_raw.strip()) if token]
+
+    @computed_field
+    @property
+    def has_lever_companies(self) -> bool:
+        return bool(self.lever_company_tokens)
 
     @computed_field
     @property
