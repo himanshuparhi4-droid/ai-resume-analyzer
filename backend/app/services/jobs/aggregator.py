@@ -334,10 +334,14 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
                 provider_timeout = 6.5
+            elif source_name == "jooble":
+                provider_timeout = 8.5
+            elif source_name == "adzuna":
+                provider_timeout = 8.5
             elif source_name == "remotive":
                 provider_timeout = 3.75
             elif source_name == "themuse":
-                provider_timeout = 8.0
+                provider_timeout = 9.0
             elif source_name == "remoteok":
                 provider_timeout = 2.5
             else:

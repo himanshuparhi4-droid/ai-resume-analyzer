@@ -26,9 +26,9 @@ class AdzunaProvider:
         if normalized_location not in {"", "india", "remote", "worldwide", "global"}:
             location_filter = location
 
-        results_per_page = min(max(limit * 3, settings.production_live_candidate_fetch), 50)
-        target_candidates = max(limit * 4, settings.production_live_candidate_fetch)
-        page_count = min(3, max(1, ceil(target_candidates / results_per_page)))
+        results_per_page = min(max(limit * 4, settings.production_live_candidate_fetch), 50)
+        target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
+        page_count = min(5, max(1, ceil(target_candidates / results_per_page)))
 
         jobs = []
         seen_ids: set[str] = set()

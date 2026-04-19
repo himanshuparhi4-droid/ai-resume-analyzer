@@ -26,9 +26,9 @@ class JoobleProvider:
         if not settings.has_jooble_credentials:
             return []
 
-        target_candidates = max(limit * 4, settings.production_live_candidate_fetch)
-        page_size = min(max(limit * 2, 20), 100)
-        page_count = min(3, max(1, (target_candidates + page_size - 1) // page_size))
+        target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
+        page_size = min(max(limit * 4, 30), 100)
+        page_count = min(5, max(1, (target_candidates + page_size - 1) // page_size))
         endpoint = f"{settings.jooble_base_url}/{settings.jooble_api_key}"
 
         jobs: list[dict] = []

@@ -46,7 +46,7 @@ class TheMuseProvider:
         categories = ROLE_CATEGORY_MAP.get(normalized_role, [])
         location_value = (location or "").strip()
         use_location = location_value.lower() not in {"", "remote", "worldwide", "global"}
-        page_count = 2 if settings.environment == "production" else 4
+        page_count = 3 if settings.environment == "production" else 4
         items_per_page = 20
 
         request_specs: list[dict[str, str]] = []

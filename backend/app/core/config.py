@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     production_live_fetch_minimum: int = 6
     production_live_fetch_maximum: int = 8
     production_live_display_minimum: int = 6
-    production_live_candidate_fetch: int = 36
+    production_live_candidate_fetch: int = 60
     production_live_cache_ttl_minutes: int = 180
 
     fetch_limit: int = 12
