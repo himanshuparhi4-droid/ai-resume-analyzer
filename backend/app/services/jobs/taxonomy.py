@@ -22,6 +22,15 @@ ROLE_SYNONYMS = {
     "ml engineer": "machine learning engineer",
     "ai engineer": "machine learning engineer",
     "devops engineer": "devops engineer",
+    "cybersecurity engineer": "cybersecurity engineer",
+    "cyber security engineer": "cybersecurity engineer",
+    "security engineer": "cybersecurity engineer",
+    "information security engineer": "cybersecurity engineer",
+    "cloud security engineer": "cybersecurity engineer",
+    "application security engineer": "cybersecurity engineer",
+    "product security engineer": "cybersecurity engineer",
+    "security operations engineer": "cybersecurity engineer",
+    "soc engineer": "cybersecurity engineer",
     "aws": "devops engineer",
     "amazon web services": "devops engineer",
     "aws engineer": "devops engineer",
@@ -53,6 +62,29 @@ ROLE_SYNONYMS = {
     "spray painter": "painter",
 }
 STOPWORDS = {"and", "the", "for", "with", "role", "remote"}
+GENERIC_ROLE_MATCH_TOKENS = {
+    "engineer",
+    "developer",
+    "manager",
+    "analyst",
+    "specialist",
+    "executive",
+    "representative",
+    "associate",
+    "assistant",
+    "consultant",
+    "coordinator",
+    "lead",
+    "director",
+    "architect",
+    "technician",
+    "officer",
+    "administrator",
+    "designer",
+    "scientist",
+    "owner",
+    "intern",
+}
 ROLE_SEARCH_VARIATIONS = {
     "data analyst": [
         "data analyst",
@@ -104,6 +136,14 @@ ROLE_SEARCH_VARIATIONS = {
         "platform engineer",
         "cloud architect",
     ],
+    "cybersecurity engineer": [
+        "cybersecurity engineer",
+        "security engineer",
+        "cloud security engineer",
+        "application security engineer",
+        "information security engineer",
+        "security operations engineer",
+    ],
     "qa engineer": [
         "qa engineer",
         "test engineer",
@@ -152,6 +192,7 @@ ROLE_PRODUCTION_VARIATIONS = {
     "frontend developer": ["frontend developer", "frontend", "react"],
     "full stack developer": ["full stack developer", "full stack", "developer"],
     "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer", "aws"],
+    "cybersecurity engineer": ["cybersecurity engineer", "security engineer", "cloud security engineer", "application security engineer", "security operations engineer", "information security engineer"],
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
     "product manager": ["product manager", "product", "product owner"],
     "ui/ux designer": ["ui ux designer", "product designer", "design"],
@@ -168,6 +209,7 @@ ROLE_MARKET_HINTS = {
     "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css", "figma"},
     "full stack developer": {"react", "javascript", "typescript", "node.js", "sql", "api"},
     "devops engineer": {"aws", "amazon web services", "docker", "kubernetes", "terraform", "linux", "ci/cd", "ec2", "lambda", "iam", "cloudformation", "monitoring"},
+    "cybersecurity engineer": {"network security", "cloud security", "siem", "splunk", "incident response", "iam", "vulnerability management", "soc", "ids/ips", "firewall", "threat hunting", "security operations", "penetration testing", "python", "linux"},
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"data analysis", "sql", "communication", "leadership", "excel"},
     "ui/ux designer": {"figma", "ui design", "ux design", "communication"},
@@ -184,6 +226,7 @@ ROLE_PRIMARY_HINTS = {
     "frontend developer": {"javascript", "typescript", "react", "next.js", "html", "css"},
     "full stack developer": {"javascript", "typescript", "react", "node.js", "sql", "api"},
     "devops engineer": {"aws", "amazon web services", "docker", "kubernetes", "terraform", "linux", "ci/cd", "ec2", "lambda", "iam"},
+    "cybersecurity engineer": {"cloud security", "siem", "splunk", "incident response", "iam", "vulnerability management", "soc", "firewall", "threat hunting", "security operations"},
     "qa engineer": {"testing", "pytest", "ci/cd", "javascript", "java", "api"},
     "product manager": {"sql", "excel", "data analysis"},
     "ui/ux designer": {"figma", "ui design", "ux design"},
@@ -200,6 +243,7 @@ ROLE_TITLE_HINTS = {
     "frontend developer": {"frontend", "react", "web developer", "ui"},
     "full stack developer": {"full stack", "fullstack", "developer", "engineer"},
     "devops engineer": {"devops", "site reliability", "sre", "platform", "cloud", "aws", "cloud engineer", "cloud architect"},
+    "cybersecurity engineer": {"cybersecurity engineer", "cyber security engineer", "security engineer", "cloud security", "application security", "information security", "security operations", "soc", "security architect", "security analyst"},
     "qa engineer": {"qa", "quality assurance", "test", "automation"},
     "product manager": {"product manager", "product owner", "product"},
     "ui/ux designer": {"designer", "ui", "ux", "product designer"},
@@ -216,6 +260,7 @@ ROLE_KEYWORD_FAMILIES = {
     "software engineer": ("backend", "api developer", "python developer", "software engineer"),
     "full stack developer": ("full stack", "fullstack"),
     "devops engineer": ("aws", "aws engineer", "devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"),
+    "cybersecurity engineer": ("cybersecurity", "cyber security", "security engineer", "cloud security", "application security", "information security", "security operations", "soc engineer", "security architect"),
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
     "product manager": ("product manager", "product owner", "associate product manager"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
@@ -233,6 +278,7 @@ ROLE_DOMAIN_MAP = {
     "frontend developer": "software",
     "full stack developer": "software",
     "devops engineer": "software",
+    "cybersecurity engineer": "security",
     "qa engineer": "software",
     "product manager": "product",
     "ui/ux designer": "design",
@@ -319,7 +365,7 @@ def role_fit_score(query: str, item: dict) -> float:
         dict.fromkeys(
             token
             for token in [*raw_query.split(), *normalized_query.split()]
-            if token and token not in STOPWORDS
+            if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
         )
     )
     title = normalize_role(item.get("title", ""))
@@ -354,10 +400,14 @@ def role_fit_score(query: str, item: dict) -> float:
     if market_hints:
         hint_overlap = len(extracted_skills & market_hints)
         score += min(3.0, hint_overlap * 0.75)
+    title_domain = role_domain(item.get("title", ""))
+    query_domain = role_domain(query)
+    if query_domain and title_domain and title_domain != query_domain:
+        score *= 0.18
     if (
         normalized_query in ROLE_FAMILY_CANONICALS
         and title in ROLE_FAMILY_CANONICALS
         and title != normalized_query
     ):
-        score *= 0.6
+        score *= 0.4
     return round(score, 2)

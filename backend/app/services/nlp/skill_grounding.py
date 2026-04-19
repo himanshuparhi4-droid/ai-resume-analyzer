@@ -65,6 +65,7 @@ ROLE_BASELINE_POOLS = {
     "frontend developer": ["javascript", "typescript", "react", "next.js", "html", "css", "figma"],
     "full stack developer": ["react", "javascript", "typescript", "node.js", "sql", "api"],
     "devops engineer": ["aws", "docker", "kubernetes", "terraform", "linux", "ci/cd"],
+    "cybersecurity engineer": ["network security", "cloud security", "siem", "splunk", "incident response", "iam", "vulnerability management", "firewall"],
     "qa engineer": ["testing", "pytest", "ci/cd", "api", "javascript"],
     "product manager": ["data analysis", "excel", "sql", "communication", "leadership"],
     "ui/ux designer": ["figma", "ui design", "ux design", "communication"],

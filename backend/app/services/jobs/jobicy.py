@@ -18,6 +18,7 @@ ROLE_TAG_MAP = {
     "frontend developer": "software",
     "full stack developer": "software",
     "devops engineer": "software",
+    "cybersecurity engineer": "security",
     "qa engineer": "software",
     "product manager": "product",
     "ui/ux designer": "design",

@@ -512,6 +512,20 @@ class JobAggregator:
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
 
+    def _has_explicit_role_alignment(self, query: str, item: dict) -> bool:
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        role_fit = float(item.get("normalized_data", {}).get("role_fit_score", 0.0))
+        return (
+            title_overlap >= 1
+            or family_overlap >= 1
+            or domain_score >= 2
+            or (domain_score >= 1 and skill_overlap >= 1.0)
+            or (title_overlap >= 1 and role_fit >= 1.0)
+        )
+
     def _is_production_live_candidate(self, query: str, location: str, item: dict, *, strict: bool) -> bool:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
@@ -522,12 +536,15 @@ class JobAggregator:
         domain_score = self._role_domain_match_score(query, item)
         location_score = self._location_alignment_score(location, item)
         source = str(item.get("source", ""))
+        explicit_alignment = self._has_explicit_role_alignment(query, item)
 
         if self._is_location_hard_mismatch(location, item):
             return False
 
         if strict:
             if location_score < 0.2:
+                return False
+            if not explicit_alignment and market_quality < 48.0:
                 return False
             if source in {"themuse", "jobicy"} and domain_score >= 2 and (title_overlap >= 1 or skill_overlap >= 1.5 or family_overlap >= 1):
                 return True
@@ -550,6 +567,8 @@ class JobAggregator:
             return False
 
         if location_score <= 0.0:
+            return False
+        if not explicit_alignment and market_quality < 56.0:
             return False
         if source in {"themuse", "jobicy"} and domain_score >= 2:
             return True
@@ -676,10 +695,17 @@ class JobAggregator:
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        explicit_alignment = self._has_explicit_role_alignment(query, item)
         if self._is_location_hard_mismatch(location, item):
             return False
-        if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0:
+        if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True
+        if not explicit_alignment and (title_overlap + family_overlap + domain_score) == 0:
+            return False
         if role_fit < 2.0:
             return False
 
@@ -702,6 +728,8 @@ class JobAggregator:
             if hint_overlap == 1 and skill_count <= 2:
                 return False
         if role_primary_hints(query) and primary_overlap == 0 and role_fit < 9.0:
+            return False
+        if title_overlap == 0 and family_overlap == 0 and domain_score < 2 and skill_overlap < 1.5:
             return False
 
         return requirement_quality >= 22.0 or skill_count >= 3 or role_fit >= 4.5
