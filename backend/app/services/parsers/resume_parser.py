@@ -62,6 +62,11 @@ ACTION_LINE_RE = re.compile(
     r"\b(built|developed|designed|implemented|led|managed|delivered|improved|optimized|launched|created|reduced|increased|analyzed|automated|deployed|taught|published|researched|mentored|presented)\b",
     re.IGNORECASE,
 )
+ACTION_VERB_CAPTURE_RE = re.compile(
+    r"\b(built|developed|designed|implemented|led|managed|delivered|improved|optimized|launched|created|reduced|increased|analyzed|automated|deployed|taught|published|researched|mentored|presented)\b",
+    re.IGNORECASE,
+)
+FIRST_PERSON_RE = re.compile(r"\b(i|me|my|mine)\b", re.IGNORECASE)
 ACADEMIC_MARKER_RE = re.compile(r"\b(publication|publications|journal|conference|research|thesis|dissertation|teaching assistant|faculty)\b", re.IGNORECASE)
 TEACHING_MARKER_RE = re.compile(r"\b(curriculum|lesson planning|classroom|pedagogy|lecturer|faculty|teacher|student engagement)\b", re.IGNORECASE)
 EXECUTIVE_MARKER_RE = re.compile(r"\b(director|vice president|vp|head of|strategy|p&l|stakeholder management|organizational)\b", re.IGNORECASE)
@@ -354,6 +359,29 @@ class ResumeParser:
         experience_action_lines = sum(1 for line in experience_lines if ACTION_LINE_RE.search(line))
         project_action_lines = sum(1 for line in project_lines if ACTION_LINE_RE.search(line))
         evidence_action_lines = sum(1 for line in evidence_lines if ACTION_LINE_RE.search(line))
+        action_verb_variety = {
+            match.group(1).lower()
+            for line in evidence_lines
+            for match in ACTION_VERB_CAPTURE_RE.finditer(line)
+        }
+        evidence_line_word_counts = [len(line.split()) for line in evidence_lines if line.strip()]
+        evidence_bullet_word_counts = [
+            len(line.split()) for line in evidence_lines if line.strip() and BULLET_LINE_RE.search(line)
+        ]
+        long_evidence_line_count = sum(1 for count in evidence_line_word_counts if count >= 34)
+        short_bullet_count = sum(1 for count in evidence_bullet_word_counts if count <= 5)
+        dense_paragraph_line_count = sum(
+            1 for line in lines if len(line.split()) >= 34 and not BULLET_LINE_RE.search(line)
+        )
+        weak_bullet_count = sum(
+            1
+            for line in evidence_lines
+            if BULLET_LINE_RE.search(line)
+            and not ACTION_LINE_RE.search(line)
+            and not QUANTIFIED_LINE_RE.search(line)
+        )
+        summary_line_count = len(grouped_sections.get("summary", []))
+        first_person_pronoun_count = len(FIRST_PERSON_RE.findall(normalized))
         chronology_signal_count = date_range_count + (1 if YEARS_EXPERIENCE_RE.search(normalized.lower()) else 0)
 
         section_balance_score = 0.0
@@ -405,6 +433,19 @@ class ResumeParser:
             "experience_action_line_count": experience_action_lines,
             "projects_action_line_count": project_action_lines,
             "evidence_action_line_count": evidence_action_lines,
+            "action_verb_variety_count": len(action_verb_variety),
+            "avg_evidence_line_word_count": round(sum(evidence_line_word_counts) / len(evidence_line_word_counts), 2)
+            if evidence_line_word_counts
+            else 0.0,
+            "avg_bullet_word_count": round(sum(evidence_bullet_word_counts) / len(evidence_bullet_word_counts), 2)
+            if evidence_bullet_word_counts
+            else 0.0,
+            "long_evidence_line_count": long_evidence_line_count,
+            "short_bullet_count": short_bullet_count,
+            "dense_paragraph_line_count": dense_paragraph_line_count,
+            "weak_bullet_count": weak_bullet_count,
+            "summary_line_count": summary_line_count,
+            "first_person_pronoun_count": first_person_pronoun_count,
             "chronology_signal_count": chronology_signal_count,
             "academic_marker_count": len(ACADEMIC_MARKER_RE.findall(normalized)),
             "teaching_marker_count": len(TEACHING_MARKER_RE.findall(normalized)),

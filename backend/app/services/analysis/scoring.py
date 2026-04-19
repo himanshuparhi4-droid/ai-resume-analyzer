@@ -205,23 +205,30 @@ class ScoringEngine:
         parse_signals = resume_data.get("parse_signals", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
         words = text.split()
-        base = 24
+        base = 18
         preferred_upper = 1400 if archetype == "academic_cv" else 900
         soft_upper = 1800 if archetype == "academic_cv" else 1100
         if 250 <= len(words) <= preferred_upper:
             base += 12
         elif 180 <= len(words) <= soft_upper:
-            base += 8
+            base += 7
+        elif len(words) < 160:
+            base -= 4
+        else:
+            base -= 3
         if len(sections) >= 4:
             base += 10
         verb_hits = sum(1 for word in ACTION_VERBS if word in text.lower())
         base += min(8, verb_hits * 1.5)
         quantified_hits = len(re.findall(r"\b\d+%|\b\d+[kKmM]?\b", text))
-        base += min(8, quantified_hits * 1.5)
-        if 12 <= len(sections.get("summary", "").split()) <= 70:
+        base += min(10, quantified_hits * 1.4)
+        summary_word_count = len(sections.get("summary", "").split())
+        if 12 <= summary_word_count <= 70:
             base += 5
         elif sections.get("summary"):
             base += 2
+        if parse_signals.get("summary_line_count", 0) >= 4:
+            base -= 2
         if parse_signals.get("skills_count", 0) >= 6:
             base += 4
         if parse_signals.get("experience_action_line_count", 0) >= 4:
@@ -240,6 +247,17 @@ class ScoringEngine:
             base += 4
         if sections.get("experience") and sections.get("skills"):
             base += 4
+        if parse_signals.get("action_verb_variety_count", 0) >= 5:
+            base += 5
+        elif parse_signals.get("action_verb_variety_count", 0) >= 3:
+            base += 3
+        avg_bullet_words = float(parse_signals.get("avg_bullet_word_count", 0.0) or 0.0)
+        if 9 <= avg_bullet_words <= 24:
+            base += 5
+        elif avg_bullet_words > 30:
+            base -= 3
+        if parse_signals.get("evidence_bullet_count", 0) >= 4:
+            base += 4
         if parse_signals.get("section_balance_score", 0) >= 75:
             base += 8
         elif parse_signals.get("section_balance_score", 0) >= 60:
@@ -247,7 +265,7 @@ class ScoringEngine:
         if parse_signals.get("dominant_section_share", 0) > 0.62:
             base -= 4
         if parse_signals.get("skills_focus_share", 0) > 0.42 and parse_signals.get("experience_section_word_count", 0) < 60:
-            base -= 6
+            base -= 8
         if archetype in {"project_first_entry_level", "modern_two_column_project_first"} and sections.get("projects"):
             base += 6
         if archetype == "academic_cv" and len(sections) >= 5:
@@ -262,6 +280,12 @@ class ScoringEngine:
             base += 2
         if not parse_signals.get("suspicious_url_count", 0) and not parse_signals.get("suspicious_token_count", 0):
             base += 3
+        if parse_signals.get("chronology_signal_count", 0) >= 2:
+            base += 2
+        if parse_signals.get("objective_marker_count", 0):
+            base -= 4
+        if parse_signals.get("first_person_pronoun_count", 0) >= 2:
+            base -= 3
 
         penalties = (
             min(4, parse_signals.get("merged_header_count", 0) * 2)
@@ -273,23 +297,32 @@ class ScoringEngine:
             + (5 if sections.get("experience") and parse_signals.get("experience_action_line_count", 0) == 0 else 0)
             + (5 if sections.get("experience") and parse_signals.get("experience_quantified_line_count", 0) == 0 else 0)
             + (3 if sections.get("experience") and parse_signals.get("date_range_count", 0) == 0 else 0)
+            + min(8, parse_signals.get("long_evidence_line_count", 0) * 1.5)
+            + min(6, parse_signals.get("dense_paragraph_line_count", 0) * 1.5)
+            + min(6, parse_signals.get("weak_bullet_count", 0) * 1.2)
+            + min(4, parse_signals.get("short_bullet_count", 0) * 1.0)
         )
         if parse_signals.get("multi_column_detected") and parse_signals.get("explicit_header_count", 0) >= 4:
             penalties = max(0, penalties - 2)
-        return float(max(34, min(base - penalties, 94)))
+        return float(max(18, min(base - penalties, 96)))
 
     def _ats_score(self, resume_data: dict) -> float:
         sections = resume_data.get("sections", {})
         text = resume_data.get("raw_text", "")
         parse_signals = resume_data.get("parse_signals", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
-        score = 20
+        score = 16
         required_sections = {"experience", "education", "skills"}
         score += len(required_sections & set(sections.keys())) * 10
         if resume_data.get("contact", {}).get("email"):
             score += 8
         if resume_data.get("contact", {}).get("phone"):
             score += 6
+        content_type = str(resume_data.get("content_type", "")).lower()
+        if "wordprocessingml" in content_type:
+            score += 4
+        elif "pdf" in content_type:
+            score += 2
         if 200 <= len(text.split()) <= 1100:
             score += 5
         if parse_signals.get("explicit_header_count", 0) >= 5:
@@ -304,6 +337,8 @@ class ScoringEngine:
             score += 6
         if parse_signals.get("date_range_count", 0) >= 1:
             score += 10
+        if parse_signals.get("date_range_count", 0) >= 3:
+            score += 3
         if parse_signals.get("contact_link_count", 0) >= 1:
             score += 3
         if parse_signals.get("bullet_like_line_count", 0) >= 2:
@@ -313,7 +348,7 @@ class ScoringEngine:
         if parse_signals.get("section_balance_score", 0) >= 70:
             score += 2
         if parse_signals.get("multi_column_detected"):
-            score -= 4
+            score -= 8
             if parse_signals.get("explicit_header_count", 0) >= 4:
                 score += 2
         if archetype == "europass_cv":
@@ -324,14 +359,16 @@ class ScoringEngine:
             score += 4
 
         penalties = (
-            min(10, parse_signals.get("merged_header_count", 0) * 4)
-            + min(8, parse_signals.get("inline_header_count", 0) * 2)
-            + min(8, parse_signals.get("section_leakage_count", 0) * 4)
-            + min(6, parse_signals.get("suspicious_token_count", 0) * 1)
-            + min(6, parse_signals.get("suspicious_url_count", 0) * 3)
-            + (8 if parse_signals.get("inferred_skills_section") else 0)
+            min(12, parse_signals.get("merged_header_count", 0) * 4)
+            + min(10, parse_signals.get("inline_header_count", 0) * 2)
+            + min(10, parse_signals.get("section_leakage_count", 0) * 4)
+            + min(8, parse_signals.get("suspicious_token_count", 0) * 1)
+            + min(8, parse_signals.get("suspicious_url_count", 0) * 3)
+            + (10 if parse_signals.get("inferred_skills_section") else 0)
             + (6 if sections.get("experience") and parse_signals.get("date_range_count", 0) == 0 else 0)
             + (3 if sections.get("experience") and parse_signals.get("explicit_header_count", 0) < 2 else 0)
             + (4 if parse_signals.get("portfolio_link_count", 0) == 0 and archetype in {"creative_portfolio_resume", "technical_portfolio_resume"} else 0)
+            + min(5, parse_signals.get("dense_paragraph_line_count", 0) * 1.0)
+            + min(4, parse_signals.get("objective_marker_count", 0) * 2)
         )
-        return float(max(28, min(score - penalties, 96)))
+        return float(max(16, min(score - penalties, 98)))
