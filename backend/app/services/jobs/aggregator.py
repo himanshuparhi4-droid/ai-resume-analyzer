@@ -17,6 +17,7 @@ from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
 from app.services.jobs.taxonomy import (
+    canonical_role_alignment,
     dedupe_key,
     is_sparse_live_market_role,
     normalize_role,
@@ -400,7 +401,7 @@ class JobAggregator:
             source_groups.setdefault(str(getattr(provider, "source_name", provider.__class__.__name__)).lower(), []).append(provider)
 
         stage_results: list[dict] = []
-        primary_sources = ["remotive"] if sparse_role else ["jobicy"]
+        primary_sources = ["remotive"] if sparse_role else ["jobicy", "themuse"]
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -496,9 +497,12 @@ class JobAggregator:
         ranked = sorted(
             live_jobs,
             key=lambda item: (
+                self._canonical_role_alignment(query, item),
+                self._title_precision_score(query, item),
                 self._role_domain_match_score(query, item),
                 self._location_alignment_score(location, item),
                 self._title_hint_overlap(query, item),
+                self._core_token_overlap(query, item, include_description=False),
                 self._skill_overlap_score(query, item),
                 float(item.get("normalized_data", {}).get("role_fit_score", 0.0)),
                 float(item.get("normalized_data", {}).get("market_quality_score", 0.0)),
@@ -552,24 +556,47 @@ class JobAggregator:
             tertiary_candidates = [
                 item
                 for item in ranked
-                if self._title_hint_overlap(query, item) >= 1
-                or self._role_domain_match_score(query, item) >= 2
-                or (
-                    self._skill_overlap_score(query, item) >= 2.0
-                    and (
-                        float(item.get("normalized_data", {}).get("role_fit_score", 0.0)) >= 3.0
-                        or self._role_domain_match_score(query, item) >= 1
+                if self._canonical_role_alignment(query, item) >= 0
+                and (
+                    self._title_hint_overlap(query, item) >= 1
+                    or self._title_precision_score(query, item) >= 2
+                    or self._family_token_overlap(query, item) >= 2
+                    or (
+                        self._role_domain_match_score(query, item) >= 2
+                        and self._title_precision_score(query, item) >= 1
                     )
                 )
             ]
             selection_debug["tertiary_candidates"] = len(tertiary_candidates)
             maybe_add(tertiary_candidates, cap_per_company=4)
         if len(selected) < target_live_count:
+            themuse_dense_candidates = [
+                item
+                for item in ranked
+                if item.get("source") == "themuse"
+                and self._canonical_role_alignment(query, item) >= 0
+                and (
+                    self._title_precision_score(query, item) >= 2
+                    or self._title_hint_overlap(query, item) >= 1
+                    or self._family_token_overlap(query, item) >= 2
+                )
+            ]
+            selection_debug["themuse_dense_candidates"] = len(themuse_dense_candidates)
+            maybe_add(themuse_dense_candidates, cap_per_company=4)
+        if len(selected) < target_live_count:
             fallback_candidates = [
                 item
                 for item in ranked
-                if self._role_domain_match_score(query, item) >= 1
-                or self._skill_overlap_score(query, item) >= 1.5
+                if self._canonical_role_alignment(query, item) >= 0
+                and (
+                    self._title_hint_overlap(query, item) >= 1
+                    or self._title_precision_score(query, item) >= 2
+                    or self._family_token_overlap(query, item) >= 2
+                    or (
+                        self._role_domain_match_score(query, item) >= 2
+                        and self._title_precision_score(query, item) >= 1
+                    )
+                )
             ]
             selection_debug["fallback_candidates"] = len(fallback_candidates)
             maybe_add(fallback_candidates, cap_per_company=5)
@@ -578,10 +605,22 @@ class JobAggregator:
                 item
                 for item in ranked
                 if item.get("source") == "jobicy"
+                and self._canonical_role_alignment(query, item) >= 0
                 and float(item.get("normalized_data", {}).get("market_quality_score", 0.0)) >= 18.0
             ]
             selection_debug["last_resort_jobicy_candidates"] = len(last_resort_candidates)
             maybe_add(last_resort_candidates, cap_per_company=5)
+        if len(selected) < display_floor:
+            last_resort_themuse = [
+                item
+                for item in ranked
+                if item.get("source") == "themuse"
+                and self._canonical_role_alignment(query, item) >= 0
+                and self._title_precision_score(query, item) >= 1
+                and float(item.get("normalized_data", {}).get("market_quality_score", 0.0)) >= 18.0
+            ]
+            selection_debug["last_resort_themuse_candidates"] = len(last_resort_themuse)
+            maybe_add(last_resort_themuse, cap_per_company=5)
 
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
@@ -600,14 +639,18 @@ class JobAggregator:
         role_fit = float(item.get("normalized_data", {}).get("role_fit_score", 0.0))
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
         core_text_overlap = self._core_token_overlap(query, item, include_description=True)
+        canonical_alignment = self._canonical_role_alignment(query, item)
         return (
+            canonical_alignment >= 0
+            and (
             title_overlap >= 1
-            or family_overlap >= 1
-            or domain_score >= 2
-            or core_title_overlap >= 1
+            or (family_overlap >= 2 and core_title_overlap >= 1)
+            or (domain_score >= 2 and self._title_precision_score(query, item) >= 1)
+            or self._title_precision_score(query, item) >= 1
             or core_text_overlap >= 2
-            or (domain_score >= 1 and skill_overlap >= 1.0)
+            or (domain_score >= 1 and skill_overlap >= 1.0 and self._title_precision_score(query, item) >= 1)
             or (title_overlap >= 1 and role_fit >= 1.0)
+            )
         )
 
     def _core_token_overlap(self, query: str, item: dict, *, include_description: bool) -> int:
@@ -621,6 +664,21 @@ class JobAggregator:
             haystack = f"{title_text} {desc_text}"
         return sum(1 for token in query_tokens if re.search(rf"\b{re.escape(token)}\b", haystack))
 
+    def _canonical_role_alignment(self, query: str, item: dict) -> int:
+        return canonical_role_alignment(query, str(item.get("title", "")))
+
+    def _title_precision_score(self, query: str, item: dict) -> int:
+        title_overlap = self._title_hint_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        family_overlap = self._family_token_overlap(query, item)
+        if title_overlap >= 1:
+            return title_overlap * 2
+        if core_title_overlap >= 2:
+            return core_title_overlap + family_overlap
+        if family_overlap >= 2:
+            return family_overlap
+        return 0
+
     def _is_production_live_candidate(self, query: str, location: str, item: dict, *, strict: bool) -> bool:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
@@ -633,14 +691,20 @@ class JobAggregator:
         source = str(item.get("source", ""))
         explicit_alignment = self._has_explicit_role_alignment(query, item)
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
 
         if self._is_location_hard_mismatch(location, item):
+            return False
+        if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
             return False
 
         if strict:
             if location_score < 0.2:
                 return False
             if not explicit_alignment and market_quality < 48.0:
+                return False
+            if title_precision <= 0 and domain_score < 2 and not explicit_alignment:
                 return False
             if source in {"themuse", "jobicy"} and domain_score >= 2 and (title_overlap >= 1 or skill_overlap >= 1.5 or family_overlap >= 1):
                 return True
@@ -667,6 +731,8 @@ class JobAggregator:
         if location_score <= 0.0:
             return False
         if not explicit_alignment and market_quality < 56.0:
+            return False
+        if title_precision <= 0 and domain_score < 2 and not explicit_alignment:
             return False
         if source in {"themuse", "jobicy"} and domain_score >= 2:
             return True
@@ -698,11 +764,18 @@ class JobAggregator:
         family_overlap = self._family_token_overlap(query, item)
         if self._is_location_hard_mismatch(location, item):
             return False
+        if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
+            return False
         return (
             (domain_score >= 2 and skill_overlap >= 1.0)
             or (domain_score >= 1 and title_overlap >= 1)
-            or (domain_score >= 1 and family_overlap >= 1 and role_fit >= 2.0)
-            or (domain_score >= 1 and market_quality >= 28.0 and skill_overlap >= 1.0)
+            or (domain_score >= 1 and family_overlap >= 2 and role_fit >= 2.0)
+            or (
+                domain_score >= 1
+                and market_quality >= 28.0
+                and skill_overlap >= 1.0
+                and self._title_precision_score(query, item) >= 1
+            )
         )
 
     def _title_hint_overlap(self, query: str, item: dict) -> int:
@@ -843,14 +916,20 @@ class JobAggregator:
         skill_overlap = self._skill_overlap_score(query, item)
         explicit_alignment = self._has_explicit_role_alignment(query, item)
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
         negative_hints = role_negative_title_hints(query)
         if self._is_location_hard_mismatch(location, item):
             return False
         if negative_hints and any(hint in title_text for hint in negative_hints):
             return False
+        if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
+            return False
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True
         if not explicit_alignment and (title_overlap + family_overlap + domain_score) == 0:
+            return False
+        if title_precision <= 0 and domain_score < 2:
             return False
         if listing_quality < 4.5 and not explicit_alignment:
             return False
@@ -946,7 +1025,7 @@ class JobAggregator:
             if source_name == "remotive":
                 return variations[:2]
             if source_name == "jobicy":
-                return variations[:5]
+                return variations[:3]
             return variations[:3]
         return query_variations(query)
 

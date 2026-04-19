@@ -239,13 +239,13 @@ ROLE_PRIMARY_HINTS = {
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
 ROLE_TITLE_HINTS = {
-    "data analyst": {"data analyst", "reporting analyst", "business analyst", "business intelligence", "bi analyst", "analytics analyst", "operations analyst", "decision scientist"},
+    "data analyst": {"data analyst", "reporting analyst", "business intelligence", "business intelligence analyst", "bi analyst", "analytics analyst", "insights analyst", "data analytics"},
     "data scientist": {"scientist", "ml", "machine learning", "applied"},
     "machine learning engineer": {"machine learning", "ml engineer", "ai engineer"},
     "data engineer": {"data engineer", "etl", "analytics engineer"},
-    "software engineer": {"software engineer", "backend", "developer", "engineer"},
-    "frontend developer": {"frontend", "react", "web developer", "ui"},
-    "full stack developer": {"full stack", "fullstack", "developer", "engineer"},
+    "software engineer": {"software engineer", "software developer", "backend engineer", "backend developer", "application engineer", "python developer"},
+    "frontend developer": {"frontend", "front end", "react", "react developer", "ui engineer", "web developer"},
+    "full stack developer": {"full stack", "fullstack", "mern", "mern stack", "full stack developer", "full stack engineer", "web developer"},
     "devops engineer": {"devops", "site reliability", "sre", "platform", "cloud", "aws", "cloud engineer", "cloud architect"},
     "cybersecurity engineer": {"cybersecurity engineer", "cyber security engineer", "security engineer", "cloud security", "application security", "information security", "security operations", "soc", "security architect", "security analyst"},
     "qa engineer": {"qa", "quality assurance", "test", "automation"},
@@ -378,6 +378,20 @@ def role_negative_title_hints(query: str) -> set[str]:
     if not domain:
         return set()
     return ROLE_NEGATIVE_TITLE_HINTS.get(domain, set())
+
+
+def canonical_role_alignment(query: str, title: str) -> int:
+    normalized_query = normalize_role(query)
+    normalized_title = normalize_role(title)
+    if not normalized_query or not normalized_title:
+        return 0
+    if normalized_query == normalized_title:
+        return 3
+    query_domain = role_domain(normalized_query)
+    title_domain = role_domain(normalized_title)
+    if normalized_title in ROLE_FAMILY_CANONICALS and query_domain and query_domain == title_domain:
+        return -2
+    return 0
 
 
 def dedupe_key(item: dict) -> str:

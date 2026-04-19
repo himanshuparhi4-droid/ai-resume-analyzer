@@ -18,6 +18,7 @@ ROLE_CATEGORY_MAP = {
     "frontend developer": ["Software Engineering"],
     "full stack developer": ["Software Engineering"],
     "devops engineer": ["Software Engineering"],
+    "cybersecurity engineer": ["Software Engineering"],
     "qa engineer": ["Software Engineering"],
     "product manager": ["Product"],
     "ui/ux designer": ["Design and UX"],
