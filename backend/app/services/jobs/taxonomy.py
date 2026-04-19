@@ -300,6 +300,17 @@ def normalize_role(query: str) -> str:
     return cleaned
 
 
+def role_query_tokens(query: str) -> set[str]:
+    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
+    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
+    normalized = normalize_role(query)
+    return {
+        token
+        for token in [*raw_cleaned.split(), *normalized.split()]
+        if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS and len(token) > 2
+    }
+
+
 def query_variations(query: str) -> list[str]:
     normalized = normalize_role(query)
     raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
@@ -361,13 +372,7 @@ def role_fit_score(query: str, item: dict) -> float:
     raw_query = re.sub(r"[^a-z0-9+ ]+", " ", str(query).lower()).strip()
     raw_query = re.sub(r"\s+", " ", raw_query)
     normalized_query = normalize_role(query)
-    query_tokens = list(
-        dict.fromkeys(
-            token
-            for token in [*raw_query.split(), *normalized_query.split()]
-            if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
-        )
-    )
+    query_tokens = list(dict.fromkeys(role_query_tokens(query)))
     title = normalize_role(item.get("title", ""))
     raw_title = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower())
     description = re.sub(r"[^a-z0-9+ ]+", " ", item.get("description", "").lower())
