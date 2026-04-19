@@ -45,15 +45,15 @@ class TheMuseProvider:
         categories = ROLE_CATEGORY_MAP.get(normalized_role, [])
         location_value = (location or "").strip()
         use_location = location_value.lower() not in {"", "remote", "worldwide", "global"}
-        page_count = 1 if settings.environment == "production" else 4
+        page_count = 2 if settings.environment == "production" else 4
         items_per_page = 20
 
         request_specs: list[dict[str, str]] = []
         if categories:
             if settings.environment == "production":
-                # Keep hosted requests fast and broad: one category page usually
-                # yields enough raw candidates, and the ranking step can keep
-                # only the roles that actually match the requested family.
+                # Keep hosted requests fast but not too narrow: two category
+                # pages materially improve dense-role coverage while still
+                # staying within a small request budget on Render free tier.
                 request_specs.append({"category": categories[0]})
             else:
                 for category in categories[:2]:

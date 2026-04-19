@@ -176,7 +176,7 @@ class JobAggregator:
 
         if source in {"auto", "themuse", "jobicy"}:
             add(RemotiveProvider())
-            if source == "themuse":
+            if source in {"auto", "themuse"}:
                 add(TheMuseProvider())
             return providers
 
@@ -946,7 +946,7 @@ class JobAggregator:
             if source_name == "remotive":
                 return variations[:2]
             if source_name == "jobicy":
-                return variations[:4]
+                return variations[:5]
             return variations[:3]
         return query_variations(query)
 
