@@ -25,6 +25,7 @@ from app.services.jobs.taxonomy import (
     role_domain,
     role_fit_score,
     role_market_hints,
+    role_negative_title_hints,
     role_primary_hints,
     role_query_tokens,
     role_title_hints,
@@ -588,6 +589,10 @@ class JobAggregator:
         return selected[:limit]
 
     def _has_explicit_role_alignment(self, query: str, item: dict) -> bool:
+        title_text = str(item.get("title", "")).lower()
+        negative_hints = role_negative_title_hints(query)
+        if negative_hints and any(hint in title_text for hint in negative_hints):
+            return False
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
         domain_score = self._role_domain_match_score(query, item)
@@ -827,6 +832,7 @@ class JobAggregator:
 
     def _passes_quality_gate(self, query: str, item: dict, *, location: str = "") -> bool:
         normalized = item.get("normalized_data", {}) or {}
+        title_text = str(item.get("title", "")).lower()
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
@@ -837,7 +843,10 @@ class JobAggregator:
         skill_overlap = self._skill_overlap_score(query, item)
         explicit_alignment = self._has_explicit_role_alignment(query, item)
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        negative_hints = role_negative_title_hints(query)
         if self._is_location_hard_mismatch(location, item):
+            return False
+        if negative_hints and any(hint in title_text for hint in negative_hints):
             return False
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True

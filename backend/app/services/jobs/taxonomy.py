@@ -11,6 +11,10 @@ ROLE_SYNONYMS = {
     "frontend developer": "frontend developer",
     "frontend engineer": "frontend developer",
     "web developer": "frontend developer",
+    "mern developer": "full stack developer",
+    "mern stack developer": "full stack developer",
+    "mern engineer": "full stack developer",
+    "mean stack developer": "full stack developer",
     "python developer": "software engineer",
     "data analyst": "data analyst",
     "data scientist": "data scientist",
@@ -184,18 +188,18 @@ ROLE_SEARCH_VARIATIONS = {
     ],
 }
 ROLE_PRODUCTION_VARIATIONS = {
-    "data analyst": ["data analyst", "analytics", "reporting analyst", "business intelligence analyst", "product analyst", "data"],
-    "data scientist": ["data scientist", "machine learning", "data"],
+    "data analyst": ["data analyst", "reporting analyst", "business analyst", "business intelligence analyst", "bi analyst"],
+    "data scientist": ["data scientist", "machine learning scientist", "applied scientist"],
     "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
-    "data engineer": ["data engineer", "data", "etl"],
-    "software engineer": ["software engineer", "developer", "backend"],
-    "frontend developer": ["frontend developer", "frontend", "react"],
-    "full stack developer": ["full stack developer", "full stack", "developer"],
-    "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer", "aws"],
+    "data engineer": ["data engineer", "etl engineer", "analytics engineer"],
+    "software engineer": ["software engineer", "backend engineer", "python developer"],
+    "frontend developer": ["frontend developer", "react developer", "frontend engineer"],
+    "full stack developer": ["full stack developer", "mern developer", "mern stack developer", "fullstack developer"],
+    "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer"],
     "cybersecurity engineer": ["cybersecurity engineer", "security engineer", "cloud security engineer", "application security engineer", "security operations engineer", "information security engineer"],
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
-    "product manager": ["product manager", "product", "product owner"],
-    "ui/ux designer": ["ui ux designer", "product designer", "design"],
+    "product manager": ["product manager", "associate product manager", "product owner"],
+    "ui/ux designer": ["ui ux designer", "ux designer", "product designer"],
     "teacher": ["lecturer", "teacher", "faculty", "assistant professor", "instructor", "educator"],
     "carpenter": ["carpenter", "finish carpenter", "rough carpenter", "woodworking", "framing"],
     "painter": ["painter", "painting", "surface preparation", "coating", "spray"],
@@ -235,7 +239,7 @@ ROLE_PRIMARY_HINTS = {
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
 ROLE_TITLE_HINTS = {
-    "data analyst": {"data analyst", "analytics", "reporting", "insights", "business intelligence", "bi", "product analyst", "operations analyst", "decision scientist"},
+    "data analyst": {"data analyst", "reporting analyst", "business analyst", "business intelligence", "bi analyst", "analytics analyst", "operations analyst", "decision scientist"},
     "data scientist": {"scientist", "ml", "machine learning", "applied"},
     "machine learning engineer": {"machine learning", "ml engineer", "ai engineer"},
     "data engineer": {"data engineer", "etl", "analytics engineer"},
@@ -258,7 +262,7 @@ ROLE_KEYWORD_FAMILIES = {
     "data engineer": ("data engineer", "etl engineer", "analytics engineer"),
     "frontend developer": ("frontend", "react developer", "web developer"),
     "software engineer": ("backend", "api developer", "python developer", "software engineer"),
-    "full stack developer": ("full stack", "fullstack"),
+    "full stack developer": ("full stack", "fullstack", "mern", "mern stack", "mean stack"),
     "devops engineer": ("aws", "aws engineer", "devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"),
     "cybersecurity engineer": ("cybersecurity", "cyber security", "security engineer", "cloud security", "application security", "information security", "security operations", "soc engineer", "security architect"),
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
@@ -285,6 +289,12 @@ ROLE_DOMAIN_MAP = {
     "teacher": "education",
     "carpenter": "trades",
     "painter": "trades",
+}
+ROLE_NEGATIVE_TITLE_HINTS = {
+    "data": {"sales", "customer support", "customer service", "travel", "nurse", "billing", "revenue cycle", "onboarding", "talent", "hr", "recruiter"},
+    "software": {"sales", "customer support", "customer service", "travel", "billing", "talent", "hr", "recruiter", "account executive"},
+    "security": {"sales", "customer support", "customer service", "travel", "billing", "talent", "hr", "recruiter", "onboarding", "tax"},
+    "product": {"sales representative", "travel", "billing", "hr", "recruiter"},
 }
 SPARSE_LIVE_MARKET_ROLES = {"teacher", "carpenter", "painter"}
 
@@ -318,7 +328,11 @@ def query_variations(query: str) -> list[str]:
     variations = ROLE_SEARCH_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    if raw_cleaned and raw_cleaned not in variations:
+    if raw_cleaned and raw_cleaned != normalized and raw_cleaned not in variations:
+        raw_token_count = len([token for token in raw_cleaned.split() if token])
+        if raw_token_count > 1:
+            variations = [raw_cleaned, *variations]
+    elif raw_cleaned and raw_cleaned not in variations:
         variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))
 
@@ -330,7 +344,11 @@ def production_query_variations(query: str) -> list[str]:
     variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    if raw_cleaned and raw_cleaned not in variations:
+    if raw_cleaned and raw_cleaned != normalized and raw_cleaned not in variations:
+        raw_token_count = len([token for token in raw_cleaned.split() if token])
+        if raw_token_count > 1:
+            variations = [raw_cleaned, *variations]
+    elif raw_cleaned and raw_cleaned not in variations:
         variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
 
@@ -353,6 +371,13 @@ def role_domain(query: str) -> str | None:
 
 def is_sparse_live_market_role(query: str) -> bool:
     return normalize_role(query) in SPARSE_LIVE_MARKET_ROLES
+
+
+def role_negative_title_hints(query: str) -> set[str]:
+    domain = role_domain(query)
+    if not domain:
+        return set()
+    return ROLE_NEGATIVE_TITLE_HINTS.get(domain, set())
 
 
 def dedupe_key(item: dict) -> str:
@@ -380,6 +405,7 @@ def role_fit_score(query: str, item: dict) -> float:
     normalized_data = item.get("normalized_data", {}) or {}
     market_hints = role_market_hints(query)
     title_hints = role_title_hints(query)
+    negative_title_hints = role_negative_title_hints(query)
     extracted_skills = {str(skill).lower() for skill in normalized_data.get("skills", []) or []}
 
     score = 0.0
@@ -405,6 +431,11 @@ def role_fit_score(query: str, item: dict) -> float:
     if market_hints:
         hint_overlap = len(extracted_skills & market_hints)
         score += min(3.0, hint_overlap * 0.75)
+    if negative_title_hints and any(hint in raw_title for hint in negative_title_hints):
+        if not any(hint in raw_title for hint in title_hints):
+            score *= 0.12
+        else:
+            score *= 0.45
     title_domain = role_domain(item.get("title", ""))
     query_domain = role_domain(query)
     if query_domain and title_domain and title_domain != query_domain:

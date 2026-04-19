@@ -216,6 +216,18 @@ GENERIC_SKILL_NOISE = {
     "leadership skills",
     "work independently",
     "stakeholder management",
+    "passionate people",
+    "policies",
+    "procedures",
+    "written communication skills in english",
+    "actively communicate",
+    "exchange costs",
+    "retail customer support",
+    "messaging platforms",
+    "online chat systems",
+    "artistic products",
+    "as a senior travel agent",
+    "we work with highly motivated",
 }
 GENERIC_PHRASE_SPLIT_RE = re.compile(r"\s*(?:,|;|\||/|\u2022|\u00b7|\band\b|\bor\b)\s*", re.IGNORECASE)
 LEADING_REQUIREMENT_RE = re.compile(
@@ -246,7 +258,49 @@ NON_SKILL_OPENERS = (
     "strong",
     "excellent",
     "good",
+    "you excel",
+    "excel in",
+    "passionate",
+    "actively",
+    "written",
+    "as a",
+    "we work",
 )
+GENERIC_SINGLETONS = {
+    "policies",
+    "procedures",
+    "people",
+    "benefits",
+    "operations",
+    "management",
+    "support",
+    "growth",
+    "content",
+    "communication",
+    "english",
+}
+ALLOWED_UNKNOWN_SINGLETONS = {
+    "siem",
+    "iam",
+    "soc",
+    "etl",
+    "seo",
+    "crm",
+    "erp",
+    "aws",
+    "api",
+    "excel",
+    "tableau",
+    "splunk",
+    "looker",
+    "snowflake",
+    "bigquery",
+    "airflow",
+    "dbt",
+    "terraform",
+    "kubernetes",
+    "docker",
+}
 LOW_SIGNAL_SENTENCE_HINTS = (
     "equal opportunity",
     "equal employment opportunity",
@@ -296,6 +350,10 @@ def _is_valid_candidate_skill(skill: str) -> bool:
     if skill in GENERIC_ROLE_TERMS:
         return False
     tokens = skill.split()
+    if len(tokens) == 1 and skill not in KNOWN_SKILLS and skill not in ALLOWED_UNKNOWN_SINGLETONS:
+        return False
+    if any(token in GENERIC_SINGLETONS for token in tokens) and skill not in KNOWN_SKILLS:
+        return False
     if tokens and tokens[-1] in GENERIC_ROLE_TERMS:
         return False
     if any(skill.startswith(prefix) for prefix in NON_SKILL_OPENERS):
@@ -314,6 +372,11 @@ def _is_valid_candidate_skill(skill: str) -> bool:
         return False
     if not re.search(r"[a-z]", skill):
         return False
+    if len(tokens) >= 2 and skill not in KNOWN_SKILLS:
+        content_tokens = [token for token in tokens if token not in {"and", "or", "with", "for", "the", "a", "an", "to", "of", "in"}]
+        if not any(token in KNOWN_SKILLS for token in content_tokens):
+            if not any(token in {"sql", "aws", "api", "etl", "seo", "crm", "erp", "siem", "iam", "soc"} for token in content_tokens):
+                return False
     stopword_ratio = sum(1 for token in skill.split() if token in {"and", "or", "with", "for", "the", "a", "an", "to", "of"}) / max(len(skill.split()), 1)
     if stopword_ratio > 0.5:
         return False
@@ -452,6 +515,9 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
             continue
 
         snippet_lower = item["snippet"].lower()
+        if skill == "excel" and any(phrase in snippet_lower for phrase in {"you excel", "excel in ", "must excel", "will excel"}):
+            if "microsoft excel" not in snippet_lower and "advanced excel" not in snippet_lower:
+                continue
         if any(hint in snippet_lower for hint in LOW_SIGNAL_SENTENCE_HINTS):
             continue
         weight = 0.36

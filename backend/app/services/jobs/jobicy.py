@@ -27,10 +27,9 @@ ROLE_TAG_MAP = {
     "painter": "painter",
 }
 
-
 class JobicyProvider:
     source_name = "jobicy"
-    supports_query_variations = False
+    supports_query_variations = True
     supports_location_variations = False
     request_headers = {
         "User-Agent": (
@@ -42,8 +41,8 @@ class JobicyProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
-        params = {"count": min(max(limit * 2, settings.production_live_candidate_fetch), 36)}
-        role_tag = ROLE_TAG_MAP.get(normalized_role)
+        params = {"count": min(max(limit * 2, settings.production_live_candidate_fetch), 50)}
+        role_tag = ROLE_TAG_MAP.get(normalized_role, query)
         if role_tag:
             params["tag"] = role_tag
 
