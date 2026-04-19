@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 
 import httpx
 
@@ -11,6 +12,8 @@ from app.utils.text import strip_html
 
 class AdzunaProvider:
     source_name = "adzuna"
+    supports_query_variations = True
+    supports_location_variations = False
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         if not settings.has_adzuna_credentials:
@@ -19,7 +22,7 @@ class AdzunaProvider:
         params = {
             "app_id": settings.adzuna_app_id,
             "app_key": settings.adzuna_app_key,
-            "results_per_page": limit,
+            "results_per_page": min(max(limit * 2, 20), 50),
             "what": query,
             "where": location,
             "content-type": "application/json",
@@ -34,7 +37,10 @@ class AdzunaProvider:
         for item in payload.get("results", [])[:limit]:
             description = strip_html(item.get("description", ""))
             title = item.get("title", "Unknown Role")
-            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=item.get("category", "").split("/"))
+            category = item.get("category") or {}
+            category_label = category.get("label", "") if isinstance(category, dict) else str(category)
+            tags = [segment.strip() for segment in re.split(r"[/>]", category_label) if segment and segment.strip()]
+            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=tags)
             jobs.append(
                 {
                     "source": self.source_name,
@@ -45,7 +51,7 @@ class AdzunaProvider:
                     "remote": "remote" in description.lower() or "remote" in title.lower(),
                     "url": item.get("redirect_url", "https://www.adzuna.com"),
                     "description": description,
-                    "tags": [item.get("category", {}).get("label", query)],
+                    "tags": tags or [category_label or query],
                     "normalized_data": {
                         "salary_min": item.get("salary_min"),
                         "salary_max": item.get("salary_max"),

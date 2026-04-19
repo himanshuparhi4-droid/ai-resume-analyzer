@@ -401,7 +401,10 @@ class JobAggregator:
             source_groups.setdefault(str(getattr(provider, "source_name", provider.__class__.__name__)).lower(), []).append(provider)
 
         stage_results: list[dict] = []
-        primary_sources = ["remotive"] if sparse_role else ["jobicy", "themuse"]
+        if sparse_role:
+            primary_sources = ["remotive"]
+        else:
+            primary_sources = ["adzuna", "jobicy", "themuse"] if "adzuna" in source_groups else ["jobicy", "themuse"]
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -428,7 +431,7 @@ class JobAggregator:
             )
             return preferred_live
 
-        supplemental_sources = [] if sparse_role else ["remotive"]
+        supplemental_sources = [] if sparse_role else (["remotive"] if "remotive" in source_groups else [])
         supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
         if supplemental_providers:
             preferred_live = await run_stage("supplemental", supplemental_providers)
