@@ -434,21 +434,23 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 6.5
+                provider_timeout = 5.5
             elif source_name in {"greenhouse", "lever"}:
-                provider_timeout = 9.0
+                provider_timeout = 8.0
             elif source_name == "jooble":
-                provider_timeout = 8.5
+                provider_timeout = 7.0
             elif source_name == "adzuna":
-                provider_timeout = 8.5
+                provider_timeout = 7.0
             elif source_name == "remotive":
-                provider_timeout = 3.75
+                provider_timeout = 4.5
             elif source_name == "themuse":
-                provider_timeout = 9.0
+                provider_timeout = 7.0
+            elif source_name == "findwork":
+                provider_timeout = 7.0
             elif source_name == "remoteok":
-                provider_timeout = 2.5
+                provider_timeout = 3.5
             else:
-                provider_timeout = 4.0
+                provider_timeout = 5.0
             provider_diag = {
                 "provider": provider.__class__.__name__,
                 "source": source_name,
