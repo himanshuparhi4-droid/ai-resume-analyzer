@@ -192,7 +192,7 @@ function App() {
               missingSkillDetails={result.missing_skill_details ?? []}
             />
             <SuggestionsPanel recommendations={result.recommendations} aiSummary={result.ai_summary} resumePreview={result.resume_preview} />
-            <JobMatchesTable jobs={result.top_job_matches} />
+            <JobMatchesTable jobs={result.top_job_matches} analysisContext={result.analysis_context} />
           </div>
         ) : (
           <section className="rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-soft transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.04]">

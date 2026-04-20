@@ -199,7 +199,14 @@ class SkillGroundingService:
         if len(skills) < 2:
             return []
         experience_months = int(baseline.get("experience_months", 6) or 6)
+        baseline_confidence = str(baseline.get("confidence", "medium"))
+        support_tier = str(baseline.get("support_tier", "heuristic"))
         summary = reason or baseline.get("summary") or f"Fallback market baseline for {role_title} built when live job providers are unavailable."
+        if baseline_confidence == "low":
+            summary = (
+                f"Conservative fallback baseline for {role_title}. "
+                "This role had weak live coverage and only limited modeled support, so the baseline should not be treated like real-time market demand."
+            )
         titles = baseline.get("titles") or [
             role_title,
             f"Junior {role_title}",
@@ -210,18 +217,29 @@ class SkillGroundingService:
         jobs: list[dict] = []
         for index, title in enumerate(titles[:3], start=1):
             profile_skills = skill_profiles[min(index - 1, len(skill_profiles) - 1)]
+            if baseline_confidence == "low":
+                profile_skills = profile_skills[: min(3, len(profile_skills))]
+            elif baseline_confidence == "medium":
+                profile_skills = profile_skills[: min(5, len(profile_skills))]
             description = (
                 f"{summary} Typical market expectations for this variation center on {', '.join(profile_skills)}. "
                 f"Representative entry-level requirement: about {experience_months} months of hands-on project or internship exposure."
             )
+            baseline_weights = self._build_baseline_skill_weights(skills, profile_skills)
+            if baseline_confidence == "low":
+                baseline_weights = {skill: round(min(weight, 0.68), 2) for skill, weight in baseline_weights.items()}
+            elif baseline_confidence == "medium":
+                baseline_weights = {skill: round(min(weight, 0.78), 2) for skill, weight in baseline_weights.items()}
             normalized_data = {
                 "skills": profile_skills,
-                "skill_weights": self._build_baseline_skill_weights(skills, profile_skills),
+                "skill_weights": baseline_weights,
                 "skill_evidence": extract_skill_evidence(description, profile_skills, source="baseline"),
                 "skill_extraction_mode": "llm-baseline",
                 "baseline_reason": reason or "Live job providers were unavailable during analysis, so a role baseline was generated.",
-                "baseline_confidence": baseline.get("confidence", "medium"),
-                "requirement_quality": round(sum(self._build_baseline_skill_weights(skills, profile_skills).values()) / max(len(profile_skills), 1) * 100, 1),
+                "baseline_confidence": baseline_confidence,
+                "baseline_support_tier": support_tier,
+                "baseline_guarded": baseline_confidence != "high",
+                "requirement_quality": round(sum(baseline_weights.values()) / max(len(profile_skills), 1) * 100, 1),
                 "normalization_version": JOB_REQUIREMENT_PROFILE_VERSION,
             }
             jobs.append(
@@ -264,6 +282,18 @@ class SkillGroundingService:
             live_source_counts[source] = live_source_counts.get(source, 0) + 1
         used_role_baseline = baseline_job_count > 0
         baseline_confidence = "low" if baseline_confidences == {"low"} else "high" if baseline_confidences == {"high"} else "medium"
+        baseline_support_tiers = {
+            str(job.get("normalized_data", {}).get("baseline_support_tier", "heuristic"))
+            for job in jobs
+            if job.get("source") == "role-baseline"
+        }
+        baseline_support_tier = (
+            "none"
+            if baseline_support_tiers == {"none"}
+            else "exact"
+            if baseline_support_tiers == {"exact"}
+            else "heuristic"
+        )
         if live_job_count >= 6 and live_company_count >= 3 and not used_role_baseline:
             market_confidence = "high"
         elif live_job_count >= 3:
@@ -280,11 +310,14 @@ class SkillGroundingService:
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
+                "baseline_support_tier": baseline_support_tier,
                 "market_confidence": market_confidence,
-                "build_tag": "2026-04-20-livefetch-debug-19",
+                "build_tag": "2026-04-20-livefetch-debug-20",
                 "message": (
-                    "Live job providers did not return listings, and the system does not have a strong calibrated baseline for this role. Market-fit scoring is low confidence."
+                    "Live job providers did not return listings, and the fallback baseline for this role is intentionally conservative. Treat the score as low-confidence guidance rather than a market verdict."
                     if baseline_confidence == "low"
+                    else "Live job providers did not return listings, so the score is an estimate built from a guarded role baseline instead of real-time job data."
+                    if baseline_confidence == "medium"
                     else "Live job providers did not return listings for this run, so the score is an estimate built from a model-generated role baseline instead of real-time job data."
                 ),
             }
@@ -296,8 +329,9 @@ class SkillGroundingService:
                 "used_role_baseline": True,
                 "live_source_counts": live_source_counts,
                 "baseline_confidence": baseline_confidence,
+                "baseline_support_tier": baseline_support_tier,
                 "market_confidence": market_confidence,
-                "build_tag": "2026-04-20-livefetch-debug-19",
+                "build_tag": "2026-04-20-livefetch-debug-20",
                 "message": "Score grounded against live job descriptions, but the sampled market set was too narrow, so the model blended in a role baseline to surface likely missing tools and demand signals more realistically.",
             }
         return {
@@ -307,8 +341,9 @@ class SkillGroundingService:
             "used_role_baseline": False,
             "live_source_counts": live_source_counts,
             "baseline_confidence": baseline_confidence,
+            "baseline_support_tier": baseline_support_tier,
             "market_confidence": market_confidence,
-            "build_tag": "2026-04-20-livefetch-debug-19",
+            "build_tag": "2026-04-20-livefetch-debug-20",
             "message": "Score grounded against live fetched job descriptions." if live_job_count else "No market listings were available for this run.",
         }
 
@@ -424,12 +459,13 @@ class SkillGroundingService:
         return None
 
     async def _generate_role_baseline(self, *, role_query: str, resume_data: dict) -> dict[str, Any]:
+        support = self._baseline_support_profile(role_query)
         if settings.llm_provider == "openai":
             generated = await self._baseline_with_openai(role_query=role_query, resume_data=resume_data)
             if generated:
                 return generated
-        fallback_skills = self._expand_baseline_skill_pool(role_query)
-        confidence = "high" if len(fallback_skills) >= 4 else "low"
+        fallback_skills = support["skills"]
+        confidence = support["confidence"]
         return {
             "mode": "heuristic-baseline",
             "role_title": role_query.title(),
@@ -437,11 +473,14 @@ class SkillGroundingService:
             "summary": (
                 f"Fallback role baseline for {role_query} built when live jobs were unavailable."
                 if confidence == "high"
+                else f"Guarded role baseline for {role_query} built from limited role-family support rather than live listings."
+                if confidence == "medium"
                 else f"No reliable live jobs were available, and the system only has a weak modeled baseline for {role_query}."
             ),
             "skills": fallback_skills,
             "experience_months": 6 if "senior" not in role_query.lower() else 24,
             "confidence": confidence,
+            "support_tier": support["support_tier"],
         }
 
     async def _audit_with_ollama(self, *, role_query: str, resume_data: dict, jobs: list[dict]) -> dict[str, Any] | None:
@@ -594,12 +633,20 @@ class SkillGroundingService:
         if not cleaned_skills:
             cleaned_skills = [self._normalize_label(item) for item in payload.get("skills", []) if self._is_valid_dynamic_skill(self._normalize_label(str(item)))]
         expanded = self._expand_baseline_skill_pool(role_query)
+        support = self._baseline_support_profile(role_query)
         cleaned_skills = self._filter_skills_for_role(role_query, cleaned_skills, expanded)
         normalized_experience = int(payload.get("experience_months", 6) or 6)
         if "senior" not in role_query.lower():
             normalized_experience = max(6, min(normalized_experience, 12))
         else:
             normalized_experience = max(24, normalized_experience)
+        confidence = (
+            "high"
+            if support["support_tier"] == "exact" and len(cleaned_skills) >= 4
+            else "medium"
+            if support["support_tier"] != "none" and len(cleaned_skills) >= 3
+            else "low"
+        )
         return {
             "mode": str(payload.get("mode", "llm-baseline")),
             "role_title": role_query.title(),
@@ -607,7 +654,8 @@ class SkillGroundingService:
             "summary": normalize_whitespace(str(payload.get("summary", ""))),
             "skills": cleaned_skills[:10],
             "experience_months": normalized_experience,
-            "confidence": "high" if len(cleaned_skills) >= 4 else "low",
+            "confidence": confidence,
+            "support_tier": support["support_tier"],
         }
 
     def _normalize_existing_skills(self, selected: list[str], candidates: list[str]) -> list[str]:
@@ -670,6 +718,27 @@ class SkillGroundingService:
                 seen.add(token)
 
         return ranked
+
+    def _baseline_support_profile(self, role_query: str) -> dict[str, Any]:
+        normalized = normalize_role(role_query)
+        if normalized in ROLE_BASELINE_POOLS:
+            return {
+                "skills": list(ROLE_BASELINE_POOLS[normalized]),
+                "confidence": "high",
+                "support_tier": "exact",
+            }
+        expanded = self._expand_baseline_skill_pool(role_query)
+        if len(expanded) >= 3:
+            return {
+                "skills": expanded,
+                "confidence": "medium",
+                "support_tier": "heuristic",
+            }
+        return {
+            "skills": expanded,
+            "confidence": "low",
+            "support_tier": "none",
+        }
 
     def _build_baseline_skill_profiles(self, skills: list[str]) -> list[list[str]]:
         ordered = list(dict.fromkeys(skills))
@@ -840,5 +909,8 @@ class SkillGroundingService:
             combined = sorted(selected_set | expanded_set)
             if len(combined) < 5:
                 return combined
+
+        if not expanded_set:
+            return []
 
         return sorted(selected_set or expanded_set)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from app.schemas.common import ScoreBreakdown
+from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
 from app.services.nlp.skill_extractor import infer_skill_frequency
 from app.utils.text import truncate
@@ -26,6 +27,7 @@ class ScoringEngine:
         market_skills = set(demand_map.keys())
 
         matched_skills = sorted(resume_skills & market_skills)
+        role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "")
         missing_skills = [
             {"skill": skill, "share": demand_map[skill]}
             for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
@@ -69,7 +71,28 @@ class ScoringEngine:
             [f"{job['title']} {job['description']}" for job in jobs],
         )
         for job, relevance in zip(jobs, relevance_scores):
-            ranked_jobs.append({**job, "relevance_score": relevance, "preview": truncate(job["description"], 180)})
+            normalized = {**(job.get("normalized_data", {}) or {})}
+            normalized["match_strength_label"] = self._job_match_strength_label(job={**job, "normalized_data": normalized})
+            normalized["selection_reasons"] = self._build_job_match_reasons(
+                role_query=role_query or "",
+                job={**job, "normalized_data": normalized},
+                demand_map=demand_map,
+                role_skill_pool=role_skill_pool,
+            )
+            normalized["fit_metrics"] = {
+                "title_alignment": round(float(normalized.get("title_alignment_score", 0.0) or 0.0), 1),
+                "role_fit": round(float(normalized.get("role_fit_score", 0.0) or 0.0), 1),
+                "market_quality": round(float(normalized.get("market_quality_score", 0.0) or 0.0), 1),
+                "skill_overlap": round(float(normalized.get("skill_overlap_score", 0.0) or 0.0), 1),
+            }
+            ranked_jobs.append(
+                {
+                    **job,
+                    "normalized_data": normalized,
+                    "relevance_score": relevance,
+                    "preview": truncate(job["description"], 180),
+                }
+            )
         ranked_jobs.sort(
             key=lambda item: (
                 1 if item.get("source") != "role-baseline" else 0,
@@ -146,32 +169,57 @@ class ScoringEngine:
             return baseline_credit
 
         if candidate_years >= average_target:
-            upside = min(14.0, (candidate_years - average_target) * 5.0)
-            return round(min(92.0, baseline_credit + 10.0 + upside), 2)
+            upside = min(12.0, (candidate_years - average_target) * 4.0)
+            return round(min(90.0, baseline_credit + 12.0 + upside), 2)
 
         shortage_ratio = max(0.0, min(candidate_years / max(average_target, 0.25), 1.0))
-        floor = 10.0 if candidate_years <= 0 else max(16.0, baseline_credit * 0.5)
-        score = floor + (baseline_credit - floor) * (0.45 + (0.55 * shortage_ratio))
-        return round(max(floor, min(score, 88.0)), 2)
+        floor = self._experience_floor(candidate_years)
+        score = floor + (baseline_credit - floor) * (0.28 + (0.72 * shortage_ratio))
+        if candidate_years >= 1.0 and shortage_ratio >= 0.45:
+            score += 4.0
+        elif candidate_years >= 0.5 and shortage_ratio >= 0.3:
+            score += 2.0
+        return round(max(floor, min(score, 86.0)), 2)
 
     def _baseline_experience_credit(self, candidate_years: float) -> float:
         if candidate_years >= 8:
             return 86.0
         if candidate_years >= 5:
             return 76.0
+        if candidate_years >= 4:
+            return 70.0
         if candidate_years >= 3:
-            return 64.0
+            return 62.0
         if candidate_years >= 2:
-            return 58.0
+            return 54.0
+        if candidate_years >= 1.5:
+            return 46.0
         if candidate_years >= 1:
-            return 50.0
+            return 38.0
         if candidate_years >= 0.5:
-            return 32.0
+            return 28.0
         if candidate_years >= 0.17:
-            return 24.0
+            return 22.0
         if candidate_years > 0:
+            return 16.0
+        return 8.0
+
+    def _experience_floor(self, candidate_years: float) -> float:
+        if candidate_years >= 5:
+            return 52.0
+        if candidate_years >= 3:
+            return 44.0
+        if candidate_years >= 2:
+            return 38.0
+        if candidate_years >= 1:
+            return 30.0
+        if candidate_years >= 0.5:
+            return 24.0
+        if candidate_years >= 0.17:
             return 18.0
-        return 10.0
+        if candidate_years > 0:
+            return 12.0
+        return 8.0
 
     def _market_demand_score(self, matched_skills: list[str], demand_map: dict[str, float]) -> float:
         if not demand_map:
@@ -198,6 +246,57 @@ class ScoringEngine:
         if skill_match < 30 and market_demand < 30 and semantic_match < 52:
             return round(overall_score * 0.78, 2)
         return overall_score
+
+    def _job_match_strength_label(self, *, job: dict) -> str:
+        normalized = job.get("normalized_data", {}) or {}
+        source = str(job.get("source", "unknown"))
+        if source == "role-baseline":
+            confidence = str(normalized.get("baseline_confidence", "medium"))
+            if confidence == "low":
+                return "Conservative fallback"
+            if confidence == "medium":
+                return "Guarded baseline"
+            return "Calibration baseline"
+
+        title_alignment = float(normalized.get("title_alignment_score", 0.0) or 0.0)
+        role_fit = float(normalized.get("role_fit_score", 0.0) or 0.0)
+        skill_overlap = float(normalized.get("skill_overlap_score", 0.0) or 0.0)
+        if title_alignment >= 24 or role_fit >= 12:
+            return "Strong role match"
+        if title_alignment >= 12 or role_fit >= 7 or skill_overlap >= 3:
+            return "Related role match"
+        return "Broad live match"
+
+    def _build_job_match_reasons(self, *, role_query: str, job: dict, demand_map: dict[str, float], role_skill_pool: set[str]) -> list[str]:
+        normalized = job.get("normalized_data", {}) or {}
+        source = str(job.get("source", "unknown"))
+        if source == "role-baseline":
+            reasons = [str(normalized.get("baseline_reason") or "Used as a calibration baseline because live coverage was too weak.")]
+            if str(normalized.get("baseline_confidence", "medium")) == "low":
+                reasons.append("This fallback is intentionally conservative and should not be treated like real-time market demand.")
+            return reasons[:2]
+
+        reasons: list[str] = []
+        title_alignment = float(normalized.get("title_alignment_score", 0.0) or 0.0)
+        market_quality = float(normalized.get("market_quality_score", 0.0) or 0.0)
+        if title_alignment >= 24:
+            reasons.append("The job title closely matches the requested role.")
+        elif title_alignment >= 12:
+            reasons.append("The title sits in the same role family as the requested role.")
+
+        role_skills = [
+            skill
+            for skill in normalized.get("skills", []) or []
+            if skill in role_skill_pool
+        ]
+        if role_skills:
+            ranked_skills = sorted(role_skills, key=lambda skill: (demand_map.get(skill, 0.0), skill), reverse=True)
+            reasons.append(f"Extracted role signals: {', '.join(ranked_skills[:3])}.")
+        if market_quality >= 60:
+            reasons.append("This listing carried enough requirement detail to influence the market sample.")
+        if not reasons:
+            reasons.append(f"Kept as a filtered live listing for {role_query} after title, domain, and skill checks.")
+        return reasons[:3]
 
     def _resume_quality_score(self, resume_data: dict) -> float:
         text = resume_data.get("raw_text", "")

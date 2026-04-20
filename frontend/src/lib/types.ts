@@ -27,6 +27,18 @@ export type JobMatch = {
   tags: string[];
   normalized_data: {
     skills?: string[];
+    selection_reasons?: string[];
+    match_strength_label?: string;
+    fit_metrics?: {
+      title_alignment?: number;
+      role_fit?: number;
+      market_quality?: number;
+      skill_overlap?: number;
+    };
+    baseline_confidence?: string;
+    baseline_support_tier?: string;
+    baseline_guarded?: boolean;
+    baseline_reason?: string;
     skill_evidence?: {
       skill: string;
       matched_text?: string;
@@ -66,7 +78,14 @@ export type AnalysisResponse = {
   analysis_context?: {
     market_source?: string;
     live_job_count?: number;
+    live_company_count?: number;
+    live_source_counts?: Record<string, number>;
     used_role_baseline?: boolean;
+    baseline_confidence?: string;
+    baseline_support_tier?: string;
+    market_confidence?: string;
+    build_tag?: string;
+    fetch_diagnostics?: Record<string, unknown>;
     message?: string;
   };
   resume_archetype?: {

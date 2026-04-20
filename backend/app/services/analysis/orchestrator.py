@@ -327,10 +327,16 @@ class AnalysisOrchestrator:
         resume_text = resume_data.get("raw_text", "")
         resume_skills = set(resume_data.get("skills", []))
         baseline_only = bool(jobs) and all(job.get("source") == "role-baseline" for job in jobs)
+        baseline_confidences = {
+            str(job.get("normalized_data", {}).get("baseline_confidence", "medium"))
+            for job in jobs
+            if job.get("source") == "role-baseline"
+        }
+        baseline_confidence = "low" if baseline_confidences == {"low"} else "high" if baseline_confidences == {"high"} else "medium"
         low_confidence_baseline_only = baseline_only and not any(
             str(job.get("normalized_data", {}).get("baseline_confidence", "medium")) == "high"
             for job in jobs
-        )
+        ) and baseline_confidence == "low"
         scoring_jobs = [] if low_confidence_baseline_only else jobs
         skill_frequency = infer_skill_frequency(scoring_jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
@@ -366,10 +372,24 @@ class AnalysisOrchestrator:
         elif jobs:
             market_confidence_factor = 0.78
 
+        if baseline_only:
+            if baseline_confidence == "high":
+                market_confidence_factor = min(market_confidence_factor, 0.72)
+            elif baseline_confidence == "medium":
+                market_confidence_factor = min(market_confidence_factor, 0.55)
+            else:
+                market_confidence_factor = 0.0
+
         skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
-        relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in scoring_jobs]
-        semantic_match = round(mean(relevance_scores), 2) if relevance_scores else 0.0
-        experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), scoring_jobs)
+        scoring_relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in scoring_jobs]
+        display_relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in jobs]
+        semantic_match = round(mean(scoring_relevance_scores), 2) if scoring_relevance_scores else 0.0
+        if scoring_jobs:
+            experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), scoring_jobs)
+        elif baseline_only:
+            experience_match = round(self.scoring_engine._baseline_experience_credit(resume_data.get("experience_years", 0)) * 0.55, 2)
+        else:
+            experience_match = 0.0
         total_demand = sum(demand_map.values())
         covered_demand = sum(demand_map.get(skill, 0) for skill in matched_skills)
         market_demand = round((covered_demand / total_demand) * 100, 2) if total_demand else 0.0
@@ -377,6 +397,17 @@ class AnalysisOrchestrator:
         market_demand = round(market_demand * market_confidence_factor, 2)
         resume_quality = self.scoring_engine._resume_quality_score(resume_data)
         ats_compliance = self.scoring_engine._ats_score(resume_data)
+
+        if baseline_only:
+            if baseline_confidence == "high":
+                semantic_match = min(semantic_match, 42.0)
+                experience_match = min(experience_match, 56.0)
+            elif baseline_confidence == "medium":
+                semantic_match = min(semantic_match, 34.0)
+                experience_match = min(experience_match, 44.0)
+            else:
+                semantic_match = min(semantic_match, 22.0)
+                experience_match = min(experience_match, 30.0)
 
         overall_score = round(
             (skill_match * 0.25)
@@ -394,11 +425,16 @@ class AnalysisOrchestrator:
             semantic_match=semantic_match,
             market_demand=market_demand,
         )
-        if low_confidence_baseline_only:
-            overall_score = min(overall_score, 35.0)
+        if baseline_only:
+            if baseline_confidence == "high":
+                overall_score = min(overall_score, 52.0)
+            elif baseline_confidence == "medium":
+                overall_score = min(overall_score, 44.0)
+            else:
+                overall_score = min(overall_score, 34.0)
 
         ranked_jobs = []
-        for job, relevance in zip(scoring_jobs, relevance_scores):
+        for job, relevance in zip(jobs, display_relevance_scores):
             normalized = {**(job.get("normalized_data", {}) or {})}
             filtered_skills = [
                 skill
@@ -424,6 +460,21 @@ class AnalysisOrchestrator:
                     for item in normalized.get("skill_evidence", []) or []
                     if item.get("skill") in role_skill_pool
                 ][:4]
+            elif normalized.get("skills"):
+                normalized["skills"] = list(normalized.get("skills", [])[:4])
+            normalized["match_strength_label"] = self._job_match_strength_label(job={**job, "normalized_data": normalized})
+            normalized["selection_reasons"] = self._build_job_match_reasons(
+                role_query=role_query,
+                job={**job, "normalized_data": normalized},
+                demand_map=demand_map,
+                role_skill_pool=role_skill_pool,
+            )
+            normalized["fit_metrics"] = {
+                "title_alignment": round(float(normalized.get("title_alignment_score", 0.0) or 0.0), 1),
+                "role_fit": round(float(normalized.get("role_fit_score", 0.0) or 0.0), 1),
+                "market_quality": round(float(normalized.get("market_quality_score", 0.0) or 0.0), 1),
+                "skill_overlap": round(float(normalized.get("skill_overlap_score", 0.0) or 0.0), 1),
+            }
             ranked_jobs.append(
                 {
                     **job,
@@ -477,6 +528,78 @@ class AnalysisOrchestrator:
         if not left_tokens or not right_tokens:
             return 0.0
         return round((len(left_tokens & right_tokens) / len(right_tokens)) * 100, 2)
+
+    def _job_match_strength_label(self, *, job: dict) -> str:
+        normalized = job.get("normalized_data", {}) or {}
+        source = str(job.get("source", "unknown"))
+        if source == "role-baseline":
+            confidence = str(normalized.get("baseline_confidence", "medium"))
+            if confidence == "low":
+                return "Conservative fallback"
+            if confidence == "medium":
+                return "Guarded baseline"
+            return "Calibration baseline"
+
+        title_alignment = float(normalized.get("title_alignment_score", 0.0) or 0.0)
+        role_fit = float(normalized.get("role_fit_score", 0.0) or 0.0)
+        skill_overlap = float(normalized.get("skill_overlap_score", 0.0) or 0.0)
+        if title_alignment >= 24 or role_fit >= 12:
+            return "Strong role match"
+        if title_alignment >= 12 or role_fit >= 7 or skill_overlap >= 3:
+            return "Related role match"
+        return "Broad live match"
+
+    def _build_job_match_reasons(self, *, role_query: str, job: dict, demand_map: dict[str, float], role_skill_pool: set[str]) -> list[str]:
+        normalized = job.get("normalized_data", {}) or {}
+        source = str(job.get("source", "unknown"))
+        if source == "role-baseline":
+            reasons = [str(normalized.get("baseline_reason") or "Used as a calibration baseline because live coverage was too weak.")]
+            if str(normalized.get("baseline_confidence", "medium")) == "low":
+                reasons.append("This fallback is intentionally conservative and should not be treated like real-time market demand.")
+            elif str(normalized.get("baseline_confidence", "medium")) == "medium":
+                reasons.append("Used only to widen sparse market coverage after the live sample came back thin.")
+            else:
+                reasons.append("Used as a role-family benchmark to widen market skill coverage, not as a direct hiring signal.")
+            return reasons[:2]
+
+        reasons: list[str] = []
+        title_alignment = float(normalized.get("title_alignment_score", 0.0) or 0.0)
+        market_quality = float(normalized.get("market_quality_score", 0.0) or 0.0)
+        if title_alignment >= 24:
+            reasons.append("The job title closely matches the requested role.")
+        elif title_alignment >= 12:
+            reasons.append("The title sits in the same role family as the requested role.")
+
+        role_skills = [
+            skill
+            for skill in normalized.get("skills", []) or []
+            if skill in role_skill_pool
+        ]
+        if role_skills:
+            ranked_skills = sorted(role_skills, key=lambda skill: (demand_map.get(skill, 0.0), skill), reverse=True)
+            reasons.append(f"Extracted role signals: {', '.join(ranked_skills[:3])}.")
+
+        if market_quality >= 90:
+            reasons.append("This listing carried strong requirement detail and survived the strict live-ranking filters.")
+        elif market_quality >= 60:
+            reasons.append("This listing had enough usable requirement detail to influence the market sample.")
+
+        if not reasons:
+            reasons.append(f"Kept as a filtered live listing for {role_query} after title, domain, and skill checks.")
+        return reasons[:3]
+
+    def _describe_experience_signal(self, experience_years: float) -> str:
+        if experience_years <= 0:
+            return "No clear dated experience was detected yet, so projects and internships need to carry more of the proof."
+        if experience_years < 0.5:
+            months = max(1, round(experience_years * 12))
+            return f"Detected roughly {months} months of experience signal. Clear project scope and dated work samples can still push this score upward."
+        if experience_years < 1.25:
+            months = round(experience_years * 12)
+            return f"Detected roughly {months} months of early-career experience. The score rises fastest when each bullet shows tools, scope, and measurable outcomes."
+        if experience_years < 3:
+            return f"Detected about {experience_years:.1f} years of experience signal. Stronger quantified outcomes should move this into a more competitive early-career range."
+        return f"Detected about {experience_years:.1f} years of experience signal. The next gain comes from making the strongest role-relevant wins easier to verify."
 
     def _build_recommendations(self, score_payload: dict, resume_data: dict) -> list[RecommendationItem]:
         items: list[RecommendationItem] = []
@@ -713,6 +836,7 @@ class AnalysisOrchestrator:
         missing_skills = analysis.missing_skills or []
         matched_skills = analysis.matched_skills or []
         role_query = analysis.role_query.lower()
+        experience_years = float(resume_data.get("experience_years", 0) or 0)
         archetype_type = resume_data.get("resume_archetype", {}).get("type", "general_resume")
         archetype_label = resume_data.get("resume_archetype", {}).get("label", "Resume")
         market_skill_names = [item["skill"] for item in missing_skills[:3]]
@@ -731,7 +855,7 @@ class AnalysisOrchestrator:
                 "Semantic fit is driven by how closely your summary, project titles, and bullet language mirror the target role."
             ],
             "experience_match": [
-                "Early-career experience is real here, but the score will rise when each project or internship bullet shows scope, tools, and measurable outcomes."
+                self._describe_experience_signal(experience_years)
             ],
             "market_demand": [
                 (
@@ -785,6 +909,8 @@ class AnalysisOrchestrator:
             feedback["ats_compliance"].append("Portfolio-heavy resumes still need plain-text tool, role, and outcome evidence so ATS systems can capture the signal.")
         if archetype_type == "research_transition_resume":
             feedback["experience_match"].append("Research-to-industry resumes score better when experiments and studies are translated into product, business, or analytics outcomes.")
+        if analysis_context.get("market_source") == "role-baseline" and analysis_context.get("baseline_confidence") != "high":
+            feedback["experience_match"].append("Because the live market sample was weak, this experience score is intentionally conservative instead of assuming full market fit.")
         if matched_skills and not missing_skills:
             feedback["skill_match"].append("The current sample did not expose a strong missing-skill cluster, so use the recommendations below to widen your tool coverage.")
         return feedback
