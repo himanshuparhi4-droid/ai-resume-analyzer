@@ -176,6 +176,7 @@ class JobAggregator:
         normalized["location_alignment_score"] = self._location_alignment_score(location, item)
         normalized["listing_quality_score"] = self._listing_quality_score(query, item)
         normalized["market_quality_score"] = self._market_quality_score(query, location, item)
+        normalized["cache_query_bucket"] = self._cache_query_bucket(query, item)
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -364,11 +365,70 @@ class JobAggregator:
         for item in cached:
             item.setdefault("normalized_data", {})
             self._annotate_item_scores(query=query, location=location, item=item)
-        selected = self._select_production_live_jobs(query=query, location=location, jobs=cached, limit=limit)
+        exact_query_cached = [item for item in cached if self._cache_query_bucket(query, item) == "exact"]
+        related_query_cached = [item for item in cached if self._cache_query_bucket(query, item) == "related"]
+        canonical_query_cached = [
+            item
+            for item in cached
+            if self._cache_query_bucket(query, item) == "canonical" and self._is_cache_role_safe_match(query, item)
+        ]
+        selected = []
+        for bucket_name, bucket_jobs in (
+            ("exact", exact_query_cached),
+            ("related", related_query_cached),
+            ("canonical", canonical_query_cached),
+        ):
+            if not bucket_jobs:
+                continue
+            selected = self._select_production_live_jobs(query=query, location=location, jobs=bucket_jobs, limit=limit)
+            if selected:
+                self.last_fetch_diagnostics["cache_fallback_bucket"] = bucket_name
+                break
         if selected:
             self.last_fetch_diagnostics["cache_fallback_hit"] = True
             self.last_fetch_diagnostics["cache_fallback_count"] = len(selected)
+            self.last_fetch_diagnostics["cache_fallback_bucket_counts"] = {
+                "exact": len(exact_query_cached),
+                "related": len(related_query_cached),
+                "canonical": len(canonical_query_cached),
+            }
         return selected
+
+    def _query_signature(self, value: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+ ]+", " ", str(value).lower())).strip()
+
+    def _cache_query_bucket(self, query: str, item: dict) -> str:
+        query_signature = self._query_signature(query)
+        cached_query = self._query_signature(item.get("query_role", ""))
+        if not cached_query:
+            return "none"
+        if cached_query == query_signature:
+            return "exact"
+
+        role_variants = {self._query_signature(variant) for variant in production_query_variations(query)}
+        if cached_query in role_variants:
+            return "related"
+
+        cached_normalized = normalize_role(str(item.get("normalized_role") or item.get("query_role") or ""))
+        if cached_normalized == normalize_role(query):
+            return "canonical"
+        return "none"
+
+    def _is_cache_role_safe_match(self, query: str, item: dict) -> bool:
+        if self._canonical_role_alignment(query, item) < 0:
+            return False
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        return (
+            title_precision >= 2
+            or title_overlap >= 1
+            or (family_overlap >= 2 and core_title_overlap >= 1)
+            or (domain_score >= 2 and skill_overlap >= 1.5)
+        )
 
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:

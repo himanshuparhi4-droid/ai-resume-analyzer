@@ -115,4 +115,7 @@ class JobCacheService:
             "tags": item.tags,
             "normalized_data": item.normalized_data,
             "posted_at": item.posted_at,
+            "query_role": item.query_role,
+            "normalized_role": item.normalized_role,
+            "location_query": item.location_query,
         }
