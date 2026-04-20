@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import inspect
 import logging
 import re
 import time
@@ -12,6 +13,7 @@ from app.core.config import settings
 from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
+from app.services.jobs.careerjet import CareerjetProvider
 from app.services.jobs.greenhouse import GreenhouseProvider
 from app.services.jobs.indianapi import IndianAPIProvider
 from app.services.jobs.jobicy import JobicyProvider
@@ -65,6 +67,7 @@ SOURCE_TRUST_WEIGHTS = {
     "greenhouse": 1.08,
     "lever": 1.07,
     "indianapi": 1.03,
+    "careerjet": 1.01,
     "jooble": 1.02,
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -97,6 +100,20 @@ GENERIC_TITLE_WEAKENERS = {
     "manager",
 }
 _PRODUCTION_JOB_CACHE: dict[str, dict] = {}
+KNOWN_PROVIDER_SOURCES = (
+    "jobicy",
+    "remotive",
+    "themuse",
+    "careerjet",
+    "greenhouse",
+    "lever",
+    "indianapi",
+    "jooble",
+    "adzuna",
+    "usajobs",
+    "remoteok",
+    "arbeitnow",
+)
 
 
 class JobAggregator:
@@ -114,6 +131,8 @@ class JobAggregator:
             settings.has_greenhouse_boards or settings.environment == "production"
         ):
             self.providers.append(GreenhouseProvider())
+        if settings.default_job_source in {"auto", "careerjet"} and settings.has_careerjet_credentials:
+            self.providers.append(CareerjetProvider())
         if settings.default_job_source in {"auto", "lever"} and settings.has_lever_companies:
             self.providers.append(LeverProvider())
         if settings.default_job_source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
@@ -191,6 +210,68 @@ class JobAggregator:
         normalized["skill_overlap_score"] = self._skill_overlap_score(query, item)
         normalized["cache_query_bucket"] = self._cache_query_bucket(query, item)
 
+    def _provider_is_selected_by_source(self, source_name: str) -> bool:
+        source = (settings.default_job_source or "auto").strip().lower()
+        if source == "auto":
+            return True
+        if source_name == "jobicy":
+            return source in {"jobicy", "themuse", "remotive"}
+        if source_name == "remotive":
+            return source in {"remotive", "remoteok", "adzuna", "usajobs", "careerjet"}
+        if source_name == "themuse":
+            return source == "themuse"
+        return source == source_name
+
+    def _provider_requirement_state(self, source_name: str) -> tuple[bool, str]:
+        if source_name == "adzuna":
+            return settings.has_adzuna_credentials, "missing_credentials"
+        if source_name == "careerjet":
+            return settings.has_careerjet_credentials, "missing_credentials"
+        if source_name == "indianapi":
+            return settings.has_indianapi_credentials, "missing_credentials"
+        if source_name == "jooble":
+            return settings.has_jooble_credentials, "missing_credentials"
+        if source_name == "usajobs":
+            return settings.has_usajobs_credentials, "missing_credentials"
+        if source_name == "greenhouse":
+            return (settings.has_greenhouse_boards or settings.environment == "production"), "missing_configuration"
+        if source_name == "lever":
+            return settings.has_lever_companies, "missing_configuration"
+        return True, "available"
+
+    def _provider_availability_snapshot(self) -> list[dict]:
+        active_sources = {
+            str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
+            for provider in self.providers
+        }
+        snapshot: list[dict] = []
+        for source_name in KNOWN_PROVIDER_SOURCES:
+            selected = self._provider_is_selected_by_source(source_name)
+            available, unavailable_reason = self._provider_requirement_state(source_name)
+            if source_name in active_sources:
+                status = "active"
+            elif not selected:
+                status = "source_filtered"
+            elif not available:
+                status = unavailable_reason
+            else:
+                status = "inactive"
+            snapshot.append(
+                {
+                    "source": source_name,
+                    "status": status,
+                    "selected_by_source": selected,
+                    "available": available,
+                }
+            )
+        return snapshot
+
+    def _provider_accepts_request_context(self, provider: object) -> bool:
+        try:
+            return "request_context" in inspect.signature(provider.search).parameters
+        except (TypeError, ValueError):
+            return False
+
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
         providers: list[object] = [JobicyProvider()]
@@ -202,6 +283,8 @@ class JobAggregator:
 
         if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             add(AdzunaProvider())
+        if source in {"auto", "careerjet"} and settings.has_careerjet_credentials:
+            add(CareerjetProvider())
         if source in {"auto", "greenhouse"} and (
             settings.has_greenhouse_boards or settings.environment == "production"
         ):
@@ -237,6 +320,11 @@ class JobAggregator:
             add(JobicyProvider())
             return providers
 
+        if source == "careerjet" and settings.has_careerjet_credentials:
+            add(RemotiveProvider())
+            add(JobicyProvider())
+            return providers
+
         if source == "usajobs" and settings.has_usajobs_credentials:
             add(RemotiveProvider())
             add(JobicyProvider())
@@ -255,20 +343,34 @@ class JobAggregator:
             return False
         return True
 
-    async def fetch_jobs(self, query: str, location: str, limit: int, force_refresh: bool = False) -> list[dict]:
+    async def fetch_jobs(
+        self,
+        query: str,
+        location: str,
+        limit: int,
+        force_refresh: bool = False,
+        request_context: dict | None = None,
+    ) -> list[dict]:
         self.last_fetch_diagnostics = {
             "environment": settings.environment,
             "query": query,
             "location": location,
             "limit": limit,
             "providers": [],
+            "provider_availability": self._provider_availability_snapshot(),
+            "request_context_available": bool((request_context or {}).get("user_ip") and (request_context or {}).get("user_agent")),
         }
         sparse_role = is_sparse_live_market_role(query)
         if settings.environment == "production":
             cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
             if cached_live:
                 return cached_live
-            live_jobs = await self._fetch_production_jobs(query=query, location=location, limit=limit)
+            live_jobs = await self._fetch_production_jobs(
+                query=query,
+                location=location,
+                limit=limit,
+                request_context=request_context,
+            )
             if live_jobs:
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 return live_jobs
@@ -323,7 +425,15 @@ class JobAggregator:
             for search_query in search_queries:
                 for search_location in search_locations:
                     try:
-                        items = await provider.search(query=search_query, location=search_location, limit=max(8, limit))
+                        if self._provider_accepts_request_context(provider):
+                            items = await provider.search(
+                                query=search_query,
+                                location=search_location,
+                                limit=max(8, limit),
+                                request_context=request_context,
+                            )
+                        else:
+                            items = await provider.search(query=search_query, location=search_location, limit=max(8, limit))
                     except Exception as exc:
                         logger.warning(
                             "Job provider search failed for %s (query=%s, location=%s): %s",
@@ -449,13 +559,22 @@ class JobAggregator:
             or (domain_score >= 2 and skill_overlap >= 1.5)
         )
 
-    async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
+    async def _fetch_production_jobs(
+        self,
+        *,
+        query: str,
+        location: str,
+        limit: int,
+        request_context: dict | None = None,
+    ) -> list[dict]:
         query_domain = role_domain(query)
 
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 8.0
+                provider_timeout = 10.0
+            elif source_name == "careerjet":
+                provider_timeout = 10.0
             elif source_name == "greenhouse":
                 if query_domain == "data":
                     provider_timeout = 9.5
@@ -466,13 +585,13 @@ class JobAggregator:
             elif source_name == "lever":
                 provider_timeout = 8.0
             elif source_name == "jooble":
-                provider_timeout = 7.0
+                provider_timeout = 8.0
             elif source_name == "adzuna":
-                provider_timeout = 7.0
+                provider_timeout = 8.0
             elif source_name == "remotive":
-                provider_timeout = 8.0
+                provider_timeout = 10.0
             elif source_name == "themuse":
-                provider_timeout = 8.0
+                provider_timeout = 9.0
             elif source_name == "findwork":
                 provider_timeout = 7.0
             elif source_name == "remoteok":
@@ -488,10 +607,24 @@ class JobAggregator:
                 "stage": stage,
             }
             try:
-                items = await asyncio.wait_for(
-                    provider.search(query=search_query, location=search_location, limit=max(8, limit)),
-                    timeout=provider_timeout,
-                )
+                if self._provider_accepts_request_context(provider):
+                    provider_diag["request_context_available"] = bool(
+                        (request_context or {}).get("user_ip") and (request_context or {}).get("user_agent")
+                    )
+                    if not provider_diag["request_context_available"]:
+                        provider_diag["skipped"] = "missing_request_context"
+                        self.last_fetch_diagnostics["providers"].append(provider_diag)
+                        return []
+                if self._provider_accepts_request_context(provider):
+                    request_coro = provider.search(
+                        query=search_query,
+                        location=search_location,
+                        limit=max(8, limit),
+                        request_context=request_context,
+                    )
+                else:
+                    request_coro = provider.search(query=search_query, location=search_location, limit=max(8, limit))
+                items = await asyncio.wait_for(request_coro, timeout=provider_timeout)
                 provider_diag["result_count"] = len(items)
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return items
@@ -555,12 +688,12 @@ class JobAggregator:
         else:
             if query_domain == "data":
                 primary_order = ["jobicy", "remotive", "themuse"]
-                supplemental_order = ["greenhouse", "lever", "indianapi", "jooble", "adzuna"]
+                supplemental_order = ["careerjet", "greenhouse", "lever", "indianapi", "jooble", "adzuna"]
             elif query_domain in {"product", "design"}:
                 primary_order = ["greenhouse", "jobicy", "themuse"]
-                supplemental_order = ["remotive", "lever", "indianapi", "jooble", "adzuna"]
+                supplemental_order = ["careerjet", "remotive", "lever", "indianapi", "jooble", "adzuna"]
             else:
-                primary_order = ["greenhouse", "lever", "jooble", "adzuna", "indianapi", "jobicy"]
+                primary_order = ["greenhouse", "lever", "careerjet", "jooble", "adzuna", "indianapi", "jobicy"]
                 supplemental_order = ["remotive", "themuse"]
 
             primary_sources = [source for source in primary_order if source in source_groups]
@@ -1305,6 +1438,26 @@ class JobAggregator:
                 }:
                     return variations[:2]
                 return variations[:3]
+            if source_name == "careerjet":
+                if normalized_query == "full stack developer":
+                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
+                if normalized_query in {
+                    "data analyst",
+                    "data scientist",
+                    "data engineer",
+                    "machine learning engineer",
+                    "software engineer",
+                    "frontend developer",
+                    "devops engineer",
+                    "cybersecurity engineer",
+                    "qa engineer",
+                    "database engineer",
+                    "support engineer",
+                    "product manager",
+                    "ui/ux designer",
+                }:
+                    return variations[:2]
+                return variations[:1]
             if source_name == "jobicy":
                 if normalized_query == "full stack developer":
                     return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]

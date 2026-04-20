@@ -36,7 +36,18 @@ class AnalysisOrchestrator:
         self.insight_generator = InsightGenerator()
         self.skill_grounding = SkillGroundingService()
 
-    async def analyze_resume(self, *, filename: str, content_type: str, file_bytes: bytes, role_query: str, location: str, limit: int, user: User | None = None) -> AnalysisResponse:
+    async def analyze_resume(
+        self,
+        *,
+        filename: str,
+        content_type: str,
+        file_bytes: bytes,
+        role_query: str,
+        location: str,
+        limit: int,
+        user: User | None = None,
+        request_context: dict | None = None,
+    ) -> AnalysisResponse:
         started = time.perf_counter()
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
@@ -49,12 +60,17 @@ class AnalysisOrchestrator:
             )
             try:
                 jobs = await asyncio.wait_for(
-                    self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=production_limit),
+                    self.job_aggregator.fetch_jobs(
+                        query=role_query,
+                        location=location,
+                        limit=production_limit,
+                        request_context=request_context,
+                    ),
                     # Hosted providers on Render can spend several seconds on
                     # connection/setup before the actual response phase starts.
                     # Keep a firm production cap, but leave enough room for the
                     # primary + supplemental live-fetch stages to finish.
-                    timeout=min(settings.job_fetch_timeout_seconds, 32.0),
+                    timeout=max(settings.job_fetch_timeout_seconds, settings.production_live_runtime_cap_seconds),
                 )
             except asyncio.TimeoutError:
                 logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")
@@ -94,7 +110,12 @@ class AnalysisOrchestrator:
             try:
                 if settings.enable_live_market_fetch:
                     jobs = await asyncio.wait_for(
-                        self.job_aggregator.fetch_jobs(query=role_query, location=location, limit=limit),
+                        self.job_aggregator.fetch_jobs(
+                            query=role_query,
+                            location=location,
+                            limit=limit,
+                            request_context=request_context,
+                        ),
                         timeout=settings.job_fetch_timeout_seconds,
                     )
                 else:

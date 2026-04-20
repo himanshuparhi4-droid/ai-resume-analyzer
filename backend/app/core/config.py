@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     lever_company_tokens_raw: str = ""
     jooble_base_url: str = "https://jooble.org/api"
     jooble_api_key: str | None = None
+    careerjet_base_url: str = "https://search.api.careerjet.net/v4/query"
+    careerjet_api_key: str | None = None
+    careerjet_locale_code: str = "en_IN"
     jobicy_base_url: str = "https://jobicy.com/api/v2/remote-jobs"
     arbeitnow_base_url: str = "https://www.arbeitnow.com/api/job-board-api"
     adzuna_base_url: str = "https://api.adzuna.com/v1/api/jobs"
@@ -116,11 +119,12 @@ class Settings(BaseSettings):
     llm_summary_timeout_seconds: float = 15.0
     job_request_timeout_seconds: float = 14.0
     job_fetch_timeout_seconds: float = 35.0
+    production_live_runtime_cap_seconds: float = 42.0
     enable_live_market_fetch: bool = True
-    production_live_fetch_minimum: int = 6
+    production_live_fetch_minimum: int = 8
     production_live_fetch_maximum: int = 8
-    production_live_display_minimum: int = 6
-    production_live_candidate_fetch: int = 60
+    production_live_display_minimum: int = 8
+    production_live_candidate_fetch: int = 80
     production_live_cache_ttl_minutes: int = 360
     ats_board_cache_ttl_minutes: int = 360
 
@@ -198,6 +202,11 @@ class Settings(BaseSettings):
     @property
     def has_jooble_credentials(self) -> bool:
         return bool(self.jooble_api_key)
+
+    @computed_field
+    @property
+    def has_careerjet_credentials(self) -> bool:
+        return bool(self.careerjet_api_key)
 
     @computed_field
     @property
