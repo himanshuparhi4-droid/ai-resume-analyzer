@@ -110,7 +110,9 @@ class JobAggregator:
                 return
         if settings.default_job_source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             self.providers.append(AdzunaProvider())
-        if settings.default_job_source in {"auto", "greenhouse"} and settings.has_greenhouse_boards:
+        if settings.default_job_source in {"auto", "greenhouse"} and (
+            settings.has_greenhouse_boards or settings.environment == "production"
+        ):
             self.providers.append(GreenhouseProvider())
         if settings.default_job_source in {"auto", "lever"} and settings.has_lever_companies:
             self.providers.append(LeverProvider())
@@ -200,7 +202,9 @@ class JobAggregator:
 
         if source in {"auto", "adzuna"} and settings.has_adzuna_credentials:
             add(AdzunaProvider())
-        if source in {"auto", "greenhouse"} and settings.has_greenhouse_boards:
+        if source in {"auto", "greenhouse"} and (
+            settings.has_greenhouse_boards or settings.environment == "production"
+        ):
             add(GreenhouseProvider())
         if source in {"auto", "lever"} and settings.has_lever_companies:
             add(LeverProvider())
@@ -446,7 +450,9 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
                 provider_timeout = 5.5
-            elif source_name in {"greenhouse", "lever"}:
+            elif source_name == "greenhouse":
+                provider_timeout = 10.5
+            elif source_name == "lever":
                 provider_timeout = 8.0
             elif source_name == "jooble":
                 provider_timeout = 7.0
@@ -546,7 +552,8 @@ class JobAggregator:
                 primary_sources.append("adzuna")
             if "indianapi" in source_groups:
                 primary_sources.append("indianapi")
-            primary_sources.extend(source for source in ["jobicy", "themuse"] if source in source_groups and source not in primary_sources)
+            if "jobicy" in source_groups:
+                primary_sources.append("jobicy")
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -674,13 +681,14 @@ class JobAggregator:
                 company_title_key = f"{company}::{title_key}"
                 similarity_signature = self._job_similarity_signature(item)
                 source = str(item.get("source", "unknown")).lower()
+                max_source_count = 5 if source == "greenhouse" else 4 if source == "lever" else 3
                 if company_counts.get(company, 0) >= cap_per_company:
                     continue
                 if company_title_counts.get(company_title_key, 0) >= 1:
                     continue
                 if similarity_signature in selected_signatures:
                     continue
-                if len(selected) >= 4 and source_counts.get(source, 0) >= 3:
+                if len(selected) >= 4 and source_counts.get(source, 0) >= max_source_count:
                     continue
                 selected.append(item)
                 company_counts[company] = company_counts.get(company, 0) + 1
@@ -1197,10 +1205,10 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             variations = production_query_variations(query)
             if source_name == "remotive":
-                return variations[:2]
+                return variations[:4]
             if source_name == "jobicy":
-                return variations[:3]
-            return variations[:3]
+                return variations[:6]
+            return variations[:4]
         return query_variations(query)
 
     def _search_locations(self, provider: object, location: str) -> list[str]:

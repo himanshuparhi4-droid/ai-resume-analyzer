@@ -188,7 +188,7 @@ ROLE_SEARCH_VARIATIONS = {
     ],
 }
 ROLE_PRODUCTION_VARIATIONS = {
-    "data analyst": ["data analyst", "reporting analyst", "business analyst", "business intelligence analyst", "bi analyst"],
+    "data analyst": ["data analyst", "reporting analyst", "business analyst", "business intelligence analyst", "bi analyst", "analytics"],
     "data scientist": ["data scientist", "machine learning scientist", "applied scientist"],
     "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
     "data engineer": ["data engineer", "etl engineer", "analytics engineer"],
