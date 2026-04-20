@@ -21,6 +21,8 @@ from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
 from app.services.jobs.taxonomy import (
+    GENERIC_ROLE_MATCH_TOKENS,
+    STOPWORDS,
     canonical_role_alignment,
     dedupe_key,
     is_sparse_live_market_role,
@@ -482,6 +484,7 @@ class JobAggregator:
 
         collected: list[dict] = []
         seen: set[str] = set()
+        near_seen: set[str] = set()
         sparse_role = is_sparse_live_market_role(query)
         live_floor = self._production_display_floor(query=query, limit=limit)
 
@@ -491,7 +494,11 @@ class JobAggregator:
                     key = dedupe_key(item)
                     if key in seen:
                         continue
+                    similarity_signature = self._job_similarity_signature(item)
+                    if similarity_signature in near_seen:
+                        continue
                     seen.add(key)
+                    near_seen.add(similarity_signature)
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                     self._annotate_item_scores(query=query, location=location, item=item)
@@ -640,6 +647,9 @@ class JobAggregator:
         )
         selected: list[dict] = []
         company_counts: dict[str, int] = {}
+        company_title_counts: dict[str, int] = {}
+        selected_signatures: set[str] = set()
+        source_counts: dict[str, int] = {}
         selection_debug: dict[str, int | list[str]] = {
             "target_live_count": target_live_count,
             "ranked_candidates": len(ranked),
@@ -650,10 +660,23 @@ class JobAggregator:
                 if item in selected:
                     continue
                 company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
+                title_key = normalize_role(str(item.get("title", "")).lower()) or "unknown"
+                company_title_key = f"{company}::{title_key}"
+                similarity_signature = self._job_similarity_signature(item)
+                source = str(item.get("source", "unknown")).lower()
                 if company_counts.get(company, 0) >= cap_per_company:
+                    continue
+                if company_title_counts.get(company_title_key, 0) >= 1:
+                    continue
+                if similarity_signature in selected_signatures:
+                    continue
+                if len(selected) >= 4 and source_counts.get(source, 0) >= 3:
                     continue
                 selected.append(item)
                 company_counts[company] = company_counts.get(company, 0) + 1
+                company_title_counts[company_title_key] = company_title_counts.get(company_title_key, 0) + 1
+                source_counts[source] = source_counts.get(source, 0) + 1
+                selected_signatures.add(similarity_signature)
                 if len(selected) >= limit:
                     break
 
@@ -753,8 +776,20 @@ class JobAggregator:
 
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
+        selection_debug["selected_sources"] = source_counts
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
+
+    def _job_similarity_signature(self, item: dict) -> str:
+        company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
+        title = normalize_role(str(item.get("title", "")).lower()) or "unknown"
+        description = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("description", "")).lower())
+        desc_tokens = [
+            token
+            for token in description.split()
+            if len(token) > 3 and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
+        ][:12]
+        return f"{company}::{title}::{' '.join(desc_tokens[:10])}"
 
     def _has_explicit_role_alignment(self, query: str, item: dict) -> bool:
         title_text = str(item.get("title", "")).lower()
