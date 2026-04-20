@@ -403,51 +403,79 @@ class ScoringEngine:
         )
         if parse_signals.get("multi_column_detected") and parse_signals.get("explicit_header_count", 0) >= 4:
             penalties = max(0, penalties - 2)
-        return float(max(18, min(base - penalties, 96)))
+        score = base - penalties
+
+        # Keep document-quality scoring conservative when the parser sees
+        # layout or OCR issues that would make recruiter evidence harder to
+        # trust, even if the resume still contains many positive signals.
+        quality_cap = 96.0
+        if (
+            parse_signals.get("multi_column_detected")
+            and parse_signals.get("explicit_header_count", 0) < 4
+        ):
+            quality_cap = min(quality_cap, 72.0)
+        if parse_signals.get("section_leakage_count", 0) >= 2:
+            quality_cap = min(quality_cap, 64.0)
+        if (
+            parse_signals.get("experience_section_word_count", 0) > 0
+            and parse_signals.get("experience_action_line_count", 0) == 0
+            and parse_signals.get("experience_quantified_line_count", 0) == 0
+        ):
+            quality_cap = min(quality_cap, 58.0)
+        if parse_signals.get("suspicious_token_count", 0) >= 2 or parse_signals.get("suspicious_url_count", 0) >= 1:
+            quality_cap = min(quality_cap, 68.0)
+        if parse_signals.get("dense_paragraph_line_count", 0) >= 3:
+            quality_cap = min(quality_cap, 66.0)
+        if (
+            parse_signals.get("skills_focus_share", 0) > 0.42
+            and parse_signals.get("experience_section_word_count", 0) < 70
+        ):
+            quality_cap = min(quality_cap, 62.0)
+        return float(max(18, min(score, quality_cap)))
 
     def _ats_score(self, resume_data: dict) -> float:
         sections = resume_data.get("sections", {})
         text = resume_data.get("raw_text", "")
         parse_signals = resume_data.get("parse_signals", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
-        score = 16
+        score = 18
         required_sections = {"experience", "education", "skills"}
-        score += len(required_sections & set(sections.keys())) * 10
+        score += len(required_sections & set(sections.keys())) * 7
         if resume_data.get("contact", {}).get("email"):
-            score += 8
-        if resume_data.get("contact", {}).get("phone"):
             score += 6
+        if resume_data.get("contact", {}).get("phone"):
+            score += 4
         content_type = str(resume_data.get("content_type", "")).lower()
         if "wordprocessingml" in content_type:
             score += 4
         elif "pdf" in content_type:
             score += 2
-        if 200 <= len(text.split()) <= 1100:
+        if 220 <= len(text.split()) <= 1050:
             score += 5
         if parse_signals.get("explicit_header_count", 0) >= 5:
-            score += 16
+            score += 14
         elif parse_signals.get("explicit_header_count", 0) >= 3:
-            score += 12
-        elif parse_signals.get("explicit_header_count", 0) >= 1:
-            score += 5
-        if "table" not in text.lower() and "textbox" not in text.lower():
-            score += 5
-        if sections.get("skills") and not parse_signals.get("inferred_skills_section"):
-            score += 6
-        if parse_signals.get("date_range_count", 0) >= 1:
             score += 10
+        elif parse_signals.get("explicit_header_count", 0) >= 1:
+            score += 4
+        if "table" not in text.lower() and "textbox" not in text.lower():
+            score += 3
+        if sections.get("skills") and not parse_signals.get("inferred_skills_section"):
+            score += 5
+        if parse_signals.get("date_range_count", 0) >= 1:
+            score += 8
         if parse_signals.get("date_range_count", 0) >= 3:
             score += 3
         if parse_signals.get("contact_link_count", 0) >= 1:
-            score += 3
+            score += 2
         if parse_signals.get("bullet_like_line_count", 0) >= 2:
-            score += 4
+            score += 3
         if parse_signals.get("chronology_signal_count", 0) >= 2:
             score += 4
         if parse_signals.get("section_balance_score", 0) >= 70:
             score += 2
         if parse_signals.get("multi_column_detected"):
-            score -= 8
+            score -= 12
             if parse_signals.get("explicit_header_count", 0) >= 4:
                 score += 2
         if archetype == "europass_cv":
@@ -455,19 +483,42 @@ class ScoringEngine:
         if archetype in {"reverse_chronological", "one_page_concise"}:
             score += 3
         if not parse_signals.get("suspicious_url_count", 0) and not parse_signals.get("suspicious_token_count", 0):
-            score += 4
+            score += 3
 
         penalties = (
-            min(12, parse_signals.get("merged_header_count", 0) * 4)
-            + min(10, parse_signals.get("inline_header_count", 0) * 2)
-            + min(10, parse_signals.get("section_leakage_count", 0) * 4)
-            + min(8, parse_signals.get("suspicious_token_count", 0) * 1)
-            + min(8, parse_signals.get("suspicious_url_count", 0) * 3)
+            min(16, parse_signals.get("merged_header_count", 0) * 5)
+            + min(12, parse_signals.get("inline_header_count", 0) * 2.5)
+            + min(12, parse_signals.get("section_leakage_count", 0) * 5)
+            + min(10, parse_signals.get("suspicious_token_count", 0) * 2)
+            + min(12, parse_signals.get("suspicious_url_count", 0) * 4)
             + (10 if parse_signals.get("inferred_skills_section") else 0)
-            + (6 if sections.get("experience") and parse_signals.get("date_range_count", 0) == 0 else 0)
-            + (3 if sections.get("experience") and parse_signals.get("explicit_header_count", 0) < 2 else 0)
+            + (8 if sections.get("experience") and parse_signals.get("date_range_count", 0) == 0 else 0)
+            + (4 if sections.get("experience") and parse_signals.get("explicit_header_count", 0) < 2 else 0)
             + (4 if parse_signals.get("portfolio_link_count", 0) == 0 and archetype in {"creative_portfolio_resume", "technical_portfolio_resume"} else 0)
-            + min(5, parse_signals.get("dense_paragraph_line_count", 0) * 1.0)
-            + min(4, parse_signals.get("objective_marker_count", 0) * 2)
+            + min(8, parse_signals.get("dense_paragraph_line_count", 0) * 1.5)
+            + min(5, parse_signals.get("objective_marker_count", 0) * 2)
+            + (6 if sections.get("experience") and parse_signals.get("bullet_like_line_count", 0) == 0 else 0)
+            + (4 if sections.get("experience") and parse_signals.get("chronology_signal_count", 0) == 0 else 0)
+            + min(6, parse_signals.get("long_evidence_line_count", 0) * 1.5)
         )
-        return float(max(16, min(score - penalties, 98)))
+        score = score - penalties
+
+        ats_cap = 95.0
+        if (
+            parse_signals.get("multi_column_detected")
+            and parse_signals.get("explicit_header_count", 0) < 4
+        ):
+            ats_cap = min(ats_cap, 70.0)
+        if parse_signals.get("merged_header_count", 0) >= 1 or parse_signals.get("section_leakage_count", 0) >= 1:
+            ats_cap = min(ats_cap, 78.0)
+        if parse_signals.get("inferred_skills_section"):
+            ats_cap = min(ats_cap, 74.0)
+        if parse_signals.get("suspicious_token_count", 0) >= 2 or parse_signals.get("suspicious_url_count", 0) >= 1:
+            ats_cap = min(ats_cap, 68.0)
+        if (
+            sections.get("experience")
+            and parse_signals.get("date_range_count", 0) == 0
+            and parse_signals.get("bullet_like_line_count", 0) == 0
+        ):
+            ats_cap = min(ats_cap, 58.0)
+        return float(max(14, min(score, ats_cap)))
