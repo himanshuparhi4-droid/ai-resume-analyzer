@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from difflib import get_close_matches
+from functools import lru_cache
 import re
 
 ROLE_SYNONYMS = {
@@ -293,26 +295,393 @@ ROLE_DOMAIN_MAP = {
 ROLE_NEGATIVE_TITLE_HINTS = {
     "data": {"sales", "customer support", "customer service", "travel", "nurse", "billing", "revenue cycle", "onboarding", "talent", "hr", "recruiter"},
     "software": {"sales", "customer support", "customer service", "travel", "billing", "talent", "hr", "recruiter", "account executive"},
-    "security": {"sales", "customer support", "customer service", "travel", "billing", "talent", "hr", "recruiter", "onboarding", "tax"},
+    "security": {
+        "sales",
+        "customer support",
+        "customer service",
+        "travel",
+        "billing",
+        "talent",
+        "hr",
+        "recruiter",
+        "onboarding",
+        "tax",
+        "design verification",
+        "silicon",
+        "rtl",
+        "semiconductor",
+        "chip",
+    },
     "product": {"sales representative", "travel", "billing", "hr", "recruiter"},
 }
 SPARSE_LIVE_MARKET_ROLES = {"teacher", "carpenter", "painter"}
+ROLE_ADJACENT_CANONICALS = {
+    "frontend developer": {"full stack developer"},
+    "full stack developer": {"frontend developer", "software engineer"},
+    "software engineer": {"full stack developer"},
+    "machine learning engineer": {"data scientist", "data engineer"},
+    "data scientist": {"machine learning engineer", "data engineer"},
+    "data engineer": {"data scientist", "machine learning engineer"},
+}
+ROLE_INFERENCE_TOKEN_HINTS = {
+    "data analyst": {
+        "analyst",
+        "analytics",
+        "reporting",
+        "business",
+        "intelligence",
+        "insights",
+        "dashboard",
+        "dashboards",
+        "excel",
+        "tableau",
+        "power",
+        "bi",
+        "sql",
+        "data",
+    },
+    "data scientist": {
+        "scientist",
+        "ml",
+        "machine",
+        "learning",
+        "ai",
+        "llm",
+        "deep",
+        "tensorflow",
+        "pytorch",
+        "numpy",
+        "modeling",
+    },
+    "machine learning engineer": {
+        "ml",
+        "machine",
+        "learning",
+        "ai",
+        "llm",
+        "engineer",
+        "pytorch",
+        "tensorflow",
+        "inference",
+        "serving",
+    },
+    "data engineer": {
+        "etl",
+        "pipeline",
+        "pipelines",
+        "warehouse",
+        "warehousing",
+        "dbt",
+        "airflow",
+        "spark",
+        "databricks",
+        "data",
+        "engineer",
+    },
+    "software engineer": {
+        "software",
+        "backend",
+        "developer",
+        "engineer",
+        "api",
+        "microservice",
+        "python",
+        "java",
+        "golang",
+        "go",
+        "dotnet",
+        "django",
+        "flask",
+        "spring",
+        "node",
+        "nodejs",
+    },
+    "frontend developer": {
+        "frontend",
+        "front",
+        "end",
+        "react",
+        "next",
+        "nextjs",
+        "angular",
+        "vue",
+        "ui",
+        "ux",
+        "web",
+        "javascript",
+        "typescript",
+    },
+    "full stack developer": {
+        "fullstack",
+        "full",
+        "stack",
+        "mern",
+        "mean",
+        "node",
+        "nodejs",
+        "express",
+        "mongodb",
+        "react",
+        "end",
+        "to",
+    },
+    "devops engineer": {
+        "aws",
+        "devops",
+        "sre",
+        "site",
+        "reliability",
+        "cloud",
+        "platform",
+        "kubernetes",
+        "terraform",
+        "docker",
+        "linux",
+        "jenkins",
+        "ci",
+        "cd",
+        "infra",
+        "infrastructure",
+    },
+    "cybersecurity engineer": {
+        "cyber",
+        "security",
+        "soc",
+        "siem",
+        "splunk",
+        "iam",
+        "threat",
+        "vulnerability",
+        "pentest",
+        "firewall",
+        "incident",
+        "response",
+        "appsec",
+    },
+    "qa engineer": {
+        "qa",
+        "quality",
+        "test",
+        "testing",
+        "automation",
+        "selenium",
+        "playwright",
+        "cypress",
+    },
+    "product manager": {
+        "product",
+        "pm",
+        "owner",
+        "roadmap",
+        "strategy",
+        "discovery",
+    },
+    "ui/ux designer": {
+        "design",
+        "designer",
+        "ui",
+        "ux",
+        "figma",
+        "wireframe",
+        "prototype",
+        "visual",
+    },
+}
+
+
+def _clean_role_text(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9+ ]+", " ", str(value).lower()).strip()
+    return re.sub(r"\s+", " ", cleaned)
+
+
+def _tokenize_role_text(value: str) -> set[str]:
+    return {
+        token
+        for token in _clean_role_text(value).split()
+        if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS and len(token) > 2
+    }
+
+
+@lru_cache(maxsize=None)
+def _role_alias_map() -> dict[str, str]:
+    alias_map: dict[str, str] = {}
+    for canonical in ROLE_FAMILY_CANONICALS:
+        phrases = {
+            canonical,
+            *ROLE_SEARCH_VARIATIONS.get(canonical, []),
+            *ROLE_PRODUCTION_VARIATIONS.get(canonical, []),
+            *ROLE_TITLE_HINTS.get(canonical, set()),
+            *ROLE_KEYWORD_FAMILIES.get(canonical, ()),
+        }
+        phrases.update({alias for alias, mapped in ROLE_SYNONYMS.items() if mapped == canonical})
+        for phrase in phrases:
+            cleaned = _clean_role_text(phrase)
+            if cleaned:
+                alias_map.setdefault(cleaned, canonical)
+    return alias_map
+
+
+def _infer_role_from_fuzzy_alias(cleaned: str) -> str | None:
+    if not cleaned:
+        return None
+    if len(cleaned.split()) != 1:
+        return None
+    alias_map = _role_alias_map()
+    matches = get_close_matches(cleaned, alias_map.keys(), n=1, cutoff=0.82)
+    if not matches:
+        return None
+    return alias_map.get(matches[0])
+
+
+@lru_cache(maxsize=None)
+def _role_phrase_bank(role: str) -> set[str]:
+    phrases = {
+        role,
+        *ROLE_SEARCH_VARIATIONS.get(role, []),
+        *ROLE_PRODUCTION_VARIATIONS.get(role, []),
+        *ROLE_TITLE_HINTS.get(role, set()),
+    }
+    phrases.update({alias for alias, canonical in ROLE_SYNONYMS.items() if canonical == role})
+    return {_clean_role_text(phrase) for phrase in phrases if _clean_role_text(phrase)}
+
+
+@lru_cache(maxsize=None)
+def _role_signal_bank(role: str) -> set[str]:
+    signals = set(_role_phrase_bank(role))
+    signals.update(ROLE_INFERENCE_TOKEN_HINTS.get(role, set()))
+    for phrase in _role_phrase_bank(role):
+        signals.update(_tokenize_role_text(phrase))
+    for skill in ROLE_PRIMARY_HINTS.get(role, set()):
+        signals.update(_tokenize_role_text(skill))
+    return {signal for signal in signals if signal}
+
+
+def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
+    tokens = _tokenize_role_text(cleaned)
+    words = set(cleaned.split())
+    if not cleaned:
+        return None
+    mobile_only = bool({"ios", "android", "mobile", "swift", "kotlin", "flutter"} & words) and not bool(
+        {"frontend", "react", "web", "javascript", "typescript", "ui"} & words
+    )
+
+    if {"mern", "mean"} & words or "fullstack" in words or ({"full", "stack"} <= words):
+        if not mobile_only:
+            return "full stack developer"
+    if {"react", "next", "nextjs", "vue", "angular", "frontend"} & words:
+        return "frontend developer"
+    if {"aws", "cloud", "devops", "sre", "terraform", "kubernetes"} & words:
+        return "devops engineer"
+    if {"cyber", "security", "soc", "siem", "splunk", "iam"} & words:
+        return "cybersecurity engineer"
+    if {"reporting", "analytics", "bi"} & words:
+        return "data analyst"
+    if {"ml", "llm"} & words and "engineer" in words:
+        return "machine learning engineer"
+    if {"ml", "llm", "scientist"} & words:
+        return "data scientist"
+    if {"node", "nodejs", "golang", "go", "java", "python", "backend", "api"} & words and {"developer", "engineer"} & words:
+        return "software engineer"
+    fuzzy_match = _infer_role_from_fuzzy_alias(cleaned)
+    if fuzzy_match:
+        return fuzzy_match
+
+    best_role: str | None = None
+    best_score = 0.0
+    second_best = 0.0
+    for role in ROLE_FAMILY_CANONICALS:
+        phrase_bank = _role_phrase_bank(role)
+        signal_bank = _role_signal_bank(role)
+        score = 0.0
+        if cleaned in phrase_bank:
+            score += 12.0
+        for phrase in phrase_bank:
+            if len(phrase.split()) > 1 and phrase in cleaned:
+                score += 4.5
+        token_hits = len(tokens & signal_bank)
+        score += token_hits * 1.6
+        if mobile_only and role in {"frontend developer", "full stack developer"}:
+            score -= 4.0
+        elif mobile_only and role == "software engineer":
+            score -= 1.5
+        if role_domain(role) == "software" and {"developer", "engineer", "frontend", "backend"} & set(cleaned.split()):
+            score += 0.8
+        if role_domain(role) == "data" and {"analyst", "analytics", "data", "reporting", "bi"} & set(cleaned.split()):
+            score += 0.8
+        if role_domain(role) == "security" and {"security", "cyber"} & set(cleaned.split()):
+            score += 1.1
+        if score > best_score:
+            second_best = best_score
+            best_role = role
+            best_score = score
+        elif score > second_best:
+            second_best = score
+
+    if best_role and best_score >= 2.4 and best_score >= second_best + 0.7:
+        return best_role
+    return None
 
 
 def normalize_role(query: str) -> str:
-    cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = _clean_role_text(query)
     if cleaned in ROLE_SYNONYMS:
         return ROLE_SYNONYMS[cleaned]
     for canonical, keywords in ROLE_KEYWORD_FAMILIES.items():
         if any(keyword in cleaned for keyword in keywords):
             return canonical
+    inferred = _infer_role_from_cleaned_query(cleaned)
+    if inferred:
+        return inferred
     return cleaned
 
 
+def _meaningful_raw_query(raw_cleaned: str, normalized: str) -> bool:
+    raw_tokens = [token for token in raw_cleaned.split() if token and token not in STOPWORDS]
+    if not raw_tokens or raw_cleaned == normalized:
+        return False
+    if all(token in GENERIC_ROLE_MATCH_TOKENS for token in raw_tokens):
+        return False
+    return True
+
+
+def _dynamic_query_expansions(raw_cleaned: str, normalized: str) -> list[str]:
+    if not _meaningful_raw_query(raw_cleaned, normalized):
+        return []
+
+    raw_tokens = [token for token in raw_cleaned.split() if token]
+    expansions: list[str] = [raw_cleaned]
+    if len(raw_tokens) == 1:
+        root = raw_tokens[0]
+        if "analyst" in normalized:
+            expansions.append(f"{root} analyst")
+        if "designer" in normalized:
+            expansions.extend([f"{root} designer", f"{root} ux designer"])
+        if "manager" in normalized:
+            expansions.append(f"{root} manager")
+        if "teacher" in normalized:
+            expansions.append(f"{root} teacher")
+        if "engineer" in normalized or "developer" in normalized:
+            expansions.extend([f"{root} engineer", f"{root} developer"])
+            if normalized == "frontend developer":
+                expansions.extend([f"{root} frontend developer", f"{root} frontend engineer"])
+            if normalized == "full stack developer":
+                expansions.extend([f"{root} full stack developer", f"{root} fullstack developer"])
+            if normalized == "cybersecurity engineer":
+                expansions.append(f"{root} security engineer")
+            if normalized == "devops engineer":
+                expansions.append(f"{root} cloud engineer")
+    cleaned_expansions = []
+    for item in expansions:
+        deduped = " ".join(
+            word for index, word in enumerate(item.split()) if index == 0 or word != item.split()[index - 1]
+        ).strip()
+        if deduped:
+            cleaned_expansions.append(deduped)
+    return list(dict.fromkeys(cleaned_expansions))
+
+
 def role_query_tokens(query: str) -> set[str]:
-    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
-    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
+    raw_cleaned = _clean_role_text(query)
     normalized = normalize_role(query)
     return {
         token
@@ -323,32 +692,28 @@ def role_query_tokens(query: str) -> set[str]:
 
 def query_variations(query: str) -> list[str]:
     normalized = normalize_role(query)
-    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
-    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
+    raw_cleaned = _clean_role_text(query)
     variations = ROLE_SEARCH_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    if raw_cleaned and raw_cleaned != normalized and raw_cleaned not in variations:
-        raw_token_count = len([token for token in raw_cleaned.split() if token])
-        if raw_token_count > 1:
-            variations = [raw_cleaned, *variations]
-    elif raw_cleaned and raw_cleaned not in variations:
+    dynamic_variations = _dynamic_query_expansions(raw_cleaned, normalized)
+    if dynamic_variations:
+        variations = [*dynamic_variations, *variations]
+    elif raw_cleaned and raw_cleaned not in variations and normalized not in ROLE_FAMILY_CANONICALS:
         variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))
 
 
 def production_query_variations(query: str) -> list[str]:
     normalized = normalize_role(query)
-    raw_cleaned = re.sub(r"[^a-z0-9+ ]+", " ", query.lower()).strip()
-    raw_cleaned = re.sub(r"\s+", " ", raw_cleaned)
+    raw_cleaned = _clean_role_text(query)
     variations = ROLE_PRODUCTION_VARIATIONS.get(normalized, [normalized])
     if normalized not in variations:
         variations = [normalized, *variations]
-    if raw_cleaned and raw_cleaned != normalized and raw_cleaned not in variations:
-        raw_token_count = len([token for token in raw_cleaned.split() if token])
-        if raw_token_count > 1:
-            variations = [raw_cleaned, *variations]
-    elif raw_cleaned and raw_cleaned not in variations:
+    dynamic_variations = _dynamic_query_expansions(raw_cleaned, normalized)
+    if dynamic_variations:
+        variations = [*dynamic_variations, *variations]
+    elif raw_cleaned and raw_cleaned not in variations and normalized not in ROLE_FAMILY_CANONICALS:
         variations = [raw_cleaned, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
 
@@ -387,6 +752,8 @@ def canonical_role_alignment(query: str, title: str) -> int:
         return 0
     if normalized_query == normalized_title:
         return 3
+    if normalized_title in ROLE_ADJACENT_CANONICALS.get(normalized_query, set()):
+        return 1
     query_domain = role_domain(normalized_query)
     title_domain = role_domain(normalized_title)
     if normalized_title in ROLE_FAMILY_CANONICALS and query_domain and query_domain == title_domain:
@@ -524,5 +891,8 @@ def role_fit_score(query: str, item: dict) -> float:
         and title in ROLE_FAMILY_CANONICALS
         and title != normalized_query
     ):
-        score *= 0.4
+        if title in ROLE_ADJACENT_CANONICALS.get(normalized_query, set()):
+            score *= 0.75
+        else:
+            score *= 0.4
     return round(score, 2)

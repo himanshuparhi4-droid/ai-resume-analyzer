@@ -263,6 +263,7 @@ class JobAggregator:
             "limit": limit,
             "providers": [],
         }
+        sparse_role = is_sparse_live_market_role(query)
         if settings.environment == "production":
             cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
             if cached_live:
@@ -271,9 +272,12 @@ class JobAggregator:
             if live_jobs:
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 return live_jobs
-            cached_fallback = self._get_cached_production_fallback(query=query, location=location, limit=limit)
-            if cached_fallback:
-                return cached_fallback
+            if sparse_role:
+                return []
+            if not sparse_role:
+                cached_fallback = self._get_cached_production_fallback(query=query, location=location, limit=limit)
+                if cached_fallback:
+                    return cached_fallback
 
         use_cache = self._use_cache()
         if use_cache and not force_refresh:
@@ -579,6 +583,17 @@ class JobAggregator:
                 query,
             )
             return preferred_live
+        if sparse_role:
+            self.last_fetch_diagnostics["stage_results"] = stage_results
+            self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+            self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+            self.last_fetch_diagnostics["selected_live_sources"] = {
+                source: len([item for item in preferred_live if item.get("source") == source])
+                for source in sorted({item.get("source", "unknown") for item in preferred_live})
+            }
+            if preferred_live:
+                return preferred_live
+            return []
 
         supplemental_sources = [] if sparse_role else ([source for source in ["remotive", "themuse"] if source in source_groups and source not in primary_sources])
         supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
@@ -662,6 +677,11 @@ class JobAggregator:
             ),
             reverse=True,
         )
+        precision_guarded = [item for item in ranked if self._passes_precise_query_guard(query, item)]
+        if precision_guarded and len(precision_guarded) >= display_floor:
+            ranked = precision_guarded
+        elif precision_guarded:
+            ranked = precision_guarded + [item for item in ranked if item not in precision_guarded]
         selected: list[dict] = []
         company_counts: dict[str, int] = {}
         company_title_counts: dict[str, int] = {}
@@ -670,6 +690,7 @@ class JobAggregator:
         selection_debug: dict[str, int | list[str]] = {
             "target_live_count": target_live_count,
             "ranked_candidates": len(ranked),
+            "precision_guarded_candidates": len(precision_guarded),
         }
 
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
@@ -798,6 +819,48 @@ class JobAggregator:
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
 
+    def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
+        raw_query = self._query_signature(query)
+        normalized_query = self._query_signature(normalize_role(query))
+        raw_tokens = [
+            token
+            for token in raw_query.split()
+            if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
+        ]
+        if not raw_tokens or raw_query == normalized_query or len(raw_tokens) > 2:
+            return True
+
+        title_text = self._query_signature(item.get("title", ""))
+        description_text = self._query_signature(item.get("description", ""))
+        tags_text = " ".join(self._query_signature(tag) for tag in item.get("tags", []) if str(tag).strip())
+        if self._is_mobile_web_mismatch(query, title_text):
+            return False
+        raw_phrase_hit = raw_query in title_text or raw_query in description_text or raw_query in tags_text
+        raw_token_hits = sum(
+            1
+            for token in raw_tokens
+            if re.search(rf"\b{re.escape(token)}\b", title_text)
+            or re.search(rf"\b{re.escape(token)}\b", description_text)
+            or re.search(rf"\b{re.escape(token)}\b", tags_text)
+        )
+        if raw_phrase_hit or raw_token_hits >= 1:
+            return True
+        if self._title_hint_overlap(query, item) >= 1:
+            return True
+        if self._title_precision_score(query, item) >= 2:
+            return True
+        if self._skill_overlap_score(query, item) >= 1.5 and self._role_domain_match_score(query, item) >= 2:
+            return True
+        return False
+
+    def _is_mobile_web_mismatch(self, query: str, title_text: str) -> bool:
+        normalized_query = normalize_role(query)
+        if normalized_query not in {"frontend developer", "full stack developer"}:
+            return False
+        mobile_tokens = {"ios", "android", "mobile", "swift", "kotlin", "flutter"}
+        web_tokens = {"react", "frontend", "web", "javascript", "typescript", "ui"}
+        return any(token in title_text for token in mobile_tokens) and not any(token in title_text for token in web_tokens)
+
     def _job_similarity_signature(self, item: dict) -> str:
         company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
         title = normalize_role(str(item.get("title", "")).lower()) or "unknown"
@@ -883,6 +946,18 @@ class JobAggregator:
             return False
         if title_alignment <= -6.0:
             return False
+        if is_sparse_live_market_role(query):
+            if title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
+                return False
+            if strict:
+                return (
+                    (skill_overlap >= 1.0 and (title_precision >= 1 or family_overlap >= 1 or explicit_alignment))
+                    or (title_overlap >= 1 and market_quality >= 36.0 and role_fit >= 1.0)
+                )
+            return (
+                (skill_overlap >= 1.0 and domain_score >= 1 and (title_precision >= 1 or family_overlap >= 1))
+                or (title_overlap >= 1 and market_quality >= 30.0 and role_fit >= 1.0)
+            )
 
         if strict:
             if location_score < 0.2:
@@ -1113,6 +1188,11 @@ class JobAggregator:
             return False
         if title_alignment <= -6.0:
             return False
+        if is_sparse_live_market_role(query):
+            if skill_overlap < 1.0 and title_precision < 2:
+                return False
+            if requirement_quality < 18.0 and role_fit < 2.5:
+                return False
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True
         if not explicit_alignment and (title_overlap + family_overlap + domain_score) == 0:
