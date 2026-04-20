@@ -488,6 +488,234 @@ ROLE_INFERENCE_TOKEN_HINTS = {
     },
 }
 
+ROLE_FAMILY_EXTENSIONS = {
+    "mobile developer": {
+        "search_variations": ["mobile developer", "mobile app developer", "android developer", "ios developer", "react native developer"],
+        "production_variations": ["mobile developer", "android developer", "ios developer", "mobile app developer", "react native developer"],
+        "market_hints": {"android", "ios", "swift", "kotlin", "react native", "flutter", "mobile", "app development", "xcode", "android studio"},
+        "primary_hints": {"android", "ios", "swift", "kotlin", "react native", "flutter", "mobile"},
+        "title_hints": {"mobile developer", "mobile engineer", "android developer", "ios developer", "react native developer"},
+        "keyword_families": ("mobile developer", "mobile app developer", "android developer", "ios developer", "react native developer"),
+        "inference_tokens": {"android", "ios", "mobile", "swift", "kotlin", "flutter", "react", "native"},
+        "domain": "software",
+        "adjacent": {"software engineer", "frontend developer", "full stack developer"},
+    },
+    "embedded engineer": {
+        "search_variations": ["embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer", "embedded developer"],
+        "production_variations": ["embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"],
+        "market_hints": {"embedded", "firmware", "c", "c++", "microcontroller", "rtos", "hardware", "device drivers", "serial communication", "iot"},
+        "primary_hints": {"embedded", "firmware", "c", "c++", "microcontroller", "rtos", "iot"},
+        "title_hints": {"embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"},
+        "keyword_families": ("embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"),
+        "inference_tokens": {"embedded", "firmware", "microcontroller", "rtos", "iot", "hardware"},
+        "domain": "software",
+        "adjacent": {"software engineer"},
+    },
+    "database engineer": {
+        "search_variations": ["database engineer", "database administrator", "database developer", "sql developer", "data warehouse engineer", "database architect"],
+        "production_variations": ["database engineer", "database administrator", "sql developer", "database developer", "data warehouse engineer"],
+        "market_hints": {"sql", "postgresql", "mysql", "oracle", "database design", "database administration", "data warehouse", "etl", "performance tuning", "backup"},
+        "primary_hints": {"sql", "postgresql", "mysql", "oracle", "database", "data warehouse"},
+        "title_hints": {"database engineer", "database administrator", "database developer", "sql developer", "database architect", "dba"},
+        "keyword_families": ("database engineer", "database administrator", "database developer", "sql developer", "data warehouse engineer", "database architect", "dba"),
+        "inference_tokens": {"database", "sql", "dba", "postgresql", "mysql", "oracle", "warehouse"},
+        "domain": "data",
+        "adjacent": {"data engineer", "software engineer"},
+    },
+    "support engineer": {
+        "search_variations": ["technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"],
+        "production_variations": ["technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"],
+        "market_hints": {"technical support", "troubleshooting", "incident management", "ticketing", "customer support", "sla", "root cause analysis", "monitoring", "linux", "networking"},
+        "primary_hints": {"technical support", "troubleshooting", "incident management", "ticketing", "application support", "monitoring"},
+        "title_hints": {"technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"},
+        "keyword_families": ("technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer", "support engineer"),
+        "inference_tokens": {"support", "helpdesk", "noc", "troubleshooting", "ticketing", "incident"},
+        "domain": "software",
+        "adjacent": {"software engineer", "devops engineer"},
+    },
+    "solutions architect": {
+        "search_variations": ["solutions architect", "software architect", "enterprise architect", "technical architect", "solutions consultant", "solutions engineer", "sales engineer"],
+        "production_variations": ["solutions architect", "software architect", "technical architect", "enterprise architect", "solutions consultant", "solutions engineer"],
+        "market_hints": {"solution architecture", "systems design", "cloud", "integration", "stakeholder management", "pre sales", "technical consulting", "aws", "architecture"},
+        "primary_hints": {"solution architecture", "systems design", "cloud", "integration", "architecture"},
+        "title_hints": {"solutions architect", "software architect", "enterprise architect", "technical architect", "solutions consultant", "solutions engineer", "sales engineer"},
+        "keyword_families": ("solutions architect", "software architect", "enterprise architect", "technical architect", "solutions consultant", "solutions engineer", "sales engineer"),
+        "inference_tokens": {"architect", "architecture", "solutions", "solution", "integration", "presales"},
+        "domain": "software",
+        "adjacent": {"software engineer", "devops engineer", "enterprise applications engineer"},
+    },
+    "enterprise applications engineer": {
+        "search_variations": ["salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"],
+        "production_variations": ["salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer"],
+        "market_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics", "configuration", "workflow automation", "apex", "sql"},
+        "primary_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics"},
+        "title_hints": {"salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"},
+        "keyword_families": ("salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"),
+        "inference_tokens": {"salesforce", "sap", "erp", "crm", "oracle", "dynamics"},
+        "domain": "software",
+        "adjacent": {"solutions architect", "software engineer", "database engineer"},
+    },
+    "technical writer": {
+        "search_variations": ["technical writer", "documentation engineer", "developer advocate", "api documentation writer"],
+        "production_variations": ["technical writer", "documentation engineer", "developer advocate", "api documentation writer"],
+        "market_hints": {"technical writing", "documentation", "developer documentation", "api documentation", "openapi", "markdown", "communication", "developer relations"},
+        "primary_hints": {"technical writing", "documentation", "api documentation", "markdown", "developer relations"},
+        "title_hints": {"technical writer", "documentation engineer", "developer advocate", "documentation writer"},
+        "keyword_families": ("technical writer", "documentation engineer", "developer advocate", "api documentation"),
+        "inference_tokens": {"writer", "documentation", "docs", "doc", "advocate"},
+        "domain": "product",
+        "adjacent": {"product manager"},
+    },
+    "engineering leadership": {
+        "search_variations": ["engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"],
+        "production_variations": ["engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"],
+        "market_hints": {"leadership", "system design", "architecture", "mentoring", "cross functional collaboration", "engineering management", "scalability"},
+        "primary_hints": {"leadership", "system design", "architecture", "engineering management"},
+        "title_hints": {"engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"},
+        "keyword_families": ("engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"),
+        "inference_tokens": {"manager", "principal", "staff", "cto", "leadership", "engineering"},
+        "domain": "software",
+        "adjacent": {"software engineer", "solutions architect"},
+    },
+}
+
+ROLE_ALIAS_EXTENSIONS = {
+    "software developer": "software engineer",
+    "application developer": "software engineer",
+    "desktop application developer": "software engineer",
+    "game developer": "software engineer",
+    "systems developer": "software engineer",
+    "api developer": "software engineer",
+    "blockchain developer": "software engineer",
+    "ar vr developer": "software engineer",
+    "arvr developer": "software engineer",
+    "robotics software engineer": "software engineer",
+    "gis developer": "software engineer",
+    "simulation engineer": "software engineer",
+    "search engineer": "software engineer",
+    "backend developer": "software engineer",
+    "backend engineer": "software engineer",
+    "mobile app developer": "mobile developer",
+    "mobile developer": "mobile developer",
+    "android developer": "mobile developer",
+    "ios developer": "mobile developer",
+    "react native developer": "mobile developer",
+    "embedded software engineer": "embedded engineer",
+    "embedded engineer": "embedded engineer",
+    "firmware engineer": "embedded engineer",
+    "iot engineer": "embedded engineer",
+    "business analyst": "data analyst",
+    "technical business analyst": "data analyst",
+    "product analyst": "data analyst",
+    "operations analyst": "data analyst",
+    "statistician": "data scientist",
+    "quantitative analyst": "data scientist",
+    "analytics engineer": "data engineer",
+    "bi developer": "data engineer",
+    "data architect": "data engineer",
+    "deep learning engineer": "machine learning engineer",
+    "nlp engineer": "machine learning engineer",
+    "computer vision engineer": "machine learning engineer",
+    "mlops engineer": "machine learning engineer",
+    "cloud engineer": "devops engineer",
+    "cloud architect": "devops engineer",
+    "platform engineer": "devops engineer",
+    "infrastructure engineer": "devops engineer",
+    "build and release engineer": "devops engineer",
+    "systems engineer": "devops engineer",
+    "linux engineer": "devops engineer",
+    "network engineer": "devops engineer",
+    "virtualization engineer": "devops engineer",
+    "storage engineer": "devops engineer",
+    "site reliability engineer": "devops engineer",
+    "sre": "devops engineer",
+    "cybersecurity analyst": "cybersecurity engineer",
+    "security analyst": "cybersecurity engineer",
+    "soc analyst": "cybersecurity engineer",
+    "security engineer": "cybersecurity engineer",
+    "information security analyst": "cybersecurity engineer",
+    "penetration tester": "cybersecurity engineer",
+    "ethical hacker": "cybersecurity engineer",
+    "vulnerability analyst": "cybersecurity engineer",
+    "incident responder": "cybersecurity engineer",
+    "digital forensics analyst": "cybersecurity engineer",
+    "malware analyst": "cybersecurity engineer",
+    "threat intelligence analyst": "cybersecurity engineer",
+    "security architect": "cybersecurity engineer",
+    "iam engineer": "cybersecurity engineer",
+    "grc analyst": "cybersecurity engineer",
+    "application security engineer": "cybersecurity engineer",
+    "cloud security engineer": "cybersecurity engineer",
+    "software test analyst": "qa engineer",
+    "automation test engineer": "qa engineer",
+    "manual tester": "qa engineer",
+    "performance test engineer": "qa engineer",
+    "sdet": "qa engineer",
+    "quality assurance analyst": "qa engineer",
+    "database administrator": "database engineer",
+    "dba": "database engineer",
+    "database developer": "database engineer",
+    "sql developer": "database engineer",
+    "data warehouse engineer": "database engineer",
+    "database architect": "database engineer",
+    "associate product manager": "product manager",
+    "project manager": "product manager",
+    "program manager": "product manager",
+    "scrum master": "product manager",
+    "ux designer": "ui/ux designer",
+    "ui designer": "ui/ux designer",
+    "ux researcher": "ui/ux designer",
+    "interaction designer": "ui/ux designer",
+    "solutions architect": "solutions architect",
+    "software architect": "solutions architect",
+    "enterprise architect": "solutions architect",
+    "technical architect": "solutions architect",
+    "solutions consultant": "solutions architect",
+    "solutions engineer": "solutions architect",
+    "sales engineer": "solutions architect",
+    "technical support engineer": "support engineer",
+    "application support engineer": "support engineer",
+    "it support specialist": "support engineer",
+    "help desk engineer": "support engineer",
+    "noc engineer": "support engineer",
+    "production support engineer": "support engineer",
+    "sap consultant": "enterprise applications engineer",
+    "salesforce developer": "enterprise applications engineer",
+    "salesforce admin": "enterprise applications engineer",
+    "erp consultant": "enterprise applications engineer",
+    "crm developer": "enterprise applications engineer",
+    "oracle developer": "enterprise applications engineer",
+    "microsoft dynamics consultant": "enterprise applications engineer",
+    "technical writer": "technical writer",
+    "documentation engineer": "technical writer",
+    "developer advocate": "technical writer",
+    "principal engineer": "engineering leadership",
+    "staff engineer": "engineering leadership",
+    "engineering manager": "engineering leadership",
+    "cto": "engineering leadership",
+}
+
+for canonical, config in ROLE_FAMILY_EXTENSIONS.items():
+    ROLE_SEARCH_VARIATIONS[canonical] = list(config["search_variations"])
+    ROLE_PRODUCTION_VARIATIONS[canonical] = list(config["production_variations"])
+    ROLE_MARKET_HINTS[canonical] = set(config["market_hints"])
+    ROLE_PRIMARY_HINTS[canonical] = set(config["primary_hints"])
+    ROLE_TITLE_HINTS[canonical] = set(config["title_hints"])
+    ROLE_KEYWORD_FAMILIES[canonical] = tuple(config["keyword_families"])
+    ROLE_INFERENCE_TOKEN_HINTS[canonical] = set(config["inference_tokens"])
+    ROLE_DOMAIN_MAP[canonical] = str(config["domain"])
+    ROLE_ADJACENT_CANONICALS.setdefault(canonical, set()).update(config.get("adjacent", set()))
+    for adjacent in config.get("adjacent", set()):
+        ROLE_ADJACENT_CANONICALS.setdefault(adjacent, set()).add(canonical)
+
+for alias, canonical in ROLE_ALIAS_EXTENSIONS.items():
+    ROLE_SYNONYMS[alias] = canonical
+
+for canonical in ROLE_SEARCH_VARIATIONS.keys():
+    ROLE_SYNONYMS.setdefault(canonical, canonical)
+
+ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
+
 
 def _clean_role_text(value: str) -> str:
     cleaned = re.sub(r"[^a-z0-9+ ]+", " ", str(value).lower()).strip()
@@ -570,16 +798,34 @@ def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
             return "full stack developer"
     if {"react", "next", "nextjs", "vue", "angular", "frontend"} & words:
         return "frontend developer"
+    if {"android", "ios", "swift", "kotlin", "flutter"} & words or ("mobile" in words and {"developer", "engineer"} & words):
+        return "mobile developer"
+    if {"embedded", "firmware", "microcontroller", "rtos"} & words or ("iot" in words and {"engineer", "developer"} & words):
+        return "embedded engineer"
     if {"aws", "cloud", "devops", "sre", "terraform", "kubernetes"} & words:
         return "devops engineer"
     if {"cyber", "security", "soc", "siem", "splunk", "iam"} & words:
         return "cybersecurity engineer"
+    if {"database", "dba", "postgresql", "mysql"} & words or (
+        "sql" in words and ({"developer", "engineer", "administrator", "architect"} & words or len(words) <= 2)
+    ):
+        return "database engineer"
     if {"reporting", "analytics", "bi"} & words:
         return "data analyst"
     if {"ml", "llm"} & words and "engineer" in words:
         return "machine learning engineer"
     if {"ml", "llm", "scientist"} & words:
         return "data scientist"
+    if {"salesforce", "sap", "erp", "crm", "dynamics"} & words:
+        return "enterprise applications engineer"
+    if {"support", "helpdesk", "noc"} & words:
+        return "support engineer"
+    if {"writer", "documentation", "docs", "doc", "advocate"} & words:
+        return "technical writer"
+    if "cto" in words or {"principal", "staff"} & words or ({"engineering", "manager"} <= words):
+        return "engineering leadership"
+    if {"architect", "architecture"} & words and ({"solutions", "solution", "technical", "enterprise", "software"} & words or len(words) <= 2):
+        return "solutions architect"
     if {"node", "nodejs", "golang", "go", "java", "python", "backend", "api"} & words and {"developer", "engineer"} & words:
         return "software engineer"
     fuzzy_match = _infer_role_from_fuzzy_alias(cleaned)
@@ -649,18 +895,56 @@ def _dynamic_query_expansions(raw_cleaned: str, normalized: str) -> list[str]:
         return []
 
     raw_tokens = [token for token in raw_cleaned.split() if token]
+    normalized_tokens = set(normalized.split())
+    specialized_families = {
+        "mobile developer",
+        "embedded engineer",
+        "database engineer",
+        "support engineer",
+        "solutions architect",
+        "enterprise applications engineer",
+        "technical writer",
+        "engineering leadership",
+    }
     expansions: list[str] = [raw_cleaned]
     if len(raw_tokens) == 1:
         root = raw_tokens[0]
-        if "analyst" in normalized:
+        if normalized == "mobile developer":
+            expansions.extend([f"{root} developer", f"{root} mobile developer"])
+        if normalized == "embedded engineer":
+            expansions.extend([f"{root} engineer", f"{root} embedded engineer"])
+        if normalized == "database engineer":
+            if root == "dba":
+                expansions.extend(["database administrator", "database engineer", "sql developer"])
+            else:
+                expansions.extend([f"{root} administrator", f"{root} developer", f"{root} architect"])
+        if normalized == "support engineer":
+            expansions.extend([f"{root} support engineer", f"{root} support specialist"])
+        if normalized == "solutions architect":
+            expansions.extend([f"{root} architect", f"{root} consultant"])
+        if normalized == "enterprise applications engineer":
+            if root == "sap":
+                expansions.extend(["sap consultant", "sap developer"])
+            elif root == "salesforce":
+                expansions.extend(["salesforce developer", "salesforce admin"])
+            else:
+                expansions.extend([f"{root} consultant", f"{root} developer"])
+        if normalized == "technical writer":
+            expansions.extend([f"{root} writer", f"{root} documentation engineer"])
+        if normalized == "engineering leadership":
+            if root == "cto":
+                expansions.extend(["head of engineering", "engineering manager"])
+            else:
+                expansions.extend([f"{root} engineer", f"{root} manager"])
+        if "analyst" in normalized_tokens:
             expansions.append(f"{root} analyst")
-        if "designer" in normalized:
+        if "designer" in normalized_tokens:
             expansions.extend([f"{root} designer", f"{root} ux designer"])
-        if "manager" in normalized:
+        if "manager" in normalized_tokens:
             expansions.append(f"{root} manager")
-        if "teacher" in normalized:
+        if "teacher" in normalized_tokens:
             expansions.append(f"{root} teacher")
-        if "engineer" in normalized or "developer" in normalized:
+        if normalized not in specialized_families and ("engineer" in normalized_tokens or "developer" in normalized_tokens):
             expansions.extend([f"{root} engineer", f"{root} developer"])
             if normalized == "frontend developer":
                 expansions.extend([f"{root} frontend developer", f"{root} frontend engineer"])
