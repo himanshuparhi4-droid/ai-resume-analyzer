@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import role_domain, role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import normalize_role, role_domain, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -61,6 +61,14 @@ _CURATED_GREENHOUSE_BOARDS = {
     ],
 }
 
+_ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
+    "software engineer": ["okta", "discord", "asana", "figma", "robinhood", "affirm"],
+    "full stack developer": ["okta", "discord", "asana", "figma", "robinhood"],
+    "frontend developer": ["figma", "discord", "asana", "okta", "robinhood"],
+    "devops engineer": ["okta", "affirm", "instacart", "rubrik", "asana"],
+    "cybersecurity engineer": ["okta", "asana", "discord", "rubrik", "robinhood", "affirm"],
+}
+
 
 class GreenhouseProvider:
     source_name = "greenhouse"
@@ -68,6 +76,7 @@ class GreenhouseProvider:
     supports_location_variations = False
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
+        normalized_query = normalize_role(query)
         boards = self._boards_for_query(query)
         if not boards:
             return []
@@ -89,7 +98,12 @@ class GreenhouseProvider:
                 return []
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
-            detail_fetch_budget = min(max(limit * 2, 18), 24)
+            if normalized_query in {"software engineer", "full stack developer", "frontend developer", "devops engineer"}:
+                detail_fetch_budget = min(max(limit + 4, 12), 18)
+                board_budget = 3
+            else:
+                detail_fetch_budget = min(max(limit * 2, 18), 24)
+                board_budget = 4
             positively_aligned = [
                 item
                 for item in candidates
@@ -123,7 +137,7 @@ class GreenhouseProvider:
                 board = str((item.get("normalized_data") or {}).get("board_token") or "")
                 if not board:
                     continue
-                if board_counts.get(board, 0) >= 4:
+                if board_counts.get(board, 0) >= board_budget:
                     continue
                 selected_candidates.append(item)
                 board_counts[board] = board_counts.get(board, 0) + 1
@@ -172,6 +186,10 @@ class GreenhouseProvider:
         return ranked[:target_candidates]
 
     def _boards_for_query(self, query: str) -> list[str]:
+        normalized = normalize_role(query)
+        specific = _ROLE_SPECIFIC_GREENHOUSE_BOARDS.get(normalized)
+        if specific:
+            return list(specific)
         if settings.has_greenhouse_boards:
             return settings.greenhouse_board_tokens
         return list(_CURATED_GREENHOUSE_BOARDS.get(role_domain(query) or "", []))

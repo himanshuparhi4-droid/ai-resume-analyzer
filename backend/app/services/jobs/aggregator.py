@@ -1200,13 +1200,18 @@ class JobAggregator:
 
     def _search_queries(self, provider: object, query: str) -> list[str]:
         if not getattr(provider, "supports_query_variations", True):
-            return [query]
+            normalized = normalize_role(query)
+            return [normalized or query]
         if settings.environment == "production":
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             variations = production_query_variations(query)
             if source_name == "remotive":
+                if normalize_role(query) == "full stack developer":
+                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:3]
                 return variations[:4]
             if source_name == "jobicy":
+                if normalize_role(query) == "full stack developer":
+                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:3]
                 return variations[:6]
             return variations[:4]
         return query_variations(query)
