@@ -5,6 +5,7 @@ from datetime import datetime
 import httpx
 
 from app.core.config import settings
+from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html
 
@@ -15,14 +16,15 @@ class RemotiveProvider:
     supports_location_variations = False
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
-        params = {"search": query, "limit": limit}
+        request_limit = min(max(limit * 3, 18), 36)
+        params = {"search": query, "limit": request_limit}
         async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             response = await client.get(settings.remotive_base_url, params=params)
             response.raise_for_status()
             payload = response.json()
 
         jobs = []
-        for item in payload.get("jobs", [])[:limit]:
+        for item in payload.get("jobs", [])[:request_limit]:
             description = strip_html(item.get("description", ""))
             title = item.get("title", "Unknown Role")
             tags = [str(tag).strip() for tag in (item.get("tags") or []) if str(tag).strip()]
@@ -47,7 +49,32 @@ class RemotiveProvider:
                     "posted_at": self._parse_datetime(item.get("publication_date")),
                 }
             )
-        return jobs
+        positively_aligned = [
+            item
+            for item in jobs
+            if role_title_alignment_score(
+                query,
+                str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                tags=item.get("tags") or [],
+            )
+            > 0
+        ]
+        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit, 8) else jobs
+        return sorted(
+            ranked_pool,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                role_fit_score(query, item),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )[:request_limit]
 
     def _parse_datetime(self, value: str | None) -> datetime | None:
         if not value:

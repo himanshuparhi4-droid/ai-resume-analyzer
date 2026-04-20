@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import role_fit_score
+from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -32,9 +32,27 @@ class LeverProvider:
                 jobs.append(item)
 
         target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
+        positively_aligned = [
+            item
+            for item in jobs
+            if role_title_alignment_score(
+                query,
+                str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                tags=item.get("tags") or [],
+            )
+            > 0
+        ]
+        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else jobs
         ranked = sorted(
-            jobs,
+            ranked_pool,
             key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
                 role_fit_score(query, item),
                 1 if item.get("remote") else 0,
             ),

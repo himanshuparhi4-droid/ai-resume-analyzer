@@ -35,6 +35,7 @@ from app.services.jobs.taxonomy import (
     role_negative_title_hints,
     role_primary_hints,
     role_query_tokens,
+    role_title_alignment_score,
     role_title_hints,
 )
 from app.services.jobs.usajobs import USAJobsProvider
@@ -174,10 +175,18 @@ class JobAggregator:
 
     def _annotate_item_scores(self, *, query: str, location: str, item: dict) -> None:
         normalized = item.setdefault("normalized_data", {})
+        normalized["title_alignment_score"] = role_title_alignment_score(
+            query,
+            str(item.get("title", "")),
+            description=str(item.get("description", "")),
+            tags=item.get("tags") or [],
+        )
         normalized["role_fit_score"] = role_fit_score(query, item)
         normalized["location_alignment_score"] = self._location_alignment_score(location, item)
         normalized["listing_quality_score"] = self._listing_quality_score(query, item)
         normalized["market_quality_score"] = self._market_quality_score(query, location, item)
+        normalized["domain_alignment_score"] = self._role_domain_match_score(query, item)
+        normalized["skill_overlap_score"] = self._skill_overlap_score(query, item)
         normalized["cache_query_bucket"] = self._cache_query_bucket(query, item)
 
     def _production_providers(self) -> list[object]:
@@ -634,6 +643,7 @@ class JobAggregator:
             live_jobs,
             key=lambda item: (
                 self._canonical_role_alignment(query, item),
+                float(item.get("normalized_data", {}).get("title_alignment_score", 0.0)),
                 self._title_precision_score(query, item),
                 self._role_domain_match_score(query, item),
                 self._location_alignment_score(location, item),
@@ -857,10 +867,13 @@ class JobAggregator:
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
         canonical_alignment = self._canonical_role_alignment(query, item)
         title_precision = self._title_precision_score(query, item)
+        title_alignment = float(normalized.get("title_alignment_score", 0.0))
 
         if self._is_location_hard_mismatch(location, item):
             return False
         if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
+            return False
+        if title_alignment <= -6.0:
             return False
 
         if strict:
@@ -1082,12 +1095,15 @@ class JobAggregator:
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
         canonical_alignment = self._canonical_role_alignment(query, item)
         title_precision = self._title_precision_score(query, item)
+        title_alignment = float(normalized.get("title_alignment_score", 0.0))
         negative_hints = role_negative_title_hints(query)
         if self._is_location_hard_mismatch(location, item):
             return False
         if negative_hints and any(hint in title_text for hint in negative_hints):
             return False
         if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
+            return False
+        if title_alignment <= -6.0:
             return False
         if settings.environment == "production" and item.get("source") in {"remotive", "remoteok", "arbeitnow"} and role_fit >= 5.0 and explicit_alignment:
             return True

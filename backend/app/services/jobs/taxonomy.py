@@ -394,6 +394,71 @@ def canonical_role_alignment(query: str, title: str) -> int:
     return 0
 
 
+def role_title_alignment_score(query: str, title: str, *, description: str = "", tags: list[str] | tuple[str, ...] = ()) -> float:
+    normalized_query = normalize_role(query)
+    normalized_title = normalize_role(title)
+    if not normalized_query or not normalized_title:
+        return 0.0
+
+    raw_query = re.sub(r"[^a-z0-9+ ]+", " ", str(query).lower()).strip()
+    raw_query = re.sub(r"\s+", " ", raw_query)
+    raw_title = re.sub(r"[^a-z0-9+ ]+", " ", str(title).lower()).strip()
+    raw_title = re.sub(r"\s+", " ", raw_title)
+    raw_description = re.sub(r"[^a-z0-9+ ]+", " ", str(description).lower()).strip()
+    raw_description = re.sub(r"\s+", " ", raw_description)
+    raw_tags = " ".join(re.sub(r"[^a-z0-9+ ]+", " ", str(tag).lower()).strip() for tag in tags if str(tag).strip())
+
+    def contains_phrase(haystack: str, needle: str) -> bool:
+        cleaned = re.sub(r"[^a-z0-9+ ]+", " ", str(needle).lower()).strip()
+        if not cleaned:
+            return False
+        if " " in cleaned:
+            return cleaned in haystack
+        return bool(re.search(rf"\b{re.escape(cleaned)}\b", haystack))
+
+    query_tokens = role_query_tokens(query)
+    title_hints = role_title_hints(query)
+    negative_title_hints = role_negative_title_hints(query)
+    query_domain = role_domain(query)
+    title_domain = role_domain(title)
+
+    title_hint_hits = sum(1 for hint in title_hints if contains_phrase(raw_title, hint))
+    description_hint_hits = sum(1 for hint in title_hints if contains_phrase(raw_description, hint) or contains_phrase(raw_tags, hint))
+    core_title_hits = sum(1 for token in query_tokens if contains_phrase(raw_title, token))
+    tag_hits = sum(1 for token in query_tokens if contains_phrase(raw_tags, token))
+
+    score = 0.0
+    if normalized_query == normalized_title:
+        score += 16.0
+    elif normalized_query in normalized_title:
+        score += 10.5
+
+    if raw_query and contains_phrase(raw_title, raw_query):
+        score += 8.0
+    elif raw_query and contains_phrase(raw_tags, raw_query):
+        score += 2.5
+    elif raw_query and contains_phrase(raw_description, raw_query):
+        score += 1.5
+
+    score += min(10.0, title_hint_hits * 3.0)
+    score += min(4.5, description_hint_hits * 1.0)
+    score += core_title_hits * 2.5
+    score += tag_hits * 1.0
+
+    if query_domain and title_domain == query_domain:
+        score += 3.5
+    elif query_domain and title_domain and title_domain != query_domain:
+        score -= 8.5
+
+    if negative_title_hints and any(contains_phrase(raw_title, hint) for hint in negative_title_hints):
+        if title_hint_hits == 0 and core_title_hits == 0 and normalized_query not in normalized_title:
+            score -= 12.0
+        else:
+            score -= 4.5
+
+    return round(score, 2)
+
+
 def dedupe_key(item: dict) -> str:
     source = str(item.get("source", "unknown")).strip().lower()
     external_id = str(item.get("external_id", "")).strip().lower()

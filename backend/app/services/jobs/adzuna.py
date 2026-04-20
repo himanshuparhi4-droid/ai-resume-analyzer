@@ -7,7 +7,7 @@ from math import ceil
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role
+from app.services.jobs.taxonomy import normalize_role, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html
 
@@ -86,7 +86,33 @@ class AdzunaProvider:
                         break
                 if len(jobs) >= target_candidates:
                     break
-        return jobs[:target_candidates]
+        positively_aligned = [
+            item
+            for item in jobs
+            if role_title_alignment_score(
+                query,
+                str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                tags=item.get("tags") or [],
+            )
+            > 0
+        ]
+        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else jobs
+        ranked = sorted(
+            ranked_pool,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                role_fit_score(query, item),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )
+        return ranked[:target_candidates]
 
     def _parse_datetime(self, value: str | None) -> datetime | None:
         if not value:

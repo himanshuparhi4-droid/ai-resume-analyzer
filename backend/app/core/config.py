@@ -1,8 +1,72 @@
-from functools import lru_cache
 import re
+from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _split_provider_tokens(raw: str) -> list[str]:
+    values = re.findall(r"https?://\S+|[^,\s;]+", raw or "")
+    tokens: list[str] = []
+    for value in values:
+        cleaned = value.strip().strip("[]{}()\"'")
+        if cleaned:
+            tokens.append(cleaned)
+    return tokens
+
+
+def _normalize_greenhouse_board_token(value: str) -> str:
+    token = value.strip().strip("/").strip("[]{}()\"'").lower()
+    if not token:
+        return ""
+    if "://" in token:
+        parsed = urlparse(token)
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        lowered = [segment.lower() for segment in segments]
+        if "boards" in lowered:
+            segments = segments[lowered.index("boards") + 1 :]
+        if segments and segments[-1].lower() == "jobs":
+            segments = segments[:-1]
+        if segments:
+            token = segments[0]
+        else:
+            host = parsed.netloc.split(":", 1)[0].lower()
+            host_prefix = host.split(".", 1)[0]
+            token = "" if host_prefix in {"boards-api", "boards", "job-boards", "www"} else host_prefix
+    return re.sub(r"[^a-z0-9_-]+", "", token)
+
+
+def _normalize_lever_company_token(value: str) -> str:
+    token = value.strip().strip("/").strip("[]{}()\"'").lower()
+    if not token:
+        return ""
+    if "://" in token:
+        parsed = urlparse(token)
+        segments = [segment for segment in parsed.path.split("/") if segment]
+        lowered = [segment.lower() for segment in segments]
+        if "postings" in lowered:
+            segments = segments[lowered.index("postings") + 1 :]
+        elif "jobs" in lowered:
+            segments = segments[lowered.index("jobs") + 1 :]
+        if segments:
+            token = segments[0]
+        else:
+            host = parsed.netloc.split(":", 1)[0].lower()
+            host_prefix = host.split(".", 1)[0]
+            token = "" if host_prefix in {"api", "jobs", "www"} else host_prefix
+    return re.sub(r"[^a-z0-9_-]+", "", token)
+
+
+def _dedupe_tokens(values: list[str]) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
 
 
 class Settings(BaseSettings):
@@ -101,7 +165,13 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def greenhouse_board_tokens(self) -> list[str]:
-        return [token for token in re.split(r"[\s,;]+", self.greenhouse_board_tokens_raw.strip()) if token]
+        return _dedupe_tokens(
+            [
+                normalized
+                for token in _split_provider_tokens(self.greenhouse_board_tokens_raw.strip())
+                if (normalized := _normalize_greenhouse_board_token(token))
+            ]
+        )
 
     @computed_field
     @property
@@ -111,7 +181,13 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def lever_company_tokens(self) -> list[str]:
-        return [token for token in re.split(r"[\s,;]+", self.lever_company_tokens_raw.strip()) if token]
+        return _dedupe_tokens(
+            [
+                normalized
+                for token in _split_provider_tokens(self.lever_company_tokens_raw.strip())
+                if (normalized := _normalize_lever_company_token(token))
+            ]
+        )
 
     @computed_field
     @property
