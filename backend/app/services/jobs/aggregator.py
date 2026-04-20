@@ -450,12 +450,19 @@ class JobAggregator:
         )
 
     async def _fetch_production_jobs(self, *, query: str, location: str, limit: int) -> list[dict]:
+        query_domain = role_domain(query)
+
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 5.5
+                provider_timeout = 8.0
             elif source_name == "greenhouse":
-                provider_timeout = 10.5
+                if query_domain == "data":
+                    provider_timeout = 9.5
+                elif query_domain in {"software", "security"}:
+                    provider_timeout = 13.0
+                else:
+                    provider_timeout = 10.0
             elif source_name == "lever":
                 provider_timeout = 8.0
             elif source_name == "jooble":
@@ -463,9 +470,9 @@ class JobAggregator:
             elif source_name == "adzuna":
                 provider_timeout = 7.0
             elif source_name == "remotive":
-                provider_timeout = 4.5
+                provider_timeout = 8.0
             elif source_name == "themuse":
-                provider_timeout = 7.0
+                provider_timeout = 8.0
             elif source_name == "findwork":
                 provider_timeout = 7.0
             elif source_name == "remoteok":
@@ -544,20 +551,20 @@ class JobAggregator:
         stage_results: list[dict] = []
         if sparse_role:
             primary_sources = ["remotive"]
+            supplemental_sources: list[str] = []
         else:
-            primary_sources = []
-            if "greenhouse" in source_groups:
-                primary_sources.append("greenhouse")
-            if "lever" in source_groups:
-                primary_sources.append("lever")
-            if "jooble" in source_groups:
-                primary_sources.append("jooble")
-            if "adzuna" in source_groups:
-                primary_sources.append("adzuna")
-            if "indianapi" in source_groups:
-                primary_sources.append("indianapi")
-            if "jobicy" in source_groups:
-                primary_sources.append("jobicy")
+            if query_domain == "data":
+                primary_order = ["jobicy", "remotive", "themuse"]
+                supplemental_order = ["greenhouse", "lever", "indianapi", "jooble", "adzuna"]
+            elif query_domain in {"product", "design"}:
+                primary_order = ["greenhouse", "jobicy", "themuse"]
+                supplemental_order = ["remotive", "lever", "indianapi", "jooble", "adzuna"]
+            else:
+                primary_order = ["greenhouse", "lever", "jooble", "adzuna", "indianapi", "jobicy"]
+                supplemental_order = ["remotive", "themuse"]
+
+            primary_sources = [source for source in primary_order if source in source_groups]
+            supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -595,7 +602,6 @@ class JobAggregator:
                 return preferred_live
             return []
 
-        supplemental_sources = [] if sparse_role else ([source for source in ["remotive", "themuse"] if source in source_groups and source not in primary_sources])
         supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
         if supplemental_providers:
             preferred_live = await run_stage("supplemental", supplemental_providers)
@@ -1284,15 +1290,38 @@ class JobAggregator:
             return [normalized or query]
         if settings.environment == "production":
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
+            normalized_query = normalize_role(query)
             variations = production_query_variations(query)
             if source_name == "remotive":
-                if normalize_role(query) == "full stack developer":
-                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:3]
-                return variations[:4]
+                if normalized_query == "full stack developer":
+                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
+                if normalized_query in {
+                    "data analyst",
+                    "data scientist",
+                    "data engineer",
+                    "machine learning engineer",
+                    "database engineer",
+                    "cybersecurity engineer",
+                }:
+                    return variations[:2]
+                return variations[:3]
             if source_name == "jobicy":
-                if normalize_role(query) == "full stack developer":
-                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:3]
-                return variations[:6]
+                if normalized_query == "full stack developer":
+                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
+                if normalized_query in {
+                    "data analyst",
+                    "data scientist",
+                    "data engineer",
+                    "machine learning engineer",
+                    "database engineer",
+                    "cybersecurity engineer",
+                    "qa engineer",
+                    "support engineer",
+                    "enterprise applications engineer",
+                    "technical writer",
+                }:
+                    return variations[:1]
+                return variations[:2]
             return variations[:4]
         return query_variations(query)
 

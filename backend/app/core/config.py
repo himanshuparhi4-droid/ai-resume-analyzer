@@ -114,14 +114,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
     llm_summary_timeout_seconds: float = 15.0
-    job_request_timeout_seconds: float = 8.0
-    job_fetch_timeout_seconds: float = 25.0
+    job_request_timeout_seconds: float = 14.0
+    job_fetch_timeout_seconds: float = 35.0
     enable_live_market_fetch: bool = True
     production_live_fetch_minimum: int = 6
     production_live_fetch_maximum: int = 8
     production_live_display_minimum: int = 6
     production_live_candidate_fetch: int = 60
-    production_live_cache_ttl_minutes: int = 180
+    production_live_cache_ttl_minutes: int = 360
     ats_board_cache_ttl_minutes: int = 360
 
     fetch_limit: int = 12

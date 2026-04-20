@@ -101,6 +101,23 @@ class GreenhouseProvider:
             if normalized_query in {"software engineer", "full stack developer", "frontend developer", "devops engineer"}:
                 detail_fetch_budget = min(max(limit + 4, 12), 18)
                 board_budget = 3
+            elif normalized_query in {
+                "data analyst",
+                "data scientist",
+                "data engineer",
+                "machine learning engineer",
+                "database engineer",
+                "cybersecurity engineer",
+                "product manager",
+                "support engineer",
+                "enterprise applications engineer",
+            }:
+                # Render free tier can handle the board index fetches, but
+                # detail hydration is the expensive part. For dense non-software
+                # families we only need a narrower ATS sample to surface enough
+                # live jobs before the orchestrator budget expires.
+                detail_fetch_budget = min(max(limit + 2, 10), 12)
+                board_budget = 2
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
                 board_budget = 4
