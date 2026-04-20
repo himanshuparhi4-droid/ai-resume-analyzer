@@ -95,7 +95,21 @@ TITLE_IMPLIED_SKILLS = {
     "bi analyst": {"business intelligence": 0.72, "dashboarding": 0.62, "sql": 0.46},
     "analytics analyst": {"data analysis": 0.68, "dashboarding": 0.52, "statistics": 0.44},
     "data engineer": {"sql": 0.62, "etl": 0.72, "data warehousing": 0.58},
-    "data scientist": {"python": 0.56, "statistics": 0.56, "machine learning": 0.72},
+    "data scientist": {
+        "python": 0.56,
+        "statistics": 0.56,
+        "machine learning": 0.72,
+        "pandas": 0.44,
+        "numpy": 0.42,
+        "scikit-learn": 0.46,
+    },
+    "machine learning engineer": {
+        "python": 0.58,
+        "machine learning": 0.74,
+        "pytorch": 0.52,
+        "tensorflow": 0.48,
+        "scikit-learn": 0.44,
+    },
     "teacher": {"lesson planning": 0.64, "classroom management": 0.66, "curriculum development": 0.6},
     "lecturer": {"lesson planning": 0.6, "curriculum development": 0.64, "student assessment": 0.52, "pedagogy": 0.48},
     "professor": {"curriculum development": 0.62, "student assessment": 0.5, "pedagogy": 0.46},
@@ -301,6 +315,35 @@ ALLOWED_UNKNOWN_SINGLETONS = {
     "kubernetes",
     "docker",
 }
+SCIENTIFIC_TITLE_HINTS = (
+    "data scientist",
+    "machine learning",
+    "ml engineer",
+    "ml scientist",
+    "applied scientist",
+    "research scientist",
+    "deep learning",
+    "computer vision",
+    "nlp",
+)
+SCIENTIFIC_CORE_SKILLS = {
+    "python",
+    "pandas",
+    "numpy",
+    "statistics",
+    "machine learning",
+    "scikit-learn",
+    "pytorch",
+    "tensorflow",
+    "nlp",
+    "sql",
+}
+SCIENTIFIC_GENERIC_BUSINESS_SKILLS = {
+    "reporting",
+    "dashboarding",
+    "business intelligence",
+    "excel",
+}
 LOW_SIGNAL_SENTENCE_HINTS = (
     "equal opportunity",
     "equal employment opportunity",
@@ -473,6 +516,7 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
 
     explicit_matches = extract_skill_matches(full_text, source=source)
     extracted_skills = set()
+    scientific_title = any(hint in title_lower for hint in SCIENTIFIC_TITLE_HINTS)
 
     for title_key, implied_skills in TITLE_IMPLIED_SKILLS.items():
         if title_key not in title_lower:
@@ -599,7 +643,17 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
     normalized_weights: dict[str, float] = {}
     for skill, base_weight in weighted_scores.items():
         bonus = min(0.12, max(0, evidence_counts[skill] - 1) * 0.06)
-        normalized_weights[skill] = round(min(1.0, base_weight + bonus), 2)
+        adjusted_weight = min(1.0, base_weight + bonus)
+        if scientific_title and skill in SCIENTIFIC_CORE_SKILLS:
+            adjusted_weight = min(1.0, adjusted_weight + 0.05)
+        if (
+            scientific_title
+            and skill in SCIENTIFIC_GENERIC_BUSINESS_SKILLS
+            and evidence_counts[skill] < 2
+            and skill not in extracted_skills
+        ):
+            adjusted_weight = min(adjusted_weight, 0.34)
+        normalized_weights[skill] = round(adjusted_weight, 2)
 
     filtered_skills = [
         skill

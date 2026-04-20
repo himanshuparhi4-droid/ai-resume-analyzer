@@ -6,7 +6,7 @@ from app.schemas.common import ScoreBreakdown
 from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
 from app.services.nlp.skill_extractor import infer_skill_frequency
-from app.utils.text import truncate
+from app.utils.text import normalize_whitespace, truncate
 
 JOB_YEARS_RE = re.compile(r"(\d{1,2})\+?\s+years")
 ACTION_VERBS = {"built", "led", "designed", "implemented", "optimized", "delivered", "improved", "launched"}
@@ -34,7 +34,7 @@ class ScoringEngine:
         ]
 
         skill_match = self._skill_match_score(resume_skills, jobs) * market_confidence
-        semantic_match = self._semantic_score(resume_data.get("raw_text", ""), jobs)
+        semantic_match = self._semantic_score(resume_data, jobs, role_query=role_query)
         experience_match = self._experience_score(resume_data.get("experience_years", 0), jobs)
         market_demand = self._market_demand_score(matched_skills, demand_map) * market_confidence
         resume_quality = self._resume_quality_score(resume_data)
@@ -144,14 +144,59 @@ class ScoringEngine:
             return 0.0
         return round((sum(weighted_scores) / weighted_total) * 100, 2)
 
-    def _semantic_score(self, resume_text: str, jobs: list[dict]) -> float:
+    def semantic_relevance_scores(self, resume_data: dict, jobs: list[dict], *, role_query: str | None = None) -> list[float]:
         if not jobs:
-            return 0.0
-        scores = self.embedding_service.similarities_to_many(
-            resume_text,
-            [f"{item['title']} {item['description']}" for item in jobs[:5]],
+            return []
+        resume_profile = self._build_resume_semantic_profile(resume_data, role_query=role_query)
+        job_profiles = [self._build_job_semantic_profile(item, role_query=role_query) for item in jobs]
+        return self.embedding_service.similarities_to_many(resume_profile, job_profiles)
+
+    def _semantic_score(self, resume_data: dict, jobs: list[dict], *, role_query: str | None = None) -> float:
+        scores = self.semantic_relevance_scores(resume_data, jobs[:5], role_query=role_query)
+        return round(sum(scores) / len(scores), 2) if scores else 0.0
+
+    def _build_resume_semantic_profile(self, resume_data: dict, *, role_query: str | None = None) -> str:
+        sections = resume_data.get("sections", {}) or {}
+        skills = ", ".join((resume_data.get("skills", []) or [])[:18])
+        summary = truncate(str(sections.get("summary", "")), 260)
+        experience = truncate(str(sections.get("experience", "")), 420)
+        projects = truncate(str(sections.get("projects", "")), 340)
+        return normalize_whitespace(
+            " ".join(
+                part
+                for part in [
+                    f"target role {role_query}" if role_query else "",
+                    f"summary {summary}" if summary else "",
+                    f"skills {skills}" if skills else "",
+                    f"experience evidence {experience}" if experience else "",
+                    f"project evidence {projects}" if projects else "",
+                ]
+                if part
+            )
         )
-        return round(sum(scores) / len(scores), 2)
+
+    def _build_job_semantic_profile(self, job: dict, *, role_query: str | None = None) -> str:
+        normalized = job.get("normalized_data", {}) or {}
+        skills = ", ".join((normalized.get("skills", []) or [])[:10])
+        evidence = " ".join(
+            truncate(str(item.get("snippet", "")), 140)
+            for item in (normalized.get("skill_evidence", []) or [])[:4]
+            if str(item.get("snippet", "")).strip()
+        )
+        description = truncate(str(job.get("description", "")), 320)
+        return normalize_whitespace(
+            " ".join(
+                part
+                for part in [
+                    f"target role {role_query}" if role_query else "",
+                    f"job title {job.get('title', '')}",
+                    f"required skills {skills}" if skills else "",
+                    f"requirement evidence {evidence}" if evidence else "",
+                    f"description {description}" if description else "",
+                ]
+                if part
+            )
+        )
 
     def _experience_score(self, candidate_years: float, jobs: list[dict]) -> float:
         if not jobs:

@@ -385,8 +385,16 @@ class AnalysisOrchestrator:
                 market_confidence_factor = 0.0
 
         skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
-        scoring_relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in scoring_jobs]
-        display_relevance_scores = [self._token_overlap(resume_text, f"{job['title']} {job['description']}") for job in jobs]
+        scoring_relevance_scores = self.scoring_engine.semantic_relevance_scores(
+            resume_data,
+            scoring_jobs,
+            role_query=role_query,
+        )
+        display_relevance_scores = self.scoring_engine.semantic_relevance_scores(
+            resume_data,
+            jobs,
+            role_query=role_query,
+        )
         semantic_match = round(mean(scoring_relevance_scores), 2) if scoring_relevance_scores else 0.0
         if scoring_jobs:
             experience_match = self.scoring_engine._experience_score(resume_data.get("experience_years", 0), scoring_jobs)

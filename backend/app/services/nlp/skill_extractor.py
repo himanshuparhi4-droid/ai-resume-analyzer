@@ -60,8 +60,8 @@ SKILL_PATTERNS = {
     "spray painting": [r"\bspray painting\b", r"\bspray painter\b", r"\bpaint spraying\b"],
     "safety compliance": [r"\bsafety compliance\b", r"\bworkplace safety\b", r"\bsafety protocols?\b"],
     "coating": [r"\bcoatings?\b", r"\bprotective coatings?\b"],
-    "tensorflow": [r"\btensorflow\b"],
-    "pytorch": [r"\bpytorch\b"],
+    "tensorflow": [r"\btensorflow\b", r"\bkeras\b"],
+    "pytorch": [r"\bpytorch\b", r"\btorch\b"],
     "nlp": [r"\bnatural language processing\b", r"\bnlp\b"],
     "machine learning": [r"\bmachine learning\b", r"\bml\b"],
     "data analysis": [r"\bdata analysis\b", r"\bdata analytics\b", r"\bdata analyst\b", r"\bexploratory data analysis\b", r"\beda\b"],
@@ -108,6 +108,13 @@ COMPILED_SKILL_PATTERNS = {
     for skill, patterns in SKILL_PATTERNS.items()
 }
 KNOWN_SKILLS = set(SKILL_PATTERNS.keys())
+ROLE_GENERIC_SECONDARY_SKILLS = {
+    "reporting",
+    "dashboarding",
+    "data visualization",
+    "business intelligence",
+    "excel",
+}
 SOURCE_TRUST_WEIGHTS = {
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -305,6 +312,17 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
                 base_weight = min(1.0, base_weight + 0.12)
             if evidence_count.get(skill, 0) > 1:
                 base_weight = min(1.0, base_weight + 0.06)
+            primary_skill = skill in primary_hints
+            hinted_skill = skill in market_hints or primary_skill
+            if role_query:
+                if primary_skill:
+                    base_weight = min(1.0, base_weight + 0.08)
+                elif hinted_skill:
+                    base_weight = min(1.0, base_weight + 0.03)
+                else:
+                    base_weight *= 0.86
+                if skill in ROLE_GENERIC_SECONDARY_SKILLS and skill not in primary_hints:
+                    base_weight *= 0.72
             frequency[skill] += job_weight * base_weight
             mention_count[skill] += 1
             if source_name != "role-baseline":
@@ -334,6 +352,8 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
                     continue
             elif hinted_skill:
                 if live_jobs_present and live_count < 2 and company_count < 2 and share < 11.0:
+                    continue
+                if skill in ROLE_GENERIC_SECONDARY_SKILLS and live_count < 2 and share < 13.0:
                     continue
             else:
                 if skill in KNOWN_SKILLS:
