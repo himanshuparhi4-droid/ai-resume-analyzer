@@ -9,8 +9,10 @@ const ANALYSIS_TIMEOUT_MS = 180_000;
 const HEALTH_TIMEOUT_MS = 12_000;
 const HEALTH_RETRIES = 6;
 const HEALTH_DELAY_MS = 5_000;
+const HEALTH_FRESHNESS_MS = 120_000;
 
 export const api = axios.create({ baseURL: API_BASE, timeout: DEFAULT_TIMEOUT_MS });
+let lastHealthyAt = 0;
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -25,6 +27,7 @@ async function waitForBackendAwake() {
   for (let attempt = 0; attempt < HEALTH_RETRIES; attempt += 1) {
     try {
       await axios.get(`${PUBLIC_ROOT}/healthz`, { timeout: HEALTH_TIMEOUT_MS });
+      lastHealthyAt = Date.now();
       return;
     } catch {
       if (attempt === HEALTH_RETRIES - 1) {
@@ -33,6 +36,13 @@ async function waitForBackendAwake() {
       await delay(HEALTH_DELAY_MS);
     }
   }
+}
+
+async function ensureBackendReady() {
+  if ((Date.now() - lastHealthyAt) < HEALTH_FRESHNESS_MS) {
+    return;
+  }
+  await waitForBackendAwake();
 }
 
 async function withWakeRetry<T>(request: () => Promise<T>) {
@@ -113,6 +123,7 @@ export async function compareAnalyses(currentId: string, previousId?: string): P
 }
 
 export async function analyzeResume(input: { file: File; roleQuery: string; location: string; limit: number }): Promise<AnalysisResponse> {
+  await ensureBackendReady();
   const fileBase64 = await fileToBase64(input.file);
   const { data } = await withWakeRetry(() =>
     api.post<AnalysisResponse>("/analyses/resume-json", {

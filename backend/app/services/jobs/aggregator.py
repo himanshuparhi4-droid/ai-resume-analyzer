@@ -100,6 +100,7 @@ GENERIC_TITLE_WEAKENERS = {
     "manager",
 }
 _PRODUCTION_JOB_CACHE: dict[str, dict] = {}
+_PRODUCTION_INFLIGHT_FETCHES: dict[str, asyncio.Task] = {}
 FREE_AUTO_SOURCES = {
     "jobicy",
     "remotive",
@@ -205,6 +206,14 @@ class JobAggregator:
             "jobs": copy.deepcopy(jobs),
             "diagnostics": copy.deepcopy(self.last_fetch_diagnostics),
         }
+
+    def _persist_production_jobs(self, *, query: str, location: str, jobs: list[dict]) -> None:
+        if self.db is None or not settings.enable_job_cache or not jobs:
+            return
+        try:
+            JobCacheService(self.db).store_jobs(jobs=jobs, query=query, location=location)
+        except Exception as exc:
+            logger.warning("Production job cache persist failed for query=%s: %s", query, exc)
 
     def _annotate_item_scores(self, *, query: str, location: str, item: dict) -> None:
         normalized = item.setdefault("normalized_data", {})
@@ -374,22 +383,50 @@ class JobAggregator:
         }
         sparse_role = is_sparse_live_market_role(query)
         if settings.environment == "production":
+            cache_key = self._production_cache_key(query=query, location=location, limit=limit)
             cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
             if cached_live:
                 return cached_live
-            live_jobs = await self._fetch_production_jobs(
-                query=query,
-                location=location,
-                limit=limit,
-            )
+            production_display_floor = self._production_display_floor(query=query, limit=limit)
+            cached_seed = []
+            if not sparse_role:
+                cached_seed = self._get_cached_production_fallback(query=query, location=location, limit=limit)
+                if len(cached_seed) >= production_display_floor:
+                    self.last_fetch_diagnostics["db_cache_short_circuit"] = True
+                    self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=cached_seed)
+                    return cached_seed
+            inflight_task = _PRODUCTION_INFLIGHT_FETCHES.get(cache_key)
+            if inflight_task and not inflight_task.done():
+                self.last_fetch_diagnostics["shared_inflight_hit"] = True
+                live_jobs = copy.deepcopy(await inflight_task)
+            else:
+                inflight_task = asyncio.create_task(
+                    self._fetch_production_jobs(
+                        query=query,
+                        location=location,
+                        limit=limit,
+                    )
+                )
+                _PRODUCTION_INFLIGHT_FETCHES[cache_key] = inflight_task
+                try:
+                    live_jobs = copy.deepcopy(await inflight_task)
+                finally:
+                    if _PRODUCTION_INFLIGHT_FETCHES.get(cache_key) is inflight_task:
+                        _PRODUCTION_INFLIGHT_FETCHES.pop(cache_key, None)
             if live_jobs:
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
+                self._persist_production_jobs(query=query, location=location, jobs=live_jobs)
                 return live_jobs
             if sparse_role:
                 return []
+            if cached_seed:
+                self.last_fetch_diagnostics["db_cache_rescue"] = True
+                self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=cached_seed)
+                return cached_seed
             if not sparse_role:
                 cached_fallback = self._get_cached_production_fallback(query=query, location=location, limit=limit)
                 if cached_fallback:
+                    self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=cached_fallback)
                     return cached_fallback
 
         use_cache = self._use_cache()
