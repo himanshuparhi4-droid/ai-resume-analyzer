@@ -290,18 +290,20 @@ class JobAggregator:
 
     def _production_stage_soft_timeout(self, *, stage: str, query_domain: str | None, sparse_role: bool) -> float:
         if sparse_role:
-            return 6.0 if stage == "primary" else 4.0
+            return 5.0 if stage == "primary" else 3.5
         if stage == "primary":
             if query_domain == "data":
-                return 10.0
+                return 8.5
             if query_domain in {"software", "security"}:
-                return 10.5
-            return 7.5
+                return 9.0
+            return 7.0
         if stage == "supplemental":
             if query_domain == "data":
-                return 20.0
-            return 8.0
-        return 6.5
+                return 9.5
+            if query_domain in {"software", "security"}:
+                return 9.0
+            return 7.5
+        return 4.5
 
     def _is_india_focused_location(self, location: str) -> bool:
         lowered = normalize_role(location)
@@ -639,31 +641,31 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 8.5
+                provider_timeout = 6.5
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 10.0
+                    provider_timeout = 8.0
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 10.0
+                    provider_timeout = 8.0
                 else:
-                    provider_timeout = 8.5
+                    provider_timeout = 7.0
             elif source_name == "lever":
                 if query_domain == "data":
-                    provider_timeout = 9.5
+                    provider_timeout = 6.0
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 9.0
+                    provider_timeout = 6.5
                 else:
-                    provider_timeout = 8.5
+                    provider_timeout = 6.0
             elif source_name == "jooble":
-                provider_timeout = 7.5
+                provider_timeout = 6.5
             elif source_name == "adzuna":
-                provider_timeout = 7.5
+                provider_timeout = 6.5
             elif source_name == "remotive":
-                provider_timeout = 8.0
-            elif source_name == "themuse":
-                provider_timeout = 8.5 if query_domain == "data" else 7.5
-            elif source_name == "findwork":
                 provider_timeout = 7.0
+            elif source_name == "themuse":
+                provider_timeout = 7.0 if query_domain == "data" else 6.5
+            elif source_name == "findwork":
+                provider_timeout = 6.0
             elif source_name == "remoteok":
                 provider_timeout = 3.0
             else:
@@ -766,11 +768,11 @@ class JobAggregator:
                 sparse_role=sparse_role,
             )
             if stage == "primary":
-                reserve_seconds = 12.0 if not sparse_role else 5.0
+                reserve_seconds = 8.0 if not sparse_role else 4.0
             elif stage == "supplemental":
-                reserve_seconds = 5.0
+                reserve_seconds = 2.5
             else:
-                reserve_seconds = 1.5
+                reserve_seconds = 1.0
             remaining_global_budget = _remaining_runtime_budget(reserve_seconds=reserve_seconds)
             if remaining_global_budget <= 0.75:
                 self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
@@ -842,7 +844,7 @@ class JobAggregator:
                     "indianapi",
                 ]
                 supplemental_order = ["greenhouse", "themuse"]
-                fallback_order = ["lever"]
+                fallback_order = []
             elif query_domain == "security":
                 primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
                     "remotive",
@@ -852,7 +854,7 @@ class JobAggregator:
                     "indianapi",
                 ]
                 supplemental_order = ["greenhouse", "themuse"]
-                fallback_order = ["lever"]
+                fallback_order = []
             elif query_domain == "software":
                 primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
                     "remotive",
@@ -862,7 +864,7 @@ class JobAggregator:
                     "indianapi",
                 ]
                 supplemental_order = ["greenhouse", "themuse"]
-                fallback_order = ["lever"]
+                fallback_order = []
             elif query_domain in {"product", "design"}:
                 primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
                 supplemental_order = ["greenhouse", "lever"]
@@ -1000,6 +1002,28 @@ class JobAggregator:
                 }
                 logger.info(
                     "Production live selection accepted partial result after supplemental fetch with %s jobs in %ss for query=%s",
+                    len(preferred_live),
+                    round(elapsed_after_supplemental, 2),
+                    query,
+                )
+                return preferred_live
+            if preferred_live and query_domain in {"data", "software", "security"} and len(preferred_live) >= 2:
+                self.last_fetch_diagnostics["stage_results"] = stage_results
+                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+                self.last_fetch_diagnostics["selected_live_sources"] = {
+                    source: len([item for item in preferred_live if item.get("source") == source])
+                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
+                }
+                self.last_fetch_diagnostics["partial_live_return"] = {
+                    "stage": "supplemental",
+                    "selected_live": len(preferred_live),
+                    "partial_live_floor": partial_live_floor,
+                    "elapsed_seconds": round(elapsed_after_supplemental, 2),
+                    "reason": "dense_domain_preserve_live_after_supplemental",
+                }
+                logger.info(
+                    "Production live selection preserved %s dense-domain jobs after supplemental fetch in %ss for query=%s",
                     len(preferred_live),
                     round(elapsed_after_supplemental, 2),
                     query,
@@ -1409,6 +1433,7 @@ class JobAggregator:
         )
         title_hint_overlap = self._title_hint_overlap(query, item)
         title_precision = self._title_precision_score(query, item)
+        family_overlap = self._family_token_overlap(query, item)
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
         multi_word_title_hint_hit = any(" " in hint for hint in matched_title_hints)
 
@@ -1421,7 +1446,7 @@ class JobAggregator:
                 return True
             if len(raw_tokens) >= 2 and raw_title_token_hits >= 2:
                 return True
-            if title_precision >= 2 and core_title_overlap >= 2:
+            if title_precision >= 2 and (core_title_overlap >= 2 or family_overlap >= 2):
                 return True
             return False
 

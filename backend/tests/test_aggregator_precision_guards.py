@@ -27,6 +27,15 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertFalse(self.aggregator._passes_precise_query_guard("Data Scientist", item))
 
+    def test_data_analyst_keeps_data_operations_analyst_title(self) -> None:
+        item = {
+            "title": "Data Operations Analyst",
+            "description": "Own SQL dashboards, reporting workflows, and analytics operations.",
+            "tags": [],
+            "normalized_data": {"skills": ["sql", "reporting", "analytics", "power bi"]},
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Data Analyst", item))
+
     def test_cybersecurity_engineer_keeps_application_security_title(self) -> None:
         item = {
             "title": "Application Security Engineer",

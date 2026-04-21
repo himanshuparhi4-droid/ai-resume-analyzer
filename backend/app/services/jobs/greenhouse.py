@@ -131,12 +131,12 @@ class GreenhouseProvider:
                 "support engineer",
                 "enterprise applications engineer",
             }:
-                # Render free tier can handle the board index fetches, but
-                # detail hydration is the expensive part. For dense non-software
-                # families we only need a narrower ATS sample to surface enough
-                # live jobs before the orchestrator budget expires.
-                detail_fetch_budget = min(max(limit + 1, 8), 10)
-                board_budget = 2
+                # On Render free tier, index fetches are usually cheap while
+                # detail hydration is the expensive step. Keep one strong role
+                # candidate per curated board so the selector gets ATS-backed
+                # diversity without forcing a long tail of detail requests.
+                detail_fetch_budget = min(max(limit, 6), 8)
+                board_budget = 1
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
                 board_budget = 4
