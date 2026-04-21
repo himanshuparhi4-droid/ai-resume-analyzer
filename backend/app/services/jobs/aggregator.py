@@ -790,6 +790,20 @@ class JobAggregator:
                 return preferred_live
 
         fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
+        self.last_fetch_diagnostics["provider_plan"] = {
+            "active_sources": sorted(source_groups.keys()),
+            "primary_sources": primary_sources,
+            "supplemental_sources": supplemental_sources,
+            "fallback_sources": fallback_sources,
+        }
+        logger.info(
+            "Production provider plan for query=%s: active=%s primary=%s supplemental=%s fallback=%s",
+            query,
+            sorted(source_groups.keys()),
+            primary_sources,
+            supplemental_sources,
+            fallback_sources,
+        )
         fallback_providers = [provider for source in fallback_sources for provider in source_groups.get(source, [])]
         if fallback_providers:
             preferred_live = await run_stage("fallback", fallback_providers)
