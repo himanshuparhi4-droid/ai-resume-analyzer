@@ -293,15 +293,15 @@ class JobAggregator:
             return 5.0 if stage == "primary" else 3.5
         if stage == "primary":
             if query_domain == "data":
-                return 8.5
+                return 10.5
             if query_domain in {"software", "security"}:
-                return 9.0
+                return 10.0
             return 7.0
         if stage == "supplemental":
             if query_domain == "data":
-                return 9.5
+                return 7.5
             if query_domain in {"software", "security"}:
-                return 9.0
+                return 7.0
             return 7.5
         return 4.5
 
@@ -641,12 +641,12 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 6.5
+                provider_timeout = 8.0
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 8.0
+                    provider_timeout = 10.0
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 8.0
+                    provider_timeout = 9.5
                 else:
                     provider_timeout = 7.0
             elif source_name == "lever":
@@ -663,7 +663,7 @@ class JobAggregator:
             elif source_name == "remotive":
                 provider_timeout = 7.0
             elif source_name == "themuse":
-                provider_timeout = 7.0 if query_domain == "data" else 6.5
+                provider_timeout = 5.5 if query_domain in {"data", "software", "security"} else 6.0
             elif source_name == "findwork":
                 provider_timeout = 6.0
             elif source_name == "remoteok":
@@ -770,7 +770,7 @@ class JobAggregator:
             if stage == "primary":
                 reserve_seconds = 8.0 if not sparse_role else 4.0
             elif stage == "supplemental":
-                reserve_seconds = 2.5
+                reserve_seconds = 2.0
             else:
                 reserve_seconds = 1.0
             remaining_global_budget = _remaining_runtime_budget(reserve_seconds=reserve_seconds)
@@ -814,6 +814,19 @@ class JobAggregator:
                             reason="floor_reached",
                         )
                     return preferred_live
+                if (
+                    stage == "supplemental"
+                    and query_domain in {"data", "software", "security"}
+                    and len(preferred_live) >= max(partial_live_floor + 2, 5)
+                ):
+                    if pending:
+                        await _cancel_pending_tasks(
+                            pending,
+                            stage=stage,
+                            soft_timeout=soft_timeout,
+                            reason="dense_partial_floor_reached",
+                        )
+                    return preferred_live
             if pending:
                 await _cancel_pending_tasks(
                     pending,
@@ -836,34 +849,28 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
+                    "greenhouse",
                     "remotive",
-                    "jobicy",
-                    "jooble",
-                    "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["greenhouse", "themuse"]
+                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
                 fallback_order = []
             elif query_domain == "security":
-                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
+                    "greenhouse",
                     "remotive",
-                    "jobicy",
-                    "jooble",
-                    "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["greenhouse", "themuse"]
+                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
                 fallback_order = []
             elif query_domain == "software":
-                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
+                    "greenhouse",
                     "remotive",
-                    "jobicy",
-                    "jooble",
-                    "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["greenhouse", "themuse"]
+                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
                 fallback_order = []
             elif query_domain in {"product", "design"}:
                 primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
@@ -877,18 +884,16 @@ class JobAggregator:
             primary_sources = [source for source in primary_order if source in source_groups]
             supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
         fallback_sources = [source for source in fallback_order if source in source_groups and source not in {*primary_sources, *supplemental_sources}]
-        fallback_sources.extend(
-            source
-            for source in source_groups.keys()
-            if source not in {*primary_sources, *supplemental_sources, *fallback_sources}
-        )
+        if query_domain not in {"data", "software", "security"}:
+            fallback_sources.extend(
+                source
+                for source in source_groups.keys()
+                if source not in {*primary_sources, *supplemental_sources, *fallback_sources}
+            )
         if query_domain not in {"software", "security"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
-        if query_domain in {"data", "software", "security"} and any(source in fallback_sources for source in {"greenhouse", "lever"}):
-            ordered_dense_fallback = [source for source in ("greenhouse", "lever") if source in fallback_sources]
-            fallback_sources = ordered_dense_fallback + [
-                source for source in fallback_sources if source not in {"greenhouse", "lever"}
-            ]
+        if query_domain in {"data", "software", "security"}:
+            fallback_sources = [source for source in fallback_sources if source not in {"lever", "remoteok", "themuse"}]
         elif (
             query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
@@ -1155,7 +1160,14 @@ class JobAggregator:
         )
         precision_guarded = [item for item in ranked if self._passes_precise_query_guard(query, item)]
         if exact_precision_query:
-            ranked = precision_guarded
+            if len(precision_guarded) >= max(2, display_floor):
+                ranked = precision_guarded
+            else:
+                ranked = precision_guarded + [
+                    item
+                    for item in ranked
+                    if item not in precision_guarded and self._passes_exact_query_backup_guard(query, location, item)
+                ]
         elif precision_guarded and len(precision_guarded) >= display_floor:
             ranked = precision_guarded
         elif precision_guarded:
@@ -1233,9 +1245,15 @@ class JobAggregator:
                         rejection_counts["company_title_cap"] += 1
                     continue
                 if similarity_signature in selected_signatures:
-                    if isinstance(rejection_counts, dict):
-                        rejection_counts["similarity_cap"] += 1
-                    continue
+                    allow_similarity_escape = (
+                        len(selected) < display_floor
+                        and self._canonical_role_alignment(query, item) >= 2
+                        and self._title_precision_score(query, item) >= 2
+                    )
+                    if not allow_similarity_escape:
+                        if isinstance(rejection_counts, dict):
+                            rejection_counts["similarity_cap"] += 1
+                        continue
                 if len(selected) >= display_floor and source_counts.get(source, 0) >= max_source_count:
                     if isinstance(rejection_counts, dict):
                         rejection_counts["source_cap"] += 1
@@ -1397,6 +1415,36 @@ class JobAggregator:
         if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
             return False
         return True
+
+    def _passes_exact_query_backup_guard(self, query: str, location: str, item: dict) -> bool:
+        query_domain = role_domain(query)
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        specialty_overlap = self._specialty_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+
+        if self._is_location_hard_mismatch(location, item):
+            return False
+        if canonical_alignment < 0:
+            return False
+        if self._requires_specialty_guard(query) and specialty_overlap == 0:
+            return False
+        if title_overlap >= 1 or title_precision >= 1:
+            return True
+        if query_domain == "data":
+            return canonical_alignment >= 2 and core_title_overlap >= 1 and (
+                domain_score >= 2 or skill_overlap >= 2.0 or role_fit >= 4.0
+            )
+        if query_domain in {"software", "security"}:
+            return core_title_overlap >= 1 and (
+                domain_score >= 2 or role_fit >= 3.0 or family_overlap >= 1
+            )
+        return self._is_production_live_candidate(query, location, item, strict=False)
 
     def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
         profile = role_profile(query)

@@ -98,12 +98,6 @@ class TheMuseProvider:
                         category_tags = [entry.get("name", "") for entry in (item.get("categories") or []) if entry.get("name")]
                         level_tags = [entry.get("name", "") for entry in (item.get("levels") or []) if entry.get("name")]
                         tags = [tag for tag in [*category_tags, *level_tags] if tag]
-                        requirement_profile = extract_job_requirement_profile(
-                            title=title,
-                            description=raw_description,
-                            tags=tags,
-                        )
-                        description = truncate(raw_description, 4000)
                         locations = [entry.get("name", "") for entry in (item.get("locations") or []) if entry.get("name")]
                         location_label = ", ".join(locations[:2]) or location_value or "Remote"
                         job = {
@@ -114,13 +108,12 @@ class TheMuseProvider:
                             "location": location_label,
                             "remote": "remote" in location_label.lower(),
                             "url": ((item.get("refs") or {}).get("landing_page")) or "https://www.themuse.com",
-                            "description": description,
-                            "preview": truncate(description, 260),
+                            "description": truncate(raw_description, 4000),
+                            "preview": truncate(raw_description, 260),
                             "tags": tags,
                             "normalized_data": {
                                 "categories": category_tags,
                                 "levels": level_tags,
-                                **requirement_profile,
                             },
                             "posted_at": self._parse_datetime(item.get("publication_date")),
                         }
@@ -143,8 +136,8 @@ class TheMuseProvider:
             )
             > 0
         ]
-        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else collected
-        ranked = sorted(
+        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 10) else collected
+        ranked_seed = sorted(
             ranked_pool,
             key=lambda item: (
                 role_title_alignment_score(
@@ -159,7 +152,41 @@ class TheMuseProvider:
             ),
             reverse=True,
         )
-        return ranked[: max(limit * 3, 32)]
+        if settings.environment == "production":
+            enrichment_budget = min(max(limit + 2, 8), 12)
+        else:
+            enrichment_budget = max(limit * 3, 32)
+        enriched_jobs: list[dict] = []
+        for item in ranked_seed[:enrichment_budget]:
+            requirement_profile = extract_job_requirement_profile(
+                title=str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                tags=item.get("tags") or [],
+            )
+            normalized = item.get("normalized_data") or {}
+            item["normalized_data"] = {
+                "categories": normalized.get("categories", []),
+                "levels": normalized.get("levels", []),
+                **requirement_profile,
+            }
+            enriched_jobs.append(item)
+
+        ranked = sorted(
+            enriched_jobs,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                role_fit_score(query, item),
+                self._location_score(location_value, item.get("location", "")),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )
+        return ranked[: max(limit * 2, 16 if settings.environment == "production" else 32)]
 
     def _parse_datetime(self, value: str | None) -> datetime | None:
         if not value:

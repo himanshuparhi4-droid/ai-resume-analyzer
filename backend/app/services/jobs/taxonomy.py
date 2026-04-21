@@ -1505,6 +1505,8 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
     query_is_narrow = len(profile.specialty_tokens) >= 2 or len(profile.cleaned_query.split()) >= 3
     budget_config = PROVIDER_QUERY_BUDGETS.get(source_name, {"base": 2, "narrow": 1})
     budget = int(budget_config["narrow"] if query_is_narrow else budget_config["base"])
+    if production and source_name == "jobicy" and profile.domain in {"data", "software", "security"}:
+        budget = 1
     if profile.family_role and profile.family_role != profile.normalized_role:
         budget = max(budget, 2)
     if profile.domain == "data" and "analyst" in profile.head_terms and source_name == "jobicy":

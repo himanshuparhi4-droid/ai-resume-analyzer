@@ -30,7 +30,7 @@ class JobicyProvider:
             params["tag"] = role_tag
 
         timeout = httpx.Timeout(
-            connect=min(4.0, settings.job_request_timeout_seconds),
+            connect=min(6.5, settings.job_request_timeout_seconds),
             read=settings.job_request_timeout_seconds,
             write=10.0,
             pool=5.0,
