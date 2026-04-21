@@ -272,6 +272,19 @@ class JobAggregator:
         except (TypeError, ValueError):
             return False
 
+    def _production_stage_soft_timeout(self, *, stage: str, query_domain: str | None, sparse_role: bool) -> float:
+        if sparse_role:
+            return 6.0 if stage == "primary" else 4.0
+        if stage == "primary":
+            if query_domain == "data":
+                return 6.5
+            if query_domain in {"software", "security"}:
+                return 7.5
+            return 7.0
+        if stage == "supplemental":
+            return 8.5
+        return 6.0
+
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
         providers: list[object] = [JobicyProvider()]
@@ -670,11 +683,62 @@ class JobAggregator:
                 search_locations = self._search_locations(provider, location)
                 for search_query in search_queries:
                     for search_location in search_locations[:1]:
-                        tasks.append(safe_search(provider, search_query, search_location, stage))
+                        tasks.append(asyncio.create_task(safe_search(provider, search_query, search_location, stage)))
             if not tasks:
                 return []
-            provider_results = await asyncio.gather(*tasks)
-            absorb_results(provider_results)
+            soft_timeout = self._production_stage_soft_timeout(
+                stage=stage,
+                query_domain=query_domain,
+                sparse_role=sparse_role,
+            )
+            started_at = time.perf_counter()
+            pending = set(tasks)
+            cancelled_count = 0
+            while pending:
+                elapsed = time.perf_counter() - started_at
+                remaining = soft_timeout - elapsed
+                if remaining <= 0:
+                    break
+                done, pending = await asyncio.wait(
+                    pending,
+                    timeout=remaining,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    break
+                provider_results = [task.result() for task in done if not task.cancelled()]
+                if provider_results:
+                    absorb_results(provider_results)
+                preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
+                if len(preferred_live) >= live_floor:
+                    for task in pending:
+                        task.cancel()
+                    if pending:
+                        cancelled_count += len(pending)
+                        await asyncio.gather(*pending, return_exceptions=True)
+                    if cancelled_count:
+                        self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
+                            {
+                                "stage": stage,
+                                "cancelled_pending_tasks": cancelled_count,
+                                "soft_timeout_seconds": soft_timeout,
+                                "reason": "floor_reached",
+                            }
+                        )
+                    return preferred_live
+            if pending:
+                cancelled_count += len(pending)
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
+                    {
+                        "stage": stage,
+                        "cancelled_pending_tasks": cancelled_count,
+                        "soft_timeout_seconds": soft_timeout,
+                        "reason": "soft_timeout",
+                    }
+                )
             return self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
 
         source_groups: dict[str, list[object]] = {}
@@ -687,8 +751,8 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                primary_order = ["jobicy", "remotive", "themuse"]
-                supplemental_order = ["careerjet", "greenhouse", "lever", "indianapi", "jooble", "adzuna"]
+                primary_order = ["remotive", "greenhouse"]
+                supplemental_order = ["themuse", "jobicy", "careerjet", "lever", "indianapi", "jooble", "adzuna"]
             elif query_domain in {"product", "design"}:
                 primary_order = ["greenhouse", "jobicy", "themuse"]
                 supplemental_order = ["careerjet", "remotive", "lever", "indianapi", "jooble", "adzuna"]
@@ -1425,6 +1489,24 @@ class JobAggregator:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             normalized_query = normalize_role(query)
             variations = production_query_variations(query)
+            if source_name == "greenhouse":
+                if normalized_query in {
+                    "data analyst",
+                    "data scientist",
+                    "data engineer",
+                    "machine learning engineer",
+                    "software engineer",
+                    "frontend developer",
+                    "full stack developer",
+                    "devops engineer",
+                    "cybersecurity engineer",
+                    "qa engineer",
+                    "database engineer",
+                    "product manager",
+                    "ui/ux designer",
+                }:
+                    return variations[:1]
+                return variations[:2]
             if source_name == "remotive":
                 if normalized_query == "full stack developer":
                     return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
