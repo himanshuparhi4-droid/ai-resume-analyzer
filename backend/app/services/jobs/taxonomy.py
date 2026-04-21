@@ -337,11 +337,11 @@ DOMAIN_QUERY_TEMPLATES = {
 }
 PROVIDER_QUERY_BUDGETS = {
     "jobicy": {"base": 2, "narrow": 1},
-    "remotive": {"base": 3, "narrow": 2},
+    "remotive": {"base": 4, "narrow": 2},
     "themuse": {"base": 2, "narrow": 1},
-    "jooble": {"base": 2, "narrow": 2},
-    "adzuna": {"base": 2, "narrow": 2},
-    "indianapi": {"base": 2, "narrow": 2},
+    "jooble": {"base": 3, "narrow": 2},
+    "adzuna": {"base": 3, "narrow": 2},
+    "indianapi": {"base": 3, "narrow": 2},
     "remoteok": {"base": 1, "narrow": 1},
 }
 ABSTRACT_CANONICAL_QUERY_FAMILIES = {
@@ -1509,9 +1509,7 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
         budget = 1
     if profile.family_role and profile.family_role != profile.normalized_role:
         budget = max(budget, 2)
-    if profile.domain == "data" and "analyst" in profile.head_terms and source_name == "jobicy":
-        budget = max(budget, 3)
-    elif profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
+    if profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
         budget = min(budget, 1)
     selected = ranked[: max(1, budget)]
     family_role = profile.family_role

@@ -66,14 +66,16 @@ _CURATED_GREENHOUSE_BOARDS = {
 }
 
 _ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
-    "data analyst": ["yipitdata", "instacart", "affirm", "robinhood"],
-    "data scientist": ["yipitdata", "asana", "affirm", "instacart"],
-    "data engineer": ["yipitdata", "instacart", "asana", "affirm"],
+    "data analyst": ["yipitdata", "instacart", "affirm", "robinhood", "asana", "discord"],
+    "data scientist": ["yipitdata", "asana", "affirm", "instacart", "robinhood", "discord"],
+    "data engineer": ["yipitdata", "instacart", "asana", "affirm", "robinhood", "okta"],
     "software engineer": ["okta", "discord", "asana", "figma", "robinhood", "affirm"],
     "full stack developer": ["okta", "discord", "asana", "figma", "robinhood"],
     "frontend developer": ["figma", "discord", "asana", "okta", "robinhood"],
     "devops engineer": ["okta", "affirm", "instacart", "rubrik", "asana"],
     "cybersecurity engineer": ["okta", "asana", "discord", "rubrik", "robinhood", "affirm"],
+    "solutions architect": ["okta", "rubrik", "affirm", "asana", "robinhood"],
+    "support engineer": ["okta", "asana", "robinhood", "affirm"],
 }
 
 

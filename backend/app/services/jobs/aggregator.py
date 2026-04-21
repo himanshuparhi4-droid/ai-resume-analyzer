@@ -128,6 +128,18 @@ KNOWN_PROVIDER_SOURCES = (
     "remoteok",
     "arbeitnow",
 )
+PRODUCTION_FAMILY_GROUPS = {
+    "data": {"data analyst", "data scientist", "data engineer", "machine learning engineer", "database engineer"},
+    "software": {"software engineer", "frontend developer", "full stack developer", "mobile developer", "embedded engineer", "qa engineer"},
+    "infra": {"devops engineer", "support engineer", "solutions architect"},
+    "security": {"cybersecurity engineer"},
+    "product": {"product manager"},
+    "design": {"ui/ux designer"},
+    "enterprise": {"enterprise applications engineer"},
+    "docs": {"technical writer"},
+    "leadership": {"engineering leadership"},
+}
+DENSE_PRODUCTION_FAMILY_GROUPS = {"data", "software", "infra", "security"}
 
 
 class JobAggregator:
@@ -288,26 +300,146 @@ class JobAggregator:
             )
         return snapshot
 
-    def _production_stage_soft_timeout(self, *, stage: str, query_domain: str | None, sparse_role: bool) -> float:
+    def _production_family_group(self, query: str) -> str:
+        profile = role_profile(query)
+        normalized = profile.family_role or profile.normalized_role
+        for group, canonicals in PRODUCTION_FAMILY_GROUPS.items():
+            if normalized in canonicals:
+                return group
+        domain = role_domain(query) or role_domain(normalized)
+        return domain or "general"
+
+    def _is_dense_production_family(self, query: str) -> bool:
+        return self._production_family_group(query) in DENSE_PRODUCTION_FAMILY_GROUPS
+
+    def _production_stage_soft_timeout(self, *, stage: str, query: str, sparse_role: bool) -> float:
         if sparse_role:
             return 5.0 if stage == "primary" else 3.5
+        family_group = self._production_family_group(query)
+        dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
-            if query_domain == "data":
-                return 10.5
-            if query_domain in {"software", "security"}:
-                return 10.0
+            if dense_family:
+                return 11.0
+            if family_group in {"product", "design"}:
+                return 7.5
             return 7.0
         if stage == "supplemental":
-            if query_domain == "data":
+            if dense_family:
+                return 8.5
+            if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                 return 7.5
-            if query_domain in {"software", "security"}:
-                return 7.0
             return 7.5
         return 4.5
 
     def _is_india_focused_location(self, location: str) -> bool:
         lowered = normalize_role(location)
         return bool(lowered and any(hint in lowered for hint in INDIA_LOCATION_HINTS))
+
+    def _build_production_provider_plan(
+        self,
+        *,
+        query: str,
+        location: str,
+        source_groups: dict[str, list[object]],
+    ) -> dict[str, object]:
+        sparse_role = is_sparse_live_market_role(query)
+        india_focused_location = self._is_india_focused_location(location)
+        family_group = self._production_family_group(query)
+        dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
+
+        fallback_order: list[str] = []
+        if sparse_role:
+            primary_order = ["remotive"]
+            supplemental_order: list[str] = []
+        elif dense_family:
+            if india_focused_location:
+                primary_order = ["indianapi", "greenhouse", "remotive"]
+            else:
+                primary_order = ["greenhouse", "remotive", "indianapi"]
+            supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
+        elif family_group in {"product", "design"}:
+            primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
+            supplemental_order = ["greenhouse", "lever"]
+        elif family_group in {"enterprise", "docs", "leadership"}:
+            primary_order = (
+                ["indianapi", "jobicy", "remotive", "themuse", "jooble", "adzuna"]
+                if india_focused_location
+                else ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
+            )
+            supplemental_order = ["greenhouse", "lever"]
+        else:
+            primary_order = (
+                ["indianapi", "jobicy", "remotive", "themuse", "jooble", "adzuna"]
+                if india_focused_location
+                else ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
+            )
+            supplemental_order = ["greenhouse", "lever"]
+
+        primary_sources = [source for source in primary_order if source in source_groups]
+        supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
+        fallback_sources = [source for source in fallback_order if source in source_groups and source not in {*primary_sources, *supplemental_sources}]
+        if not dense_family:
+            fallback_sources.extend(
+                source
+                for source in source_groups.keys()
+                if source not in {*primary_sources, *supplemental_sources, *fallback_sources}
+            )
+        if family_group not in {"software", "security", "infra"}:
+            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
+        if dense_family:
+            fallback_sources = [source for source in fallback_sources if source not in {"lever", "remoteok", "themuse"}]
+        elif (
+            role_profile(query).normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
+            or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in role_profile(query).head_terms)
+        ):
+            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
+
+        return {
+            "family_group": family_group,
+            "dense_family": dense_family,
+            "india_focused_location": india_focused_location,
+            "active_sources": sorted(source_groups.keys()),
+            "primary_sources": primary_sources,
+            "supplemental_sources": supplemental_sources,
+            "fallback_sources": fallback_sources,
+        }
+
+    def _count_items_by_source(self, items: list[dict]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for item in items:
+            source = str(item.get("source", "unknown")).lower()
+            counts[source] = counts.get(source, 0) + 1
+        return counts
+
+    def _aggregate_provider_request_counts(self) -> dict[str, dict[str, int]]:
+        summary: dict[str, dict[str, int]] = {}
+        for provider_diag in self.last_fetch_diagnostics.get("providers", []):
+            source = str(provider_diag.get("source") or provider_diag.get("provider") or "unknown").lower()
+            entry = summary.setdefault(
+                source,
+                {
+                    "requests": 0,
+                    "raw_returned": 0,
+                    "timeouts": 0,
+                    "errors": 0,
+                },
+            )
+            entry["requests"] += 1
+            entry["raw_returned"] += int(provider_diag.get("result_count", 0) or 0)
+            error_text = str(provider_diag.get("error", "") or "")
+            if error_text:
+                entry["errors"] += 1
+                if "timeout" in error_text.lower():
+                    entry["timeouts"] += 1
+        return summary
+
+    def _timeout_sources(self) -> list[str]:
+        timeout_sources = {
+            str(provider_diag.get("source") or provider_diag.get("provider") or "unknown").lower()
+            for provider_diag in self.last_fetch_diagnostics.get("providers", [])
+            if "timeout" in str(provider_diag.get("error", "") or "").lower()
+        }
+        return sorted(timeout_sources)
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -641,29 +773,31 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 8.0
+                provider_timeout = 8.5
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 10.0
+                    provider_timeout = 10.5
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 9.5
+                    provider_timeout = 10.0
                 else:
-                    provider_timeout = 7.0
+                    provider_timeout = 7.5
             elif source_name == "lever":
                 if query_domain == "data":
-                    provider_timeout = 6.0
-                elif query_domain in {"software", "security"}:
                     provider_timeout = 6.5
+                elif query_domain in {"software", "security"}:
+                    provider_timeout = 7.0
                 else:
                     provider_timeout = 6.0
             elif source_name == "jooble":
-                provider_timeout = 6.5
-            elif source_name == "adzuna":
-                provider_timeout = 6.5
-            elif source_name == "remotive":
                 provider_timeout = 7.0
+            elif source_name == "adzuna":
+                provider_timeout = 7.0
+            elif source_name == "indianapi":
+                provider_timeout = 7.5
+            elif source_name == "remotive":
+                provider_timeout = 7.5
             elif source_name == "themuse":
-                provider_timeout = 5.5 if query_domain in {"data", "software", "security"} else 6.0
+                provider_timeout = 6.5 if query_domain in {"data", "software", "security"} else 6.0
             elif source_name == "findwork":
                 provider_timeout = 6.0
             elif source_name == "remoteok":
@@ -764,7 +898,7 @@ class JobAggregator:
                 return []
             base_soft_timeout = self._production_stage_soft_timeout(
                 stage=stage,
-                query_domain=query_domain,
+                query=query,
                 sparse_role=sparse_role,
             )
             if stage == "primary":
@@ -841,74 +975,15 @@ class JobAggregator:
             source_groups.setdefault(str(getattr(provider, "source_name", provider.__class__.__name__)).lower(), []).append(provider)
 
         stage_results: list[dict] = []
-        india_focused_location = self._is_india_focused_location(location)
-
-        fallback_order: list[str] = []
-        if sparse_role:
-            primary_sources = ["remotive"]
-            supplemental_sources: list[str] = []
-        else:
-            if query_domain == "data":
-                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
-                    "greenhouse",
-                    "remotive",
-                    "indianapi",
-                ]
-                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
-                fallback_order = []
-            elif query_domain == "security":
-                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
-                    "greenhouse",
-                    "remotive",
-                    "indianapi",
-                ]
-                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
-                fallback_order = []
-            elif query_domain == "software":
-                primary_order = ["indianapi", "greenhouse", "remotive"] if india_focused_location else [
-                    "greenhouse",
-                    "remotive",
-                    "indianapi",
-                ]
-                supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
-                fallback_order = []
-            elif query_domain in {"product", "design"}:
-                primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
-                supplemental_order = ["greenhouse", "lever"]
-                fallback_order = []
-            else:
-                primary_order = ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
-                supplemental_order = ["greenhouse", "lever"]
-                fallback_order = []
-
-            primary_sources = [source for source in primary_order if source in source_groups]
-            supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
-        fallback_sources = [source for source in fallback_order if source in source_groups and source not in {*primary_sources, *supplemental_sources}]
-        if query_domain not in {"data", "software", "security"}:
-            fallback_sources.extend(
-                source
-                for source in source_groups.keys()
-                if source not in {*primary_sources, *supplemental_sources, *fallback_sources}
-            )
-        if query_domain not in {"software", "security"}:
-            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
-        if query_domain in {"data", "software", "security"}:
-            fallback_sources = [source for source in fallback_sources if source not in {"lever", "remoteok", "themuse"}]
-        elif (
-            query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
-            or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
-        ):
-            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
-        self.last_fetch_diagnostics["provider_plan"] = {
-            "active_sources": sorted(source_groups.keys()),
-            "primary_sources": primary_sources,
-            "supplemental_sources": supplemental_sources,
-            "fallback_sources": fallback_sources,
-        }
+        provider_plan = self._build_production_provider_plan(query=query, location=location, source_groups=source_groups)
+        primary_sources = list(provider_plan["primary_sources"])
+        supplemental_sources = list(provider_plan["supplemental_sources"])
+        fallback_sources = list(provider_plan["fallback_sources"])
+        self.last_fetch_diagnostics["provider_plan"] = provider_plan
         logger.info(
             "Production provider plan for query=%s: active=%s primary=%s supplemental=%s fallback=%s",
             query,
-            sorted(source_groups.keys()),
+            provider_plan["active_sources"],
             primary_sources,
             supplemental_sources,
             fallback_sources,
@@ -916,12 +991,16 @@ class JobAggregator:
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         primary_selected_count = len(preferred_live)
+        primary_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
         stage_results.append(
             {
                 "stage": "primary",
                 "sources": primary_sources,
                 "collected_candidates": len(collected),
                 "selected_live": len(preferred_live),
+                "precision_guarded_candidates": int(primary_selection.get("precision_guarded_candidates", 0) or 0),
+                "upstream_family_safe_count": int(primary_selection.get("upstream_family_safe_count", 0) or 0),
+                "underfill_reason": str((primary_selection.get("underfill") or {}).get("reason") or "none"),
             }
         )
         logger.info(
@@ -960,12 +1039,16 @@ class JobAggregator:
         supplemental_providers = [provider for source in supplemental_sources for provider in source_groups.get(source, [])]
         if supplemental_providers:
             preferred_live = await run_stage("supplemental", supplemental_providers)
+            supplemental_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
             stage_results.append(
                 {
                     "stage": "supplemental",
                     "sources": supplemental_sources,
                     "collected_candidates": len(collected),
                     "selected_live": len(preferred_live),
+                    "precision_guarded_candidates": int(supplemental_selection.get("precision_guarded_candidates", 0) or 0),
+                    "upstream_family_safe_count": int(supplemental_selection.get("upstream_family_safe_count", 0) or 0),
+                    "underfill_reason": str((supplemental_selection.get("underfill") or {}).get("reason") or "none"),
                 }
             )
             logger.info(
@@ -1099,12 +1182,16 @@ class JobAggregator:
                 )
                 return preferred_live
             preferred_live = await run_stage("fallback", fallback_providers)
+            fallback_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
             stage_results.append(
                 {
                     "stage": "fallback",
                     "sources": fallback_sources,
                     "collected_candidates": len(collected),
                     "selected_live": len(preferred_live),
+                    "precision_guarded_candidates": int(fallback_selection.get("precision_guarded_candidates", 0) or 0),
+                    "upstream_family_safe_count": int(fallback_selection.get("upstream_family_safe_count", 0) or 0),
+                    "underfill_reason": str((fallback_selection.get("underfill") or {}).get("reason") or "none"),
                 }
             )
             logger.info(
@@ -1148,6 +1235,7 @@ class JobAggregator:
                 self._canonical_role_alignment(query, item),
                 float(item.get("normalized_data", {}).get("title_alignment_score", 0.0)),
                 self._title_precision_score(query, item),
+                -self._unrequested_title_penalty(query, item),
                 self._role_domain_match_score(query, item),
                 self._location_alignment_score(location, item),
                 self._title_hint_overlap(query, item),
@@ -1159,15 +1247,25 @@ class JobAggregator:
             reverse=True,
         )
         precision_guarded = [item for item in ranked if self._passes_precise_query_guard(query, item)]
+        exact_backup_candidates: list[dict] = []
+        same_family_recovery_candidates: list[dict] = []
         if exact_precision_query:
+            exact_backup_candidates = [
+                item
+                for item in ranked
+                if item not in precision_guarded and self._passes_exact_query_backup_guard(query, location, item)
+            ]
             if len(precision_guarded) >= max(2, display_floor):
                 ranked = precision_guarded
             else:
-                ranked = precision_guarded + [
+                excluded_candidates = [*precision_guarded, *exact_backup_candidates]
+                same_family_recovery_candidates = [
                     item
                     for item in ranked
-                    if item not in precision_guarded and self._passes_exact_query_backup_guard(query, location, item)
+                    if item not in excluded_candidates
+                    and self._passes_same_family_recovery_guard(query, location, item)
                 ]
+                ranked = precision_guarded + exact_backup_candidates + same_family_recovery_candidates
         elif precision_guarded and len(precision_guarded) >= display_floor:
             ranked = precision_guarded
         elif precision_guarded:
@@ -1187,6 +1285,8 @@ class JobAggregator:
             "target_live_count": target_live_count,
             "ranked_candidates": len(ranked),
             "precision_guarded_candidates": len(precision_guarded),
+            "exact_backup_candidates": len(exact_backup_candidates),
+            "same_family_recovery_candidates": len(same_family_recovery_candidates),
             "active_source_count": active_source_count,
             "exact_precision_query": int(exact_precision_query),
             "partial_live_floor": partial_live_floor,
@@ -1373,10 +1473,64 @@ class JobAggregator:
         for item in selected:
             source = str(item.get("source", "unknown")).lower()
             filtered_source_counts[source] = filtered_source_counts.get(source, 0) + 1
+        family_safe_candidates = [item for item in live_jobs if self._passes_final_live_guard(query, item)]
+        raw_source_counts = self._count_items_by_source(live_jobs)
+        precision_source_counts = self._count_items_by_source(precision_guarded)
+        backup_source_counts = self._count_items_by_source(exact_backup_candidates)
+        recovery_source_counts = self._count_items_by_source(same_family_recovery_candidates)
+        family_safe_source_counts = self._count_items_by_source(family_safe_candidates)
+        provider_request_summary = self._aggregate_provider_request_counts()
+        provider_match_counts: dict[str, dict[str, int]] = {}
+        for source in sorted(
+            {
+                *raw_source_counts.keys(),
+                *precision_source_counts.keys(),
+                *backup_source_counts.keys(),
+                *recovery_source_counts.keys(),
+                *family_safe_source_counts.keys(),
+                *filtered_source_counts.keys(),
+                *provider_request_summary.keys(),
+            }
+        ):
+            request_summary = provider_request_summary.get(source, {})
+            provider_match_counts[source] = {
+                "requests": int(request_summary.get("requests", 0)),
+                "raw_returned": int(request_summary.get("raw_returned", raw_source_counts.get(source, 0))),
+                "precision_guarded": int(precision_source_counts.get(source, 0)),
+                "exact_backup": int(backup_source_counts.get(source, 0)),
+                "same_family_recovery": int(recovery_source_counts.get(source, 0)),
+                "family_safe": int(family_safe_source_counts.get(source, 0)),
+                "selected_live": int(filtered_source_counts.get(source, 0)),
+                "timeouts": int(request_summary.get("timeouts", 0)),
+                "errors": int(request_summary.get("errors", 0)),
+            }
+        timeout_sources = self._timeout_sources()
+        required_live_floor = min(display_floor, target_live_count)
+        if len(selected) >= required_live_floor:
+            underfill_reason = "sufficient_live_supply"
+        elif len(family_safe_candidates) >= required_live_floor:
+            underfill_reason = "selector_over_pruning"
+        elif timeout_sources:
+            underfill_reason = "provider_timeout_or_upstream_scarcity"
+        else:
+            underfill_reason = "upstream_scarcity"
+        selection_debug["upstream_family_safe_count"] = len(family_safe_candidates)
+        selection_debug["provider_match_counts"] = provider_match_counts
+        selection_debug["underfill"] = {
+            "reason": underfill_reason,
+            "required_live_floor": required_live_floor,
+            "selected_live_count": len(selected),
+            "upstream_family_safe_count": len(family_safe_candidates),
+            "timeout_sources": timeout_sources,
+        }
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
         selection_debug["selected_sources"] = filtered_source_counts
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
+        self.last_fetch_diagnostics["provider_request_summary"] = provider_request_summary
+        self.last_fetch_diagnostics["provider_match_counts"] = provider_match_counts
+        self.last_fetch_diagnostics["upstream_family_safe_count"] = len(family_safe_candidates)
+        self.last_fetch_diagnostics["underfill"] = selection_debug["underfill"]
         if len(selected) < display_floor:
             logger.info(
                 "Production selection debug for query=%s: %s",
@@ -1445,6 +1599,46 @@ class JobAggregator:
                 domain_score >= 2 or role_fit >= 3.0 or family_overlap >= 1
             )
         return self._is_production_live_candidate(query, location, item, strict=False)
+
+    def _passes_same_family_recovery_guard(self, query: str, location: str, item: dict) -> bool:
+        if self._is_location_hard_mismatch(location, item):
+            return False
+        if not self._passes_final_live_guard(query, item):
+            return False
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
+            return False
+
+        query_domain = role_domain(query)
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        skill_overlap = self._skill_overlap_score(query, item)
+        role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+
+        if query_domain == "data":
+            if title_precision >= 1 or title_overlap >= 1:
+                return True
+            return (
+                core_title_overlap >= 1
+                and (
+                    family_overlap >= 1
+                    or skill_overlap >= 1.5
+                    or role_fit >= 3.5
+                )
+            )
+        if canonical_alignment >= 1 and core_title_overlap >= 1:
+            return True
+        if title_precision >= 1 or title_overlap >= 1:
+            return True
+        if query_domain in {"software", "security"}:
+            return core_title_overlap >= 1 and (
+                family_overlap >= 1
+                or skill_overlap >= 1.0
+                or role_fit >= 2.5
+            )
+        return self._is_family_live_candidate(query, location, item)
 
     def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
         profile = role_profile(query)
@@ -1654,6 +1848,24 @@ class JobAggregator:
             return family_overlap
         return 0
 
+    def _unrequested_title_penalty(self, query: str, item: dict) -> int:
+        query_text = self._query_signature(query)
+        title_text = self._query_signature(item.get("title", ""))
+        if not title_text:
+            return 0
+        requested_leadership = {"manager", "director", "head", "chief", "lead", "principal", "staff", "cto"}
+        if any(token in query_text.split() for token in requested_leadership):
+            return 0
+
+        penalty = 0
+        if re.search(r"\b(manager|director|head|chief|vp|vice president)\b", title_text):
+            penalty += 2
+        if "architect" in title_text and "architect" not in query_text:
+            penalty += 1
+        if "program manager" in title_text and "program manager" not in query_text:
+            penalty += 1
+        return penalty
+
     def _is_production_live_candidate(self, query: str, location: str, item: dict, *, strict: bool) -> bool:
         normalized = item.get("normalized_data", {}) or {}
         query_domain = role_domain(query)
@@ -1841,22 +2053,21 @@ class JobAggregator:
     def _production_live_target(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 4)
-        if role_domain(query) in {"data", "software", "security"}:
-            return min(limit, max(settings.production_live_display_minimum, 10))
+        if self._is_dense_production_family(query):
+            return min(limit, 10)
         return min(limit, max(settings.production_live_display_minimum, settings.production_live_fetch_minimum))
 
     def _production_display_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
-        return min(limit, max(4, settings.production_live_display_minimum))
+        return min(limit, 6)
 
     def _production_partial_live_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
-        query_domain = role_domain(query)
-        if query_domain in {"data", "security", "software"}:
-            return min(limit, 3)
-        return min(limit, 2)
+        if self._is_dense_production_family(query):
+            return min(limit, 4)
+        return min(limit, 3)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
