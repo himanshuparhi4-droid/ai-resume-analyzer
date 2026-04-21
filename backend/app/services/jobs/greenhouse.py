@@ -280,7 +280,7 @@ class GreenhouseProvider:
         response.raise_for_status()
         item = response.json()
 
-        description = strip_html(str(item.get("content") or ""))
+        raw_description = strip_html(str(item.get("content") or ""))
         title = str(item.get("title") or fallback.get("title") or "Unknown Role")
         location = str((item.get("location") or {}).get("name") or fallback.get("location") or "Unknown")
         company = str(item.get("company_name") or fallback.get("company") or self._company_from_board(board))
@@ -289,7 +289,8 @@ class GreenhouseProvider:
         office_tags = [str(entry.get("name") or "").strip() for entry in (item.get("offices") or []) if entry.get("name")]
         metadata_tags = [str(entry.get("name") or "").strip() for entry in metadata if entry.get("name")]
         tags = [tag for tag in [*department_tags, *office_tags, *metadata_tags, company, board] if tag]
-        requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=tags)
+        requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=tags)
+        description = truncate(raw_description, 4000)
         job = {
             "source": self.source_name,
             "external_id": str(item.get("id") or fallback.get("external_id") or ""),

@@ -7,7 +7,7 @@ import httpx
 from app.core.config import settings
 from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
-from app.utils.text import strip_html
+from app.utils.text import strip_html, truncate
 
 
 class RemotiveProvider:
@@ -25,11 +25,12 @@ class RemotiveProvider:
 
         jobs = []
         for item in payload.get("jobs", [])[:request_limit]:
-            description = strip_html(item.get("description", ""))
+            raw_description = strip_html(item.get("description", ""))
             title = item.get("title", "Unknown Role")
             tags = [str(tag).strip() for tag in (item.get("tags") or []) if str(tag).strip()]
             enriched_tags = list(dict.fromkeys(tags + [item.get("category", "General"), item.get("job_type", "Unknown")]))
-            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=enriched_tags)
+            requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=enriched_tags)
+            description = truncate(raw_description, 4000)
             jobs.append(
                 {
                     "source": self.source_name,

@@ -819,8 +819,12 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                primary_order = ["remotive", "jobicy", "themuse", "jooble", "adzuna"]
-                supplemental_order = ["indianapi"]
+                # Render handles the faster API-driven providers well enough for
+                # the first pass, but The Muse often turns an otherwise-valid
+                # live fetch into a 20s+ stage on free-tier instances. Keep the
+                # fast APIs first and use lighter ATS board feeds as the backup.
+                primary_order = ["remotive", "jobicy", "jooble", "adzuna"]
+                supplemental_order = ["lever", "indianapi"]
             elif query_domain == "security":
                 primary_order = ["greenhouse", "lever", "remotive", "jooble", "adzuna"]
                 supplemental_order = ["jobicy", "themuse", "indianapi"]
@@ -963,9 +967,9 @@ class JobAggregator:
                 )
                 return preferred_live
             if preferred_live and (
-                len(preferred_live) == primary_selected_count
+                (len(preferred_live) == primary_selected_count and query_domain != "data")
                 or elapsed_after_supplemental >= 18.0
-                or query_domain in {"data", "product", "design"}
+                or query_domain in {"product", "design"}
             ):
                 self.last_fetch_diagnostics["stage_results"] = stage_results
                 self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
@@ -1223,6 +1227,12 @@ class JobAggregator:
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
         selection_debug["selected_sources"] = filtered_source_counts
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
+        if len(selected) < display_floor:
+            logger.info(
+                "Production selection debug for query=%s: %s",
+                query,
+                selection_debug,
+            )
         return selected[:limit]
 
     def _passes_final_live_guard(self, query: str, item: dict) -> bool:
@@ -1428,6 +1438,16 @@ class JobAggregator:
             return False
         if title_alignment <= -6.0:
             return False
+        if (
+            query_domain == "data"
+            and not explicit_alignment
+            and title_precision <= 0
+            and title_overlap == 0
+            and core_title_overlap == 0
+            and family_overlap == 0
+            and role_fit < 3.25
+        ):
+            return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
             return False
         if is_sparse_live_market_role(query):
@@ -1511,6 +1531,14 @@ class JobAggregator:
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
         if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
+            return False
+        if (
+            role_domain(query) == "data"
+            and title_overlap == 0
+            and family_overlap == 0
+            and self._title_precision_score(query, item) <= 0
+            and role_fit < 3.25
+        ):
             return False
         return (
             (domain_score >= 2 and skill_overlap >= 1.0)

@@ -87,16 +87,17 @@ class TheMuseProvider:
                         if not external_id or external_id in seen_ids:
                             continue
                         seen_ids.add(external_id)
-                        description = strip_html(item.get("contents", "") or "")
+                        raw_description = strip_html(item.get("contents", "") or "")
                         title = item.get("name", "Unknown Role")
                         category_tags = [entry.get("name", "") for entry in (item.get("categories") or []) if entry.get("name")]
                         level_tags = [entry.get("name", "") for entry in (item.get("levels") or []) if entry.get("name")]
                         tags = [tag for tag in [*category_tags, *level_tags] if tag]
                         requirement_profile = extract_job_requirement_profile(
                             title=title,
-                            description=description,
+                            description=raw_description,
                             tags=tags,
                         )
+                        description = truncate(raw_description, 4000)
                         locations = [entry.get("name", "") for entry in (item.get("locations") or []) if entry.get("name")]
                         location_label = ", ".join(locations[:2]) or location_value or "Remote"
                         job = {

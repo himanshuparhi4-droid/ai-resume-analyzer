@@ -74,6 +74,12 @@ class LeverProvider:
         companies = self._companies_for_query(query)
         if not companies:
             return []
+        if settings.environment == "production":
+            query_domain = role_domain(query)
+            if query_domain == "data":
+                companies = companies[:3]
+            elif query_domain in {"software", "security"}:
+                companies = companies[:4]
 
         jobs: list[dict] = []
         seen_links: set[str] = set()
@@ -147,7 +153,7 @@ class LeverProvider:
 
         jobs: list[dict] = []
         for item in raw_jobs:
-            description = strip_html(
+            raw_description = strip_html(
                 str(item.get("descriptionPlain") or item.get("description") or "")
             )
             title = str(item.get("text") or "Unknown Role")
@@ -156,7 +162,8 @@ class LeverProvider:
             team = str(categories.get("team") or "").strip()
             commitment = str(categories.get("commitment") or "").strip()
             tags = [tag for tag in [team, commitment, company] if tag]
-            requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=tags)
+            requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=tags)
+            description = truncate(raw_description, 4000)
             jobs.append(
                 {
                     "source": self.source_name,

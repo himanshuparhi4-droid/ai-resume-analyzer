@@ -23,7 +23,8 @@ class JobicyProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
-        params = {"count": min(max(limit * 2, settings.production_live_candidate_fetch), 50)}
+        request_count = min(max(limit * 2, 16), 24) if settings.environment == "production" else min(max(limit * 2, settings.production_live_candidate_fetch), 50)
+        params = {"count": request_count}
         role_tag = (query or normalized_role).strip()
         if role_tag:
             params["tag"] = role_tag
@@ -36,16 +37,17 @@ class JobicyProvider:
         jobs: list[dict] = []
         for item in payload.get("jobs", []) or []:
             title = item.get("jobTitle", "Unknown Role")
-            description = strip_html(item.get("jobDescription", "") or item.get("jobExcerpt", "") or "")
+            raw_description = strip_html(item.get("jobDescription", "") or item.get("jobExcerpt", "") or "")
             industry_tags = [str(tag).replace("&amp;", "&").strip() for tag in (item.get("jobIndustry") or []) if str(tag).strip()]
             type_tags = [str(tag).strip() for tag in (item.get("jobType") or []) if str(tag).strip()]
             level = str(item.get("jobLevel", "")).strip()
             tags = [tag for tag in [*industry_tags, *type_tags, level] if tag]
             requirement_profile = extract_job_requirement_profile(
                 title=title,
-                description=description,
+                description=raw_description,
                 tags=tags,
             )
+            description = truncate(raw_description, 4000)
             jobs.append(
                 {
                     "source": self.source_name,
