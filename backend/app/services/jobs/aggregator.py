@@ -21,16 +21,19 @@ from app.services.jobs.remoteok import RemoteOKProvider
 from app.services.jobs.remotive import RemotiveProvider
 from app.services.jobs.themuse import TheMuseProvider
 from app.services.jobs.taxonomy import (
+    ABSTRACT_CANONICAL_QUERY_FAMILIES,
     GENERIC_ROLE_MATCH_TOKENS,
     STOPWORDS,
     canonical_role_alignment,
     dedupe_key,
     is_sparse_live_market_role,
     normalize_role,
+    provider_query_variations,
     production_query_variations,
     query_variations,
     role_domain,
     role_fit_score,
+    role_profile,
     role_market_hints,
     role_negative_title_hints,
     role_primary_hints,
@@ -103,6 +106,7 @@ FREE_AUTO_SOURCES = {
     "themuse",
     "greenhouse",
     "lever",
+    "indianapi",
     "jooble",
     "adzuna",
     "remoteok",
@@ -226,6 +230,8 @@ class JobAggregator:
             return source in {"remotive", "remoteok", "adzuna", "usajobs"}
         if source_name == "themuse":
             return source == "themuse"
+        if source_name == "indianapi":
+            return source in {"auto", "indianapi"}
         return source == source_name
 
     def _provider_requirement_state(self, source_name: str) -> tuple[bool, str]:
@@ -240,7 +246,7 @@ class JobAggregator:
         if source_name == "greenhouse":
             return (settings.has_greenhouse_boards or settings.environment == "production"), "missing_configuration"
         if source_name == "lever":
-            return settings.has_lever_companies, "missing_configuration"
+            return (settings.has_lever_companies or settings.environment == "production"), "missing_configuration"
         return True, "available"
 
     def _provider_availability_snapshot(self) -> list[dict]:
@@ -281,7 +287,7 @@ class JobAggregator:
             return 8.5
         if stage == "supplemental":
             return 10.0
-        return 6.0
+        return 8.0
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -298,9 +304,11 @@ class JobAggregator:
             settings.has_greenhouse_boards or settings.environment == "production"
         ):
             add(GreenhouseProvider())
-        if source in {"auto", "lever"} and settings.has_lever_companies:
+        if source in {"auto", "lever"} and (
+            settings.has_lever_companies or settings.environment == "production"
+        ):
             add(LeverProvider())
-        if source == "indianapi" and settings.has_indianapi_credentials:
+        if source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
             add(IndianAPIProvider())
         if source in {"auto", "jooble"} and settings.has_jooble_credentials:
             add(JoobleProvider())
@@ -311,6 +319,8 @@ class JobAggregator:
             add(RemotiveProvider())
             if source in {"auto", "themuse"}:
                 add(TheMuseProvider())
+            if source == "auto":
+                add(RemoteOKProvider())
             return providers
 
         if source == "remotive":
@@ -560,6 +570,7 @@ class JobAggregator:
         limit: int,
     ) -> list[dict]:
         query_domain = role_domain(query)
+        query_profile = role_profile(query)
 
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
@@ -573,7 +584,7 @@ class JobAggregator:
                 else:
                     provider_timeout = 10.0
             elif source_name == "lever":
-                provider_timeout = 8.0
+                provider_timeout = 10.0
             elif source_name == "jooble":
                 provider_timeout = 9.0
             elif source_name == "adzuna":
@@ -715,10 +726,10 @@ class JobAggregator:
         else:
             if query_domain == "data":
                 primary_order = ["remotive", "greenhouse", "jooble", "adzuna"]
-                supplemental_order = ["themuse", "jobicy", "lever", "indianapi"]
+                supplemental_order = ["themuse", "jobicy", "indianapi"]
             elif query_domain in {"product", "design"}:
                 primary_order = ["greenhouse", "jooble", "adzuna", "jobicy"]
-                supplemental_order = ["remotive", "themuse", "lever", "indianapi"]
+                supplemental_order = ["lever", "remotive", "themuse", "indianapi"]
             else:
                 primary_order = ["greenhouse", "lever", "jooble", "adzuna", "jobicy"]
                 supplemental_order = ["remotive", "themuse"]
@@ -726,6 +737,13 @@ class JobAggregator:
             primary_sources = [source for source in primary_order if source in source_groups]
             supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
         fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
+        if query_domain not in {"software", "security"}:
+            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
+        elif (
+            query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
+            or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
+        ):
+            fallback_sources = [source for source in fallback_sources if source != "remoteok"]
         self.last_fetch_diagnostics["provider_plan"] = {
             "active_sources": sorted(source_groups.keys()),
             "primary_sources": primary_sources,
@@ -1480,79 +1498,10 @@ class JobAggregator:
         if not getattr(provider, "supports_query_variations", True):
             normalized = normalize_role(query)
             return [normalized or query]
+        source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
         if settings.environment == "production":
-            source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
-            normalized_query = normalize_role(query)
-            variations = production_query_variations(query)
-            if source_name == "greenhouse":
-                if normalized_query in {
-                    "data analyst",
-                    "data scientist",
-                    "data engineer",
-                    "machine learning engineer",
-                    "software engineer",
-                    "frontend developer",
-                    "full stack developer",
-                    "devops engineer",
-                    "cybersecurity engineer",
-                    "qa engineer",
-                    "database engineer",
-                    "product manager",
-                    "ui/ux designer",
-                }:
-                    return variations[:1]
-                return variations[:2]
-            if source_name == "remotive":
-                if normalized_query == "full stack developer":
-                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
-                if normalized_query in {
-                    "data analyst",
-                    "data scientist",
-                    "data engineer",
-                    "machine learning engineer",
-                    "database engineer",
-                    "cybersecurity engineer",
-                }:
-                    return variations[:2]
-                return variations[:3]
-            if source_name in {"jooble", "adzuna"}:
-                if normalized_query == "full stack developer":
-                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
-                if normalized_query in {
-                    "data analyst",
-                    "data scientist",
-                    "data engineer",
-                    "machine learning engineer",
-                    "software engineer",
-                    "frontend developer",
-                    "devops engineer",
-                    "cybersecurity engineer",
-                    "qa engineer",
-                    "database engineer",
-                    "product manager",
-                    "ui/ux designer",
-                }:
-                    return variations[:2]
-                return variations[:1]
-            if source_name == "jobicy":
-                if normalized_query == "full stack developer":
-                    return [item for item in variations if item in {"full stack developer", "fullstack developer", "mern developer"}][:2]
-                if normalized_query in {
-                    "data analyst",
-                    "data scientist",
-                    "data engineer",
-                    "machine learning engineer",
-                    "database engineer",
-                    "cybersecurity engineer",
-                    "qa engineer",
-                    "support engineer",
-                    "enterprise applications engineer",
-                    "technical writer",
-                }:
-                    return variations[:1]
-                return variations[:2]
-            return variations[:4]
-        return query_variations(query)
+            return provider_query_variations(query, source_name, production=True)
+        return provider_query_variations(query, source_name, production=False)
 
     def _search_locations(self, provider: object, location: str) -> list[str]:
         if not getattr(provider, "supports_location_variations", True):

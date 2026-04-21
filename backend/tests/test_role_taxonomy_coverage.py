@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import unittest
 
-from app.services.jobs.taxonomy import normalize_role, role_domain
+from app.services.jobs.taxonomy import (
+    normalize_role,
+    provider_query_variations,
+    role_domain,
+    role_market_hints,
+    role_primary_hints,
+    role_profile,
+    role_title_hints,
+)
 
 
 ROLE_EXPECTATIONS = {
@@ -136,6 +144,41 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
                 canonical = normalize_role(role)
                 self.assertEqual(canonical, expected_canonical)
                 self.assertEqual(role_domain(canonical), expected_domain)
+
+    def test_unlisted_specialized_roles_infer_domain_and_keep_specialty(self) -> None:
+        cases = {
+            "Robotics Software Engineer": ("software", {"robotics software engineer", "robotics engineer"}),
+            "Cloud Security Architect": ("security", {"cloud security architect", "security engineer"}),
+            "Computer Vision Engineer": ("data", {"computer vision engineer", "machine learning engineer"}),
+            "Salesforce Admin": ("software", {"salesforce admin", "salesforce developer"}),
+        }
+        for role, (expected_domain, expected_queries) in cases.items():
+            with self.subTest(role=role):
+                profile = role_profile(role)
+                self.assertEqual(profile.domain, expected_domain)
+                queries = set(provider_query_variations(role, "remotive", production=True))
+                self.assertTrue(expected_queries & queries)
+
+    def test_indianapi_uses_same_universal_query_planner(self) -> None:
+        queries = provider_query_variations("Technical Support Engineer", "indianapi", production=True)
+        self.assertIn("technical support engineer", queries)
+        self.assertLessEqual(len(queries), 2)
+
+    def test_specialty_queries_contribute_dynamic_hints(self) -> None:
+        salesforce_primary = role_primary_hints("Salesforce Admin")
+        self.assertIn("salesforce", salesforce_primary)
+        self.assertIn("apex", salesforce_primary)
+        self.assertIn("salesforce", role_title_hints("Salesforce Admin"))
+
+        vision_market = role_market_hints("Computer Vision Engineer")
+        self.assertIn("computer vision", vision_market)
+        self.assertIn("opencv", vision_market)
+        self.assertIn("pytorch", vision_market)
+
+        security_primary = role_primary_hints("Cloud Security Architect")
+        self.assertIn("cloud security", security_primary)
+        self.assertIn("iam", security_primary)
+        self.assertIn("splunk", security_primary)
 
 
 if __name__ == "__main__":

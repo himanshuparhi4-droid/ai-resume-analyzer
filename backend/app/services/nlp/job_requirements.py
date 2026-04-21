@@ -110,6 +110,71 @@ TITLE_IMPLIED_SKILLS = {
         "tensorflow": 0.48,
         "scikit-learn": 0.44,
     },
+    "computer vision": {
+        "computer vision": 0.76,
+        "python": 0.58,
+        "machine learning": 0.72,
+        "pytorch": 0.64,
+        "tensorflow": 0.58,
+        "opencv": 0.6,
+    },
+    "nlp": {
+        "nlp": 0.78,
+        "python": 0.58,
+        "machine learning": 0.72,
+        "pytorch": 0.62,
+        "tensorflow": 0.56,
+    },
+    "deep learning": {
+        "deep learning": 0.78,
+        "python": 0.56,
+        "machine learning": 0.74,
+        "pytorch": 0.64,
+        "tensorflow": 0.6,
+    },
+    "cloud security": {
+        "cloud security": 0.78,
+        "iam": 0.66,
+        "splunk": 0.52,
+        "siem": 0.6,
+        "incident response": 0.58,
+        "vulnerability management": 0.54,
+        "firewall": 0.48,
+    },
+    "security engineer": {
+        "cloud security": 0.6,
+        "iam": 0.56,
+        "splunk": 0.48,
+        "siem": 0.54,
+        "incident response": 0.52,
+        "vulnerability management": 0.48,
+    },
+    "site reliability": {
+        "monitoring": 0.72,
+        "aws": 0.6,
+        "kubernetes": 0.58,
+        "terraform": 0.54,
+        "linux": 0.48,
+        "ci/cd": 0.46,
+    },
+    "devops": {
+        "aws": 0.68,
+        "kubernetes": 0.6,
+        "terraform": 0.58,
+        "docker": 0.56,
+        "linux": 0.48,
+        "ci/cd": 0.5,
+        "monitoring": 0.46,
+    },
+    "salesforce": {
+        "salesforce": 0.82,
+        "apex": 0.62,
+        "crm": 0.6,
+        "api": 0.4,
+    },
+    "oracle": {"sql": 0.56, "erp": 0.5, "api": 0.34},
+    "sap": {"erp": 0.62, "sql": 0.38},
+    "microsoft dynamics": {"crm": 0.62, "erp": 0.54, "api": 0.34},
     "teacher": {"lesson planning": 0.64, "classroom management": 0.66, "curriculum development": 0.6},
     "lecturer": {"lesson planning": 0.6, "curriculum development": 0.64, "student assessment": 0.52, "pedagogy": 0.48},
     "professor": {"curriculum development": 0.62, "student assessment": 0.5, "pedagogy": 0.46},
@@ -245,7 +310,7 @@ GENERIC_SKILL_NOISE = {
 }
 GENERIC_PHRASE_SPLIT_RE = re.compile(r"\s*(?:,|;|\||/|\u2022|\u00b7|\band\b|\bor\b)\s*", re.IGNORECASE)
 LEADING_REQUIREMENT_RE = re.compile(
-    r"^(?:requirements?|qualifications?|skills?|must have|nice to have|good to have|bonus|experience with|experience in|proficiency in|knowledge of|knowledge in|skilled in|familiarity with|expertise in|tools?|tech stack|stack|exposure to)\s*[:\-]?\s*",
+    r"^(?:requirements?|qualifications?|skills?|preferred|must have|nice to have|good to have|bonus|experience with|experience in|proficiency in|knowledge of|knowledge in|skilled in|familiarity with|expertise in|tools?|tech stack|stack|exposure to)\s*[:\-]?\s*",
     re.IGNORECASE,
 )
 NON_SKILL_OPENERS = (
@@ -315,6 +380,28 @@ ALLOWED_UNKNOWN_SINGLETONS = {
     "kubernetes",
     "docker",
 }
+ALLOWED_SKILL_COMPONENTS = {
+    "access",
+    "cloud",
+    "compute",
+    "computer",
+    "deep",
+    "event",
+    "identity",
+    "incident",
+    "language",
+    "learning",
+    "management",
+    "network",
+    "processing",
+    "reliability",
+    "response",
+    "resource",
+    "security",
+    "site",
+    "vision",
+    "vulnerability",
+}
 SCIENTIFIC_TITLE_HINTS = (
     "data scientist",
     "machine learning",
@@ -344,6 +431,28 @@ SCIENTIFIC_GENERIC_BUSINESS_SKILLS = {
     "business intelligence",
     "excel",
 }
+SPECIALIST_TITLE_PROFILES = {
+    "scientific": {
+        "patterns": SCIENTIFIC_TITLE_HINTS,
+        "core_skills": SCIENTIFIC_CORE_SKILLS | {"computer vision", "deep learning"},
+        "generic_skills": SCIENTIFIC_GENERIC_BUSINESS_SKILLS,
+    },
+    "security": {
+        "patterns": ("security", "cybersecurity", "security engineer", "security analyst", "soc", "iam", "cloud security"),
+        "core_skills": {"cloud security", "network security", "siem", "splunk", "iam", "incident response", "vulnerability management", "security operations", "penetration testing", "firewall"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "devops": {
+        "patterns": ("devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"),
+        "core_skills": {"aws", "ec2", "lambda", "cloudformation", "docker", "kubernetes", "terraform", "linux", "ci/cd", "monitoring"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "enterprise": {
+        "patterns": ("salesforce", "oracle", "sap", "microsoft dynamics", "crm", "erp"),
+        "core_skills": {"salesforce", "apex", "crm", "erp", "sql", "api"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence"},
+    },
+}
 LOW_SIGNAL_SENTENCE_HINTS = (
     "equal opportunity",
     "equal employment opportunity",
@@ -359,11 +468,18 @@ LOW_SIGNAL_SENTENCE_HINTS = (
 )
 CANONICAL_SKILL_ALIASES = {
     "analytics": "data analysis",
+    "amazon web services": "aws",
     "bi": "business intelligence",
+    "customer relationship management": "crm",
+    "elastic compute cloud": "ec2",
+    "enterprise resource planning": "erp",
+    "identity and access management": "iam",
+    "natural language processing": "nlp",
     "powerbi": "power bi",
     "power query": "power bi",
     "power pivot": "power bi",
     "google data studio": "looker",
+    "security information and event management": "siem",
     "looker studio": "looker",
     "dashboards": "dashboarding",
     "dashboard": "dashboarding",
@@ -373,6 +489,14 @@ CANONICAL_SKILL_ALIASES = {
     "visualisation": "data visualization",
     "visualization": "data visualization",
 }
+
+
+def _matched_specialist_title_profiles(title_lower: str) -> set[str]:
+    matched = set()
+    for profile_name, config in SPECIALIST_TITLE_PROFILES.items():
+        if any(pattern in title_lower for pattern in config["patterns"]):
+            matched.add(profile_name)
+    return matched
 
 
 def _normalize_candidate_skill(label: str) -> str:
@@ -417,9 +541,18 @@ def _is_valid_candidate_skill(skill: str) -> bool:
         return False
     if len(tokens) >= 2 and skill not in KNOWN_SKILLS:
         content_tokens = [token for token in tokens if token not in {"and", "or", "with", "for", "the", "a", "an", "to", "of", "in"}]
+        if len(content_tokens) > 3:
+            return False
         if not any(token in KNOWN_SKILLS for token in content_tokens):
             if not any(token in {"sql", "aws", "api", "etl", "seo", "crm", "erp", "siem", "iam", "soc"} for token in content_tokens):
                 return False
+        if any(
+            token not in KNOWN_SKILLS
+            and token not in ALLOWED_UNKNOWN_SINGLETONS
+            and token not in ALLOWED_SKILL_COMPONENTS
+            for token in content_tokens
+        ):
+            return False
     stopword_ratio = sum(1 for token in skill.split() if token in {"and", "or", "with", "for", "the", "a", "an", "to", "of"}) / max(len(skill.split()), 1)
     if stopword_ratio > 0.5:
         return False
@@ -517,6 +650,17 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
     explicit_matches = extract_skill_matches(full_text, source=source)
     extracted_skills = set()
     scientific_title = any(hint in title_lower for hint in SCIENTIFIC_TITLE_HINTS)
+    specialist_profiles = _matched_specialist_title_profiles(title_lower)
+    specialist_core_skills = {
+        skill
+        for profile_name in specialist_profiles
+        for skill in SPECIALIST_TITLE_PROFILES[profile_name]["core_skills"]
+    }
+    specialist_generic_skills = {
+        skill
+        for profile_name in specialist_profiles
+        for skill in SPECIALIST_TITLE_PROFILES[profile_name]["generic_skills"]
+    }
 
     for title_key, implied_skills in TITLE_IMPLIED_SKILLS.items():
         if title_key not in title_lower:
@@ -651,6 +795,15 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
             and skill in SCIENTIFIC_GENERIC_BUSINESS_SKILLS
             and evidence_counts[skill] < 2
             and skill not in extracted_skills
+        ):
+            adjusted_weight = min(adjusted_weight, 0.34)
+        if skill in specialist_core_skills:
+            adjusted_weight = min(1.0, adjusted_weight + 0.06)
+        if (
+            specialist_profiles
+            and skill in specialist_generic_skills
+            and evidence_counts[skill] < 3
+            and skill not in title_lower
         ):
             adjusted_weight = min(adjusted_weight, 0.34)
         normalized_weights[skill] = round(adjusted_weight, 2)

@@ -1,15 +1,67 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import normalize_role, role_domain, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
 _LEVER_BOARD_CACHE: dict[str, dict] = {}
+
+_CURATED_LEVER_COMPANIES = {
+    "data": [
+        "plaid",
+        "dnb",
+        "pipedrive",
+        "caseware",
+        "questanalytics",
+    ],
+    "software": [
+        "palantir",
+        "plaid",
+        "gohighlevel",
+        "greenlight",
+        "spreetail",
+        "thinkahead",
+        "cti-md",
+    ],
+    "security": [
+        "palantir",
+        "plaid",
+        "dnb",
+        "cti-md",
+    ],
+    "product": [
+        "pipedrive",
+        "greenlight",
+        "highspot",
+        "caseware",
+        "plaid",
+    ],
+    "design": [
+        "greenlight",
+        "highspot",
+        "pipedrive",
+        "caseware",
+    ],
+}
+
+_ROLE_SPECIFIC_LEVER_COMPANIES = {
+    "data analyst": ["plaid", "dnb", "pipedrive", "caseware", "questanalytics"],
+    "data scientist": ["plaid", "dnb", "palantir", "caseware"],
+    "data engineer": ["plaid", "palantir", "dnb", "caseware", "pipedrive"],
+    "software engineer": ["palantir", "plaid", "gohighlevel", "greenlight", "spreetail", "thinkahead"],
+    "full stack developer": ["palantir", "gohighlevel", "greenlight", "spreetail", "thinkahead"],
+    "frontend developer": ["palantir", "greenlight", "gohighlevel", "pipedrive", "highspot"],
+    "devops engineer": ["thinkahead", "cti-md", "gohighlevel", "greenlight", "plaid"],
+    "cybersecurity engineer": ["palantir", "plaid", "dnb", "cti-md"],
+    "product manager": ["pipedrive", "greenlight", "highspot", "caseware", "plaid"],
+    "ui/ux designer": ["greenlight", "highspot", "pipedrive", "caseware"],
+}
 
 
 class LeverProvider:
@@ -18,13 +70,18 @@ class LeverProvider:
     supports_location_variations = False
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
-        if not settings.has_lever_companies:
+        companies = self._companies_for_query(query)
+        if not companies:
             return []
 
         jobs: list[dict] = []
         seen_links: set[str] = set()
-        for company in settings.lever_company_tokens:
-            for item in await self._fetch_company_jobs(company):
+        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
+            company_results = await asyncio.gather(
+                *(self._fetch_company_jobs(company, client=client) for company in companies)
+            )
+        for company_jobs in company_results:
+            for item in company_jobs:
                 link = str(item.get("url") or item.get("external_id") or "").strip()
                 if not link or link in seen_links:
                     continue
@@ -60,7 +117,18 @@ class LeverProvider:
         )
         return ranked[:target_candidates]
 
-    async def _fetch_company_jobs(self, company: str) -> list[dict]:
+    def _companies_for_query(self, query: str) -> list[str]:
+        normalized = normalize_role(query)
+        if settings.has_lever_companies:
+            return settings.lever_company_tokens
+        if settings.environment != "production":
+            return []
+        specific = _ROLE_SPECIFIC_LEVER_COMPANIES.get(normalized)
+        if specific:
+            return list(specific)
+        return list(_CURATED_LEVER_COMPANIES.get(role_domain(query) or "", []))
+
+    async def _fetch_company_jobs(self, company: str, *, client: httpx.AsyncClient) -> list[dict]:
         cached = _LEVER_BOARD_CACHE.get(company)
         now = datetime.now(UTC)
         ttl = timedelta(minutes=settings.ats_board_cache_ttl_minutes)
@@ -69,10 +137,9 @@ class LeverProvider:
 
         endpoint = f"{settings.lever_base_url}/{company}"
         params = {"mode": "json"}
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
-            response = await client.get(endpoint, params=params)
-            response.raise_for_status()
-            raw_jobs = response.json()
+        response = await client.get(endpoint, params=params)
+        response.raise_for_status()
+        raw_jobs = response.json()
 
         jobs: list[dict] = []
         for item in raw_jobs:
