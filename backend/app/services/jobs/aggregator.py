@@ -642,16 +642,16 @@ class JobAggregator:
                 provider_timeout = 8.5
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 12.0
+                    provider_timeout = 10.0
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 11.0
+                    provider_timeout = 10.0
                 else:
                     provider_timeout = 8.5
             elif source_name == "lever":
                 if query_domain == "data":
-                    provider_timeout = 18.0
+                    provider_timeout = 9.5
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 10.0
+                    provider_timeout = 9.0
                 else:
                     provider_timeout = 8.5
             elif source_name == "jooble":
@@ -841,8 +841,8 @@ class JobAggregator:
                     "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["themuse"]
-                fallback_order = ["greenhouse", "lever"]
+                supplemental_order = ["greenhouse", "themuse"]
+                fallback_order = ["lever"]
             elif query_domain == "security":
                 primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
                     "remotive",
@@ -851,8 +851,8 @@ class JobAggregator:
                     "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["themuse"]
-                fallback_order = ["greenhouse", "lever"]
+                supplemental_order = ["greenhouse", "themuse"]
+                fallback_order = ["lever"]
             elif query_domain == "software":
                 primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
                     "remotive",
@@ -861,8 +861,8 @@ class JobAggregator:
                     "adzuna",
                     "indianapi",
                 ]
-                supplemental_order = ["themuse"]
-                fallback_order = ["greenhouse", "lever"]
+                supplemental_order = ["greenhouse", "themuse"]
+                fallback_order = ["lever"]
             elif query_domain in {"product", "design"}:
                 primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
                 supplemental_order = ["greenhouse", "lever"]
@@ -882,12 +882,9 @@ class JobAggregator:
         )
         if query_domain not in {"software", "security"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
-        if (
-            query_domain == "data"
-            and any(source in fallback_sources for source in {"greenhouse", "lever"})
-        ):
-            ordered_data_fallback = [source for source in ("greenhouse", "lever") if source in fallback_sources]
-            fallback_sources = ordered_data_fallback + [
+        if query_domain in {"data", "software", "security"} and any(source in fallback_sources for source in {"greenhouse", "lever"}):
+            ordered_dense_fallback = [source for source in ("greenhouse", "lever") if source in fallback_sources]
+            fallback_sources = ordered_dense_fallback + [
                 source for source in fallback_sources if source not in {"greenhouse", "lever"}
             ]
         elif (
@@ -1040,8 +1037,14 @@ class JobAggregator:
         if fallback_providers:
             elapsed_before_fallback = time.perf_counter() - fetch_started_at
             remaining_budget = max(settings.production_live_runtime_cap_seconds - elapsed_before_fallback, 0.0)
+            dense_role_live_guard = (
+                query_domain in {"data", "software", "security"}
+                and len(preferred_live) >= min(limit, 2)
+                and (remaining_budget <= 9.0 or elapsed_before_fallback >= 24.0)
+            )
             if preferred_live and (
                 len(preferred_live) >= partial_live_floor
+                or dense_role_live_guard
                 or (remaining_budget <= 6.0 and query_domain not in {"data", "software", "security"})
             ):
                 self.last_fetch_diagnostics["stage_results"] = stage_results
@@ -1057,7 +1060,7 @@ class JobAggregator:
                     "partial_live_floor": partial_live_floor,
                     "elapsed_seconds": round(elapsed_before_fallback, 2),
                     "remaining_budget_seconds": round(remaining_budget, 2),
-                    "reason": "preserve_response_budget",
+                    "reason": "dense_role_budget_guard" if dense_role_live_guard else "preserve_response_budget",
                 }
                 logger.info(
                     "Skipping fallback stage and returning %s live jobs with %ss remaining budget for query=%s",
@@ -1104,8 +1107,11 @@ class JobAggregator:
         if not live_jobs:
             return []
 
+        query_profile = role_profile(query)
+        exact_precision_query = self._uses_strict_precision_guard(query)
         target_live_count = self._production_live_target(query=query, limit=limit)
         display_floor = self._production_display_floor(query=query, limit=limit)
+        partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
 
         ranked = sorted(
             live_jobs,
@@ -1124,7 +1130,9 @@ class JobAggregator:
             reverse=True,
         )
         precision_guarded = [item for item in ranked if self._passes_precise_query_guard(query, item)]
-        if precision_guarded and len(precision_guarded) >= display_floor:
+        if exact_precision_query:
+            ranked = precision_guarded
+        elif precision_guarded and len(precision_guarded) >= display_floor:
             ranked = precision_guarded
         elif precision_guarded:
             ranked = precision_guarded + [item for item in ranked if item not in precision_guarded]
@@ -1144,6 +1152,8 @@ class JobAggregator:
             "ranked_candidates": len(ranked),
             "precision_guarded_candidates": len(precision_guarded),
             "active_source_count": active_source_count,
+            "exact_precision_query": int(exact_precision_query),
+            "partial_live_floor": partial_live_floor,
         }
 
         def source_selection_cap(source: str) -> int:
@@ -1324,8 +1334,14 @@ class JobAggregator:
             return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
             return False
+        # This is the over-strict guard identified in the handoff document.
+        # It rejects relevant jobs (like 'BI Analyst' for a 'Data Analyst' query)
+        # if their titles don't perfectly match simple heuristics, causing an unrepresentative market sample.
         if query_domain == "data" and title_precision <= 0 and title_overlap == 0 and family_overlap == 0 and core_title_overlap == 0:
-            return False
+            # We add an "escape hatch": if all title heuristics fail, we still accept the job
+            # if its overall role_fit_score is high enough, preserving accuracy.
+            if role_fit < 3.5:
+                return False
         if query_domain == "data" and canonical_alignment < 0 and title_overlap == 0 and title_precision <= 0:
             return False
         if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
@@ -1333,14 +1349,14 @@ class JobAggregator:
         return True
 
     def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
+        profile = role_profile(query)
         raw_query = self._query_signature(query)
-        normalized_query = self._query_signature(normalize_role(query))
         raw_tokens = [
             token
             for token in raw_query.split()
             if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
         ]
-        if not raw_tokens or raw_query == normalized_query or len(raw_tokens) > 2:
+        if not raw_tokens:
             return True
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
@@ -1350,7 +1366,8 @@ class JobAggregator:
         tags_text = " ".join(self._query_signature(tag) for tag in item.get("tags", []) if str(tag).strip())
         if self._is_mobile_web_mismatch(query, title_text):
             return False
-        raw_phrase_hit = raw_query in title_text or raw_query in description_text or raw_query in tags_text
+        matched_title_hints = self._matched_title_hints(query, item)
+        raw_phrase_title_hit = raw_query in title_text or raw_query in tags_text
         raw_token_hits = sum(
             1
             for token in raw_tokens
@@ -1358,15 +1375,69 @@ class JobAggregator:
             or re.search(rf"\b{re.escape(token)}\b", description_text)
             or re.search(rf"\b{re.escape(token)}\b", tags_text)
         )
-        if raw_phrase_hit or raw_token_hits >= 1:
+        raw_title_token_hits = sum(
+            1
+            for token in raw_tokens
+            if re.search(rf"\b{re.escape(token)}\b", title_text)
+            or re.search(rf"\b{re.escape(token)}\b", tags_text)
+        )
+        title_hint_overlap = self._title_hint_overlap(query, item)
+        title_precision = self._title_precision_score(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        multi_word_title_hint_hit = any(" " in hint for hint in matched_title_hints)
+
+        exact_precision_query = self._uses_strict_precision_guard(query)
+
+        if exact_precision_query:
+            if raw_phrase_title_hit:
+                return True
+            if multi_word_title_hint_hit:
+                return True
+            if len(raw_tokens) >= 2 and raw_title_token_hits >= 2:
+                return True
+            if title_precision >= 2 and core_title_overlap >= 2:
+                return True
+            return False
+
+        if raw_phrase_title_hit or raw_token_hits >= 1:
             return True
-        if self._title_hint_overlap(query, item) >= 1:
+        if title_hint_overlap >= 1:
             return True
-        if self._title_precision_score(query, item) >= 2:
+        if title_precision >= 2:
             return True
         if self._skill_overlap_score(query, item) >= 1.5 and self._role_domain_match_score(query, item) >= 2:
             return True
         return False
+
+    def _uses_strict_precision_guard(self, query: str) -> bool:
+        profile = role_profile(query)
+        if profile.cleaned_query == profile.normalized_role:
+            return True
+        if len(profile.cleaned_query.split()) < 2:
+            return False
+        alias_target = profile.family_role or profile.normalized_role
+        if not alias_target:
+            return False
+        known_aliases = {
+            self._query_signature(alias)
+            for alias in (
+                provider_query_variations(alias_target, "jobicy", production=True)
+                + production_query_variations(alias_target)
+            )
+            if alias
+        }
+        return profile.cleaned_query in known_aliases or profile.cleaned_query in {
+            self._query_signature(hint) for hint in role_title_hints(query)
+        }
+
+    def _matched_title_hints(self, query: str, item: dict) -> set[str]:
+        title = str(item.get("title", "")).lower()
+        matched: set[str] = set()
+        for hint in role_title_hints(query):
+            pattern = rf"\b{re.escape(hint)}\b" if " " not in hint else re.escape(hint)
+            if re.search(pattern, title):
+                matched.add(hint)
+        return matched
 
     def _is_mobile_web_mismatch(self, query: str, title_text: str) -> bool:
         normalized_query = normalize_role(query)
@@ -1640,14 +1711,7 @@ class JobAggregator:
         )
 
     def _title_hint_overlap(self, query: str, item: dict) -> int:
-        title = str(item.get("title", "")).lower()
-        hints = role_title_hints(query)
-        overlap = 0
-        for hint in hints:
-            pattern = rf"\b{re.escape(hint)}\b" if " " not in hint else re.escape(hint)
-            if re.search(pattern, title):
-                overlap += 1
-        return overlap
+        return len(self._matched_title_hints(query, item))
 
     def _family_token_overlap(self, query: str, item: dict) -> int:
         raw_title = re.sub(r"[^a-z0-9+]+", " ", str(item.get("title", "")).lower())
@@ -1690,7 +1754,7 @@ class JobAggregator:
             return min(limit, 1)
         query_domain = role_domain(query)
         if query_domain in {"data", "security", "software"}:
-            return min(limit, 5)
+            return min(limit, 3)
         return min(limit, 2)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:

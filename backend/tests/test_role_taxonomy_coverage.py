@@ -5,6 +5,7 @@ import unittest
 from app.services.jobs.taxonomy import (
     normalize_role,
     provider_query_variations,
+    production_query_variations,
     role_domain,
     role_family,
     role_market_hints,
@@ -201,6 +202,20 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertEqual(profile.normalized_role, "data engineer")
         self.assertEqual(profile.family_role, "data engineer")
         self.assertEqual(profile.domain, "data")
+
+    def test_explicit_canonical_roles_do_not_drift_into_sibling_production_queries(self) -> None:
+        analyst_queries = production_query_variations("Data Analyst")
+        self.assertIn("data analyst", analyst_queries)
+        self.assertIn("reporting analyst", analyst_queries)
+        self.assertNotIn("data scientist", analyst_queries)
+        self.assertNotIn("data engineer", analyst_queries)
+        self.assertNotIn("data specialist", analyst_queries)
+
+        scientist_queries = production_query_variations("Data Scientist")
+        self.assertIn("data scientist", scientist_queries)
+        self.assertIn("applied scientist", scientist_queries)
+        self.assertNotIn("data analyst", scientist_queries)
+        self.assertNotIn("data engineer", scientist_queries)
 
 
 if __name__ == "__main__":

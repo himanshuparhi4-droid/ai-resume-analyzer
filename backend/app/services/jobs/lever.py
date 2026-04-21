@@ -79,9 +79,9 @@ class LeverProvider:
         if settings.environment == "production":
             query_domain = role_domain(query)
             if query_domain == "data":
-                companies = companies[:3]
+                companies = companies[:2]
             elif query_domain in {"software", "security"}:
-                companies = companies[:4]
+                companies = companies[:3]
 
         jobs: list[dict] = []
         seen_links: set[str] = set()

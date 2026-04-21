@@ -118,8 +118,8 @@ class GreenhouseProvider:
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             if normalized_query in {"software engineer", "full stack developer", "frontend developer", "devops engineer"}:
-                detail_fetch_budget = min(max(limit + 4, 12), 18)
-                board_budget = 3
+                detail_fetch_budget = min(max(limit + 2, 10), 14)
+                board_budget = 2
             elif normalized_query in {
                 "data analyst",
                 "data scientist",
@@ -135,8 +135,8 @@ class GreenhouseProvider:
                 # detail hydration is the expensive part. For dense non-software
                 # families we only need a narrower ATS sample to surface enough
                 # live jobs before the orchestrator budget expires.
-                detail_fetch_budget = min(max(limit + 2, 10), 12)
-                board_budget = 3
+                detail_fetch_budget = min(max(limit + 1, 8), 10)
+                board_budget = 2
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
                 board_budget = 4

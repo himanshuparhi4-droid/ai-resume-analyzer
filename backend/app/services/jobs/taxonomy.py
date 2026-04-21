@@ -1293,6 +1293,18 @@ def _meaningful_raw_query(raw_cleaned: str, normalized: str) -> bool:
     return True
 
 
+def _preserve_exact_canonical_query(profile: RoleProfile) -> bool:
+    if profile.normalized_role not in ROLE_FAMILY_CANONICALS:
+        return False
+    if profile.cleaned_query != profile.normalized_role:
+        return False
+    specialty_tokens = {token for token in profile.specialty_tokens if token}
+    if not specialty_tokens:
+        return True
+    normalized_tokens = set(profile.normalized_role.split())
+    return specialty_tokens <= normalized_tokens
+
+
 def _head_query_variants(profile: RoleProfile) -> list[str]:
     if profile.head_terms:
         variants: list[str] = []
@@ -1441,10 +1453,9 @@ def role_query_tokens(query: str) -> set[str]:
 def query_variations(query: str) -> list[str]:
     profile = role_profile(query)
     canonical_role = profile.family_role or profile.normalized_role
-    variations = [
-        *_generic_query_expansions(profile),
-        *ROLE_SEARCH_VARIATIONS.get(canonical_role, [canonical_role]),
-    ]
+    variations = [*ROLE_SEARCH_VARIATIONS.get(canonical_role, [canonical_role])]
+    if not _preserve_exact_canonical_query(profile):
+        variations = [*_generic_query_expansions(profile), *variations]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
     return list(dict.fromkeys(item for item in variations if item))
@@ -1453,10 +1464,9 @@ def query_variations(query: str) -> list[str]:
 def production_query_variations(query: str) -> list[str]:
     profile = role_profile(query)
     canonical_role = profile.family_role or profile.normalized_role
-    variations = [
-        *_generic_query_expansions(profile),
-        *ROLE_PRODUCTION_VARIATIONS.get(canonical_role, [canonical_role]),
-    ]
+    variations = [*ROLE_PRODUCTION_VARIATIONS.get(canonical_role, [canonical_role])]
+    if not _preserve_exact_canonical_query(profile):
+        variations = [*_generic_query_expansions(profile), *variations]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
