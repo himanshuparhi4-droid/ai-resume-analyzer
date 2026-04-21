@@ -32,6 +32,7 @@ from app.services.jobs.taxonomy import (
     production_query_variations,
     query_variations,
     role_domain,
+    role_family,
     role_fit_score,
     role_profile,
     role_market_hints,
@@ -301,6 +302,10 @@ class JobAggregator:
                 return 20.0
             return 8.0
         return 6.5
+
+    def _is_india_focused_location(self, location: str) -> bool:
+        lowered = normalize_role(location)
+        return bool(lowered and any(hint in lowered for hint in INDIA_LOCATION_HINTS))
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -821,41 +826,70 @@ class JobAggregator:
             source_groups.setdefault(str(getattr(provider, "source_name", provider.__class__.__name__)).lower(), []).append(provider)
 
         stage_results: list[dict] = []
+        india_focused_location = self._is_india_focused_location(location)
+
+        fallback_order: list[str] = []
         if sparse_role:
             primary_sources = ["remotive"]
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                # Keep the first pass on the fastest broad data sources, then
-                # widen with ATS-heavy providers. Greenhouse gives excellent
-                # analyst/scientist titles, but in practice it is more stable
-                # when allowed to finish in the widening stage instead of
-                # competing inside the primary soft timeout.
-                primary_order = ["remotive", "jobicy", "jooble", "adzuna"]
-                supplemental_order = ["greenhouse", "lever", "themuse", "indianapi"]
+                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                    "remotive",
+                    "jobicy",
+                    "jooble",
+                    "adzuna",
+                    "indianapi",
+                ]
+                supplemental_order = ["themuse"]
+                fallback_order = ["greenhouse", "lever"]
             elif query_domain == "security":
-                primary_order = ["greenhouse", "lever", "remotive", "jooble", "adzuna"]
-                supplemental_order = ["jobicy", "themuse", "indianapi"]
+                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                    "remotive",
+                    "jobicy",
+                    "jooble",
+                    "adzuna",
+                    "indianapi",
+                ]
+                supplemental_order = ["themuse"]
+                fallback_order = ["greenhouse", "lever"]
             elif query_domain == "software":
-                primary_order = ["greenhouse", "lever", "remotive", "jobicy", "jooble", "adzuna"]
-                supplemental_order = ["themuse", "indianapi"]
+                primary_order = ["indianapi", "remotive", "jobicy", "jooble", "adzuna"] if india_focused_location else [
+                    "remotive",
+                    "jobicy",
+                    "jooble",
+                    "adzuna",
+                    "indianapi",
+                ]
+                supplemental_order = ["themuse"]
+                fallback_order = ["greenhouse", "lever"]
             elif query_domain in {"product", "design"}:
-                primary_order = ["greenhouse", "jobicy", "themuse", "jooble", "adzuna"]
-                supplemental_order = ["lever", "remotive", "indianapi"]
+                primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
+                supplemental_order = ["greenhouse", "lever"]
+                fallback_order = []
             else:
-                primary_order = ["greenhouse", "lever", "jooble", "adzuna", "jobicy"]
-                supplemental_order = ["remotive", "themuse"]
+                primary_order = ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
+                supplemental_order = ["greenhouse", "lever"]
+                fallback_order = []
 
             primary_sources = [source for source in primary_order if source in source_groups]
             supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
-        fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
+        fallback_sources = [source for source in fallback_order if source in source_groups and source not in {*primary_sources, *supplemental_sources}]
+        fallback_sources.extend(
+            source
+            for source in source_groups.keys()
+            if source not in {*primary_sources, *supplemental_sources, *fallback_sources}
+        )
         if query_domain not in {"software", "security"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
-        if query_domain == "data":
-            # Keep Greenhouse out of the default data-role fallback path on
-            # Render free tier. Lever can still help as a narrower ATS backup,
-            # but Greenhouse detail hydration is usually the most expensive.
-            fallback_sources = [source for source in fallback_sources if source not in {"greenhouse"}]
+        if (
+            query_domain == "data"
+            and any(source in fallback_sources for source in {"greenhouse", "lever"})
+        ):
+            ordered_data_fallback = [source for source in ("greenhouse", "lever") if source in fallback_sources]
+            fallback_sources = ordered_data_fallback + [
+                source for source in fallback_sources if source not in {"greenhouse", "lever"}
+            ]
         elif (
             query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
@@ -1099,11 +1133,39 @@ class JobAggregator:
         company_title_counts: dict[str, int] = {}
         selected_signatures: set[str] = set()
         source_counts: dict[str, int] = {}
+        active_sources = {
+            str(item.get("source", "unknown")).lower()
+            for item in ranked
+            if str(item.get("source", "")).strip()
+        }
+        active_source_count = max(1, len(active_sources))
         selection_debug: dict[str, int | list[str]] = {
             "target_live_count": target_live_count,
             "ranked_candidates": len(ranked),
             "precision_guarded_candidates": len(precision_guarded),
+            "active_source_count": active_source_count,
         }
+
+        def source_selection_cap(source: str) -> int:
+            trusted_dense_sources = {"remotive", "jobicy", "themuse", "greenhouse", "lever", "jooble", "adzuna", "indianapi"}
+            sparse_sources = {"remoteok", "arbeitnow"}
+            if source in sparse_sources:
+                base_cap = 2 if source == "remoteok" else 1
+            elif source in {"greenhouse", "lever"}:
+                base_cap = 5
+            elif source in trusted_dense_sources:
+                base_cap = 4
+            else:
+                base_cap = 3
+
+            dynamic_cap = max(
+                base_cap,
+                min(
+                    limit,
+                    (target_live_count + active_source_count - 1) // active_source_count + 1,
+                ),
+            )
+            return dynamic_cap
 
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
             for item in candidates:
@@ -1116,14 +1178,14 @@ class JobAggregator:
                 company_title_key = f"{company}::{title_key}"
                 similarity_signature = self._job_similarity_signature(item)
                 source = str(item.get("source", "unknown")).lower()
-                max_source_count = 5 if source == "greenhouse" else 4 if source == "lever" else 3
+                max_source_count = source_selection_cap(source)
                 if company_counts.get(company, 0) >= cap_per_company:
                     continue
                 if company_title_counts.get(company_title_key, 0) >= 1:
                     continue
                 if similarity_signature in selected_signatures:
                     continue
-                if len(selected) >= 4 and source_counts.get(source, 0) >= max_source_count:
+                if len(selected) >= display_floor and source_counts.get(source, 0) >= max_source_count:
                     continue
                 selected.append(item)
                 company_counts[company] = company_counts.get(company, 0) + 1
@@ -1261,6 +1323,8 @@ class JobAggregator:
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
+            return False
+        if query_domain == "data" and title_precision <= 0 and title_overlap == 0 and family_overlap == 0 and core_title_overlap == 0:
             return False
         if query_domain == "data" and canonical_alignment < 0 and title_overlap == 0 and title_precision <= 0:
             return False
@@ -1480,7 +1544,11 @@ class JobAggregator:
                 return False
             if title_precision <= 0 and domain_score < 2 and not explicit_alignment:
                 return False
-            if source in {"themuse", "jobicy"} and domain_score >= 2 and (title_overlap >= 1 or skill_overlap >= 1.5 or family_overlap >= 1):
+            if source in {"themuse", "jobicy"} and domain_score >= 2 and (
+                title_overlap >= 1
+                or family_overlap >= 1
+                or (skill_overlap >= 1.5 and core_title_overlap >= 1)
+            ):
                 return True
             if core_title_overlap >= 1 and skill_overlap >= 1.0:
                 return True
@@ -1490,7 +1558,9 @@ class JobAggregator:
                 return True
             if title_overlap >= 1 and skill_overlap >= 1.0:
                 return True
-            if domain_score >= 2 and skill_overlap >= 1.5:
+            if domain_score >= 2 and skill_overlap >= 1.5 and (
+                title_precision >= 1 or title_overlap >= 1 or family_overlap >= 1 or core_title_overlap >= 1
+            ):
                 return True
             if family_overlap >= 2 and role_fit >= 3.0 and skill_overlap >= 1.0:
                 return True
@@ -1536,6 +1606,8 @@ class JobAggregator:
         domain_score = self._role_domain_match_score(query, item)
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        title_precision = self._title_precision_score(query, item)
         if self._is_location_hard_mismatch(location, item):
             return False
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
@@ -1546,19 +1618,24 @@ class JobAggregator:
             role_domain(query) == "data"
             and title_overlap == 0
             and family_overlap == 0
-            and self._title_precision_score(query, item) <= 0
+            and title_precision <= 0
+            and core_title_overlap == 0
             and role_fit < 3.25
         ):
             return False
         return (
-            (domain_score >= 2 and skill_overlap >= 1.0)
+            (
+                domain_score >= 2
+                and skill_overlap >= 1.0
+                and (title_precision >= 1 or title_overlap >= 1 or family_overlap >= 1 or core_title_overlap >= 1)
+            )
             or (domain_score >= 1 and title_overlap >= 1)
             or (domain_score >= 1 and family_overlap >= 2 and role_fit >= 2.0)
             or (
                 domain_score >= 1
                 and market_quality >= 28.0
                 and skill_overlap >= 1.0
-                and self._title_precision_score(query, item) >= 1
+                and title_precision >= 1
             )
         )
 
@@ -1573,11 +1650,11 @@ class JobAggregator:
         return overlap
 
     def _family_token_overlap(self, query: str, item: dict) -> int:
-        title = normalize_role(str(item.get("title", "")).lower())
-        title_tokens = {token for token in re.split(r"[^a-z0-9+]+", title) if token and len(token) > 2}
+        raw_title = re.sub(r"[^a-z0-9+]+", " ", str(item.get("title", "")).lower())
+        title_tokens = {token for token in raw_title.split() if token and len(token) > 2}
         query_tokens = {
             token
-            for token in re.split(r"[^a-z0-9+]+", normalize_role(query))
+            for token in re.split(r"[^a-z0-9+]+", role_family(query))
             if token and len(token) > 2 and token not in {"engineer", "developer", "manager"}
         }
         return len(title_tokens & query_tokens)
@@ -1613,7 +1690,7 @@ class JobAggregator:
             return min(limit, 1)
         query_domain = role_domain(query)
         if query_domain in {"data", "security", "software"}:
-            return min(limit, 3)
+            return min(limit, 5)
         return min(limit, 2)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
@@ -1815,7 +1892,7 @@ class JobAggregator:
 
     def _search_queries(self, provider: object, query: str) -> list[str]:
         if not getattr(provider, "supports_query_variations", True):
-            normalized = normalize_role(query)
+            normalized = role_family(query) or normalize_role(query)
             return [normalized or query]
         source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
         if settings.environment == "production":

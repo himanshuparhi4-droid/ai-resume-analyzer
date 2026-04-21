@@ -1498,7 +1498,7 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
     if profile.family_role and profile.family_role != profile.normalized_role:
         budget = max(budget, 2)
     if profile.domain == "data" and "analyst" in profile.head_terms and source_name == "jobicy":
-        budget = max(budget, 3)
+        budget = max(budget, 4)
     elif profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
         budget = min(budget, 1)
     selected = ranked[: max(1, budget)]
