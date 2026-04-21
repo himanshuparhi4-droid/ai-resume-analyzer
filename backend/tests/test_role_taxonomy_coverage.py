@@ -6,6 +6,7 @@ from app.services.jobs.taxonomy import (
     normalize_role,
     provider_query_variations,
     role_domain,
+    role_family,
     role_market_hints,
     role_primary_hints,
     role_profile,
@@ -179,6 +180,27 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertIn("cloud security", security_primary)
         self.assertIn("iam", security_primary)
         self.assertIn("splunk", security_primary)
+
+    def test_unlisted_roles_inherit_family_role_and_family_fallback_queries(self) -> None:
+        cases = {
+            "Release Engineer": ("devops engineer", {"release engineer", "devops engineer"}),
+            "Threat Hunter": ("cybersecurity engineer", {"threat hunter", "cybersecurity engineer"}),
+            "Customer Data Platform Engineer": ("data engineer", {"customer data platform engineer", "data engineer"}),
+            "Prompt Engineer": ("machine learning engineer", {"prompt engineer", "machine learning engineer"}),
+            "CRM Administrator": ("enterprise applications engineer", {"crm administrator", "crm developer"}),
+            "NLP Research Scientist": ("data scientist", {"nlp research scientist", "data scientist"}),
+        }
+        for role, (expected_family, expected_queries) in cases.items():
+            with self.subTest(role=role):
+                self.assertEqual(role_family(role), expected_family)
+                queries = set(provider_query_variations(role, "remotive", production=True))
+                self.assertTrue(expected_queries & queries)
+
+    def test_inference_beats_loose_keyword_family_for_data_platform_roles(self) -> None:
+        profile = role_profile("Customer Data Platform Engineer")
+        self.assertEqual(profile.normalized_role, "data engineer")
+        self.assertEqual(profile.family_role, "data engineer")
+        self.assertEqual(profile.domain, "data")
 
 
 if __name__ == "__main__":

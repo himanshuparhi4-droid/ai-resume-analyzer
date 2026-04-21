@@ -356,6 +356,7 @@ class RoleProfile:
     raw_query: str
     cleaned_query: str
     normalized_role: str
+    family_role: str | None
     domain: str | None
     head_terms: tuple[str, ...]
     seniority_terms: tuple[str, ...]
@@ -976,6 +977,10 @@ def _infer_domain_from_cleaned_query(cleaned: str, normalized: str) -> str | Non
         domain_scores["software"] += 1.0
     if {"analyst", "scientist"} & words:
         domain_scores["data"] += 0.8
+    if "data" in words and {"engineer", "developer", "platform", "pipeline", "warehouse", "etl", "architect"} & words:
+        domain_scores["data"] += 1.4
+    if {"ai", "ml", "llm", "prompt", "model", "models", "genai", "generative"} & words:
+        domain_scores["data"] += 1.1
     if {"security", "cyber", "soc", "iam"} & words:
         domain_scores["security"] += 1.25
     if {"designer", "ux", "ui"} & words:
@@ -1030,6 +1035,103 @@ def _extract_specialty_tokens(cleaned: str, normalized: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(normalized_tokens))
 
 
+def _expanded_head_terms(head_terms: tuple[str, ...]) -> set[str]:
+    expanded: set[str] = set()
+    for head in head_terms:
+        expanded.add(head)
+        expanded.update(ROLE_HEAD_VARIANTS.get(head, (head,)))
+    return expanded
+
+
+@lru_cache(maxsize=None)
+def _role_head_terms(role: str) -> tuple[str, ...]:
+    cleaned = _clean_role_text(role)
+    return tuple(word for word in cleaned.split() if word in ROLE_HEAD_TOKENS)
+
+
+def _infer_family_role_from_values(
+    *,
+    cleaned: str,
+    normalized: str,
+    domain: str | None,
+    head_terms: tuple[str, ...],
+    specialty_tokens: tuple[str, ...],
+) -> str | None:
+    if normalized in ROLE_FAMILY_CANONICALS:
+        return normalized
+    if not cleaned:
+        return None
+
+    tokens = _tokenize_role_text(cleaned)
+    words = set(cleaned.split())
+    expanded_heads = _expanded_head_terms(head_terms)
+    best_role: str | None = None
+    best_score = 0.0
+    second_best = 0.0
+
+    for role in ROLE_FAMILY_CANONICALS:
+        score = 0.0
+        role_domain_value = _domain_for_normalized_role(role)
+        role_heads = set(_role_head_terms(role))
+        phrase_bank = _role_phrase_bank(role)
+        signal_bank = _role_signal_bank(role)
+
+        if cleaned in phrase_bank:
+            score += 12.0
+        for phrase in phrase_bank:
+            if len(phrase.split()) > 1 and phrase in cleaned:
+                score += 4.0
+
+        if domain and role_domain_value == domain:
+            score += 3.0
+        elif domain and role_domain_value and role_domain_value != domain:
+            score -= 1.5
+
+        head_overlap = len(expanded_heads & role_heads)
+        if head_overlap:
+            score += head_overlap * 3.5
+        elif expanded_heads and role_heads:
+            score -= 1.0
+
+        signal_hits = len(tokens & signal_bank)
+        specialty_hits = len(set(specialty_tokens) & signal_bank)
+        score += signal_hits * 1.35
+        score += specialty_hits * 2.1
+
+        if specialty_tokens and any(token in words for token in specialty_tokens):
+            score += min(2.0, specialty_hits * 0.5)
+
+        if {"security", "cyber"} & words and role == "cybersecurity engineer":
+            score += 1.5
+        if {"architect", "architecture"} & words and role == "solutions architect":
+            score += 1.5
+        if {"support", "helpdesk", "noc"} & words and role == "support engineer":
+            score += 1.5
+        if {"salesforce", "sap", "erp", "crm", "oracle", "dynamics"} & words and role == "enterprise applications engineer":
+            score += 1.75
+        if {"writer", "documentation", "docs", "advocate"} & words and role == "technical writer":
+            score += 1.5
+        if {"mobile", "android", "ios", "swift", "kotlin", "flutter"} & words and role == "mobile developer":
+            score += 1.75
+        if {"embedded", "firmware", "microcontroller", "rtos", "iot"} & words and role == "embedded engineer":
+            score += 1.75
+        if {"database", "dba", "sql", "warehouse"} & words and role == "database engineer":
+            score += 1.75
+        if {"principal", "staff", "cto"} & words and role == "engineering leadership":
+            score += 1.5
+
+        if score > best_score:
+            second_best = best_score
+            best_score = score
+            best_role = role
+        elif score > second_best:
+            second_best = score
+
+    if best_role and best_score >= 3.0 and best_score >= second_best + 0.6:
+        return best_role
+    return None
+
+
 def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
     tokens = _tokenize_role_text(cleaned)
     words = set(cleaned.split())
@@ -1048,17 +1150,21 @@ def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
         return "mobile developer"
     if {"embedded", "firmware", "microcontroller", "rtos"} & words or ("iot" in words and {"engineer", "developer"} & words):
         return "embedded engineer"
-    if {"aws", "cloud", "devops", "sre", "terraform", "kubernetes"} & words:
-        return "devops engineer"
     if {"cyber", "security", "soc", "siem", "splunk", "iam"} & words:
         return "cybersecurity engineer"
+    if {"aws", "cloud", "devops", "sre", "terraform", "kubernetes"} & words:
+        return "devops engineer"
     if {"database", "dba", "postgresql", "mysql"} & words or (
         "sql" in words and ({"developer", "engineer", "administrator", "architect"} & words or len(words) <= 2)
     ):
         return "database engineer"
     if {"reporting", "analytics", "bi"} & words:
         return "data analyst"
+    if "data" in words and {"platform", "pipeline", "warehouse", "etl", "architect"} & words and {"engineer", "developer", "architect"} & words:
+        return "data engineer"
     if {"ml", "llm"} & words and "engineer" in words:
+        return "machine learning engineer"
+    if {"ai", "llm", "prompt", "genai", "generative"} & words and {"engineer", "developer"} & words:
         return "machine learning engineer"
     if {"ml", "llm", "scientist"} & words:
         return "data scientist"
@@ -1114,16 +1220,41 @@ def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
     return None
 
 
+def _match_keyword_family(cleaned: str, *, exact_only: bool = False) -> str | None:
+    if not cleaned:
+        return None
+    padded_cleaned = f" {cleaned} "
+    best_role: str | None = None
+    best_length = -1
+    for canonical, keywords in ROLE_KEYWORD_FAMILIES.items():
+        for keyword in keywords:
+            normalized_keyword = _clean_role_text(keyword)
+            if not normalized_keyword:
+                continue
+            if exact_only:
+                matched = cleaned == normalized_keyword
+            else:
+                padded_keyword = f" {normalized_keyword} "
+                matched = padded_keyword in padded_cleaned or cleaned == normalized_keyword
+            if matched and len(normalized_keyword) > best_length:
+                best_role = canonical
+                best_length = len(normalized_keyword)
+    return best_role
+
+
 def normalize_role(query: str) -> str:
     cleaned = _clean_role_text(query)
     if cleaned in ROLE_SYNONYMS:
         return ROLE_SYNONYMS[cleaned]
-    for canonical, keywords in ROLE_KEYWORD_FAMILIES.items():
-        if any(keyword in cleaned for keyword in keywords):
-            return canonical
+    exact_keyword_match = _match_keyword_family(cleaned, exact_only=True)
+    if exact_keyword_match:
+        return exact_keyword_match
     inferred = _infer_role_from_cleaned_query(cleaned)
     if inferred:
         return inferred
+    loose_keyword_match = _match_keyword_family(cleaned)
+    if loose_keyword_match:
+        return loose_keyword_match
     return cleaned
 
 
@@ -1131,14 +1262,25 @@ def normalize_role(query: str) -> str:
 def role_profile(query: str) -> RoleProfile:
     cleaned = _clean_role_text(query)
     normalized = normalize_role(query)
+    domain = _infer_domain_from_cleaned_query(cleaned, normalized)
+    head_terms = _extract_head_terms(cleaned, normalized)
+    seniority_terms = _extract_seniority_terms(cleaned)
+    specialty_tokens = _extract_specialty_tokens(cleaned, normalized)
     return RoleProfile(
         raw_query=str(query or ""),
         cleaned_query=cleaned,
         normalized_role=normalized,
-        domain=_infer_domain_from_cleaned_query(cleaned, normalized),
-        head_terms=_extract_head_terms(cleaned, normalized),
-        seniority_terms=_extract_seniority_terms(cleaned),
-        specialty_tokens=_extract_specialty_tokens(cleaned, normalized),
+        family_role=_infer_family_role_from_values(
+            cleaned=cleaned,
+            normalized=normalized,
+            domain=domain,
+            head_terms=head_terms,
+            specialty_tokens=specialty_tokens,
+        ),
+        domain=domain,
+        head_terms=head_terms,
+        seniority_terms=seniority_terms,
+        specialty_tokens=specialty_tokens,
     )
 
 
@@ -1298,9 +1440,10 @@ def role_query_tokens(query: str) -> set[str]:
 
 def query_variations(query: str) -> list[str]:
     profile = role_profile(query)
+    canonical_role = profile.family_role or profile.normalized_role
     variations = [
         *_generic_query_expansions(profile),
-        *ROLE_SEARCH_VARIATIONS.get(profile.normalized_role, [profile.normalized_role]),
+        *ROLE_SEARCH_VARIATIONS.get(canonical_role, [canonical_role]),
     ]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
@@ -1309,9 +1452,10 @@ def query_variations(query: str) -> list[str]:
 
 def production_query_variations(query: str) -> list[str]:
     profile = role_profile(query)
+    canonical_role = profile.family_role or profile.normalized_role
     variations = [
         *_generic_query_expansions(profile),
-        *ROLE_PRODUCTION_VARIATIONS.get(profile.normalized_role, [profile.normalized_role]),
+        *ROLE_PRODUCTION_VARIATIONS.get(canonical_role, [canonical_role]),
     ]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
@@ -1351,11 +1495,27 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
     query_is_narrow = len(profile.specialty_tokens) >= 2 or len(profile.cleaned_query.split()) >= 3
     budget_config = PROVIDER_QUERY_BUDGETS.get(source_name, {"base": 2, "narrow": 1})
     budget = int(budget_config["narrow"] if query_is_narrow else budget_config["base"])
+    if profile.family_role and profile.family_role != profile.normalized_role:
+        budget = max(budget, 2)
     if profile.domain == "data" and "analyst" in profile.head_terms and source_name == "jobicy":
         budget = max(budget, 3)
     elif profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
         budget = min(budget, 1)
-    return ranked[: max(1, budget)]
+    selected = ranked[: max(1, budget)]
+    family_role = profile.family_role
+    if family_role and family_role != profile.normalized_role:
+        family_variations = (
+            ROLE_PRODUCTION_VARIATIONS.get(family_role, [family_role])
+            if production
+            else ROLE_SEARCH_VARIATIONS.get(family_role, [family_role])
+        )
+        family_candidate = next((item for item in family_variations if item in ranked), None)
+        if family_candidate and family_candidate not in selected:
+            if len(selected) < max(1, budget):
+                selected.append(family_candidate)
+            elif selected:
+                selected[-1] = family_candidate
+    return list(dict.fromkeys(selected))
 
 
 def _derived_role_skill_hints(profile: RoleProfile, *, primary_only: bool) -> set[str]:
@@ -1393,21 +1553,30 @@ def _derived_role_title_hints(profile: RoleProfile) -> set[str]:
 
 def role_market_hints(query: str) -> set[str]:
     profile = role_profile(query)
-    return set(ROLE_MARKET_HINTS.get(profile.normalized_role, set())) | _derived_role_skill_hints(profile, primary_only=False)
+    canonical_role = profile.family_role or profile.normalized_role
+    return set(ROLE_MARKET_HINTS.get(canonical_role, set())) | _derived_role_skill_hints(profile, primary_only=False)
 
 
 def role_primary_hints(query: str) -> set[str]:
     profile = role_profile(query)
-    return set(ROLE_PRIMARY_HINTS.get(profile.normalized_role, set())) | _derived_role_skill_hints(profile, primary_only=True)
+    canonical_role = profile.family_role or profile.normalized_role
+    return set(ROLE_PRIMARY_HINTS.get(canonical_role, set())) | _derived_role_skill_hints(profile, primary_only=True)
 
 
 def role_title_hints(query: str) -> set[str]:
     profile = role_profile(query)
-    return set(ROLE_TITLE_HINTS.get(profile.normalized_role, set())) | _derived_role_title_hints(profile)
+    canonical_role = profile.family_role or profile.normalized_role
+    return set(ROLE_TITLE_HINTS.get(canonical_role, set())) | _derived_role_title_hints(profile)
+
+
+def role_family(query: str) -> str:
+    profile = role_profile(query)
+    return profile.family_role or profile.normalized_role
 
 
 def role_domain(query: str) -> str | None:
-    return role_profile(query).domain
+    profile = role_profile(query)
+    return _domain_for_normalized_role(profile.family_role or profile.normalized_role) or profile.domain
 
 
 def is_sparse_live_market_role(query: str) -> bool:
@@ -1422,8 +1591,8 @@ def role_negative_title_hints(query: str) -> set[str]:
 
 
 def canonical_role_alignment(query: str, title: str) -> int:
-    normalized_query = normalize_role(query)
-    normalized_title = normalize_role(title)
+    normalized_query = role_family(query)
+    normalized_title = role_family(title)
     if not normalized_query or not normalized_title:
         return 0
     if normalized_query == normalized_title:
@@ -1438,8 +1607,8 @@ def canonical_role_alignment(query: str, title: str) -> int:
 
 
 def role_title_alignment_score(query: str, title: str, *, description: str = "", tags: list[str] | tuple[str, ...] = ()) -> float:
-    normalized_query = normalize_role(query)
-    normalized_title = normalize_role(title)
+    normalized_query = role_family(query)
+    normalized_title = role_family(title)
     if not normalized_query or not normalized_title:
         return 0.0
 
@@ -1518,9 +1687,9 @@ def dedupe_key(item: dict) -> str:
 def role_fit_score(query: str, item: dict) -> float:
     raw_query = re.sub(r"[^a-z0-9+ ]+", " ", str(query).lower()).strip()
     raw_query = re.sub(r"\s+", " ", raw_query)
-    normalized_query = normalize_role(query)
+    normalized_query = role_family(query)
     query_tokens = list(dict.fromkeys(role_query_tokens(query)))
-    title = normalize_role(item.get("title", ""))
+    title = role_family(item.get("title", ""))
     raw_title = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower())
     description = re.sub(r"[^a-z0-9+ ]+", " ", item.get("description", "").lower())
     tags = " ".join(str(tag).lower() for tag in item.get("tags", []))
