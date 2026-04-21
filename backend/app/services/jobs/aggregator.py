@@ -572,6 +572,17 @@ class JobAggregator:
         query_domain = role_domain(query)
         query_profile = role_profile(query)
 
+        def _silence_background_task(task: asyncio.Task) -> None:
+            def _consume_result(completed: asyncio.Task) -> None:
+                try:
+                    completed.result()
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    pass
+
+            task.add_done_callback(_consume_result)
+
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
@@ -650,6 +661,25 @@ class JobAggregator:
                     self._annotate_item_scores(query=query, location=location, item=item)
                     collected.append(item)
 
+        async def _cancel_pending_tasks(pending: set[asyncio.Task], *, stage: str, soft_timeout: float, reason: str) -> None:
+            if not pending:
+                return
+            for task in pending:
+                task.cancel()
+            done_after_cancel, still_pending = await asyncio.wait(pending, timeout=0.35)
+            for task in still_pending:
+                _silence_background_task(task)
+            self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
+                {
+                    "stage": stage,
+                    "cancelled_pending_tasks": len(pending),
+                    "soft_timeout_seconds": soft_timeout,
+                    "reason": reason,
+                    "detached_pending_tasks": len(still_pending),
+                    "cancelled_and_drained_tasks": len(done_after_cancel),
+                }
+            )
+
         async def run_stage(stage: str, providers: list[object]) -> list[dict]:
             tasks = []
             for provider in providers:
@@ -657,7 +687,9 @@ class JobAggregator:
                 search_locations = self._search_locations(provider, location)
                 for search_query in search_queries:
                     for search_location in search_locations[:1]:
-                        tasks.append(asyncio.create_task(safe_search(provider, search_query, search_location, stage)))
+                        task = asyncio.create_task(safe_search(provider, search_query, search_location, stage))
+                        _silence_background_task(task)
+                        tasks.append(task)
             if not tasks:
                 return []
             soft_timeout = self._production_stage_soft_timeout(
@@ -685,33 +717,22 @@ class JobAggregator:
                     absorb_results(provider_results)
                 preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
                 if len(preferred_live) >= live_floor:
-                    for task in pending:
-                        task.cancel()
                     if pending:
                         cancelled_count += len(pending)
-                        await asyncio.gather(*pending, return_exceptions=True)
-                    if cancelled_count:
-                        self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
-                            {
-                                "stage": stage,
-                                "cancelled_pending_tasks": cancelled_count,
-                                "soft_timeout_seconds": soft_timeout,
-                                "reason": "floor_reached",
-                            }
+                        await _cancel_pending_tasks(
+                            pending,
+                            stage=stage,
+                            soft_timeout=soft_timeout,
+                            reason="floor_reached",
                         )
                     return preferred_live
             if pending:
                 cancelled_count += len(pending)
-                for task in pending:
-                    task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
-                self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
-                    {
-                        "stage": stage,
-                        "cancelled_pending_tasks": cancelled_count,
-                        "soft_timeout_seconds": soft_timeout,
-                        "reason": "soft_timeout",
-                    }
+                await _cancel_pending_tasks(
+                    pending,
+                    stage=stage,
+                    soft_timeout=soft_timeout,
+                    reason="soft_timeout",
                 )
             return self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
 
