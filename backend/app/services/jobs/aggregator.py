@@ -275,12 +275,12 @@ class JobAggregator:
             return 6.0 if stage == "primary" else 4.0
         if stage == "primary":
             if query_domain == "data":
-                return 7.5
+                return 9.5
             if query_domain in {"software", "security"}:
-                return 8.0
-            return 7.0
+                return 10.5
+            return 8.5
         if stage == "supplemental":
-            return 9.0
+            return 10.0
         return 6.0
 
     def _production_providers(self) -> list[object]:
@@ -725,6 +725,21 @@ class JobAggregator:
 
             primary_sources = [source for source in primary_order if source in source_groups]
             supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]
+        fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
+        self.last_fetch_diagnostics["provider_plan"] = {
+            "active_sources": sorted(source_groups.keys()),
+            "primary_sources": primary_sources,
+            "supplemental_sources": supplemental_sources,
+            "fallback_sources": fallback_sources,
+        }
+        logger.info(
+            "Production provider plan for query=%s: active=%s primary=%s supplemental=%s fallback=%s",
+            query,
+            sorted(source_groups.keys()),
+            primary_sources,
+            supplemental_sources,
+            fallback_sources,
+        )
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         stage_results.append(
@@ -734,6 +749,12 @@ class JobAggregator:
                 "collected_candidates": len(collected),
                 "selected_live": len(preferred_live),
             }
+        )
+        logger.info(
+            "Production stage result for query=%s: stage=primary candidates=%s selected=%s",
+            query,
+            len(collected),
+            len(preferred_live),
         )
         if len(preferred_live) >= live_floor:
             self.last_fetch_diagnostics["stage_results"] = stage_results
@@ -773,6 +794,12 @@ class JobAggregator:
                     "selected_live": len(preferred_live),
                 }
             )
+            logger.info(
+                "Production stage result for query=%s: stage=supplemental candidates=%s selected=%s",
+                query,
+                len(collected),
+                len(preferred_live),
+            )
             if len(preferred_live) >= live_floor:
                 self.last_fetch_diagnostics["stage_results"] = stage_results
                 self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
@@ -789,21 +816,6 @@ class JobAggregator:
                 )
                 return preferred_live
 
-        fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
-        self.last_fetch_diagnostics["provider_plan"] = {
-            "active_sources": sorted(source_groups.keys()),
-            "primary_sources": primary_sources,
-            "supplemental_sources": supplemental_sources,
-            "fallback_sources": fallback_sources,
-        }
-        logger.info(
-            "Production provider plan for query=%s: active=%s primary=%s supplemental=%s fallback=%s",
-            query,
-            sorted(source_groups.keys()),
-            primary_sources,
-            supplemental_sources,
-            fallback_sources,
-        )
         fallback_providers = [provider for source in fallback_sources for provider in source_groups.get(source, [])]
         if fallback_providers:
             preferred_live = await run_stage("fallback", fallback_providers)
@@ -814,6 +826,12 @@ class JobAggregator:
                     "collected_candidates": len(collected),
                     "selected_live": len(preferred_live),
                 }
+            )
+            logger.info(
+                "Production stage result for query=%s: stage=fallback candidates=%s selected=%s",
+                query,
+                len(collected),
+                len(preferred_live),
             )
 
         self.last_fetch_diagnostics["stage_results"] = stage_results

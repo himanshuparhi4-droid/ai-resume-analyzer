@@ -146,9 +146,11 @@ class AnalysisOrchestrator:
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
+        logger.info("Analysis step: analysis context built in %sms", round((time.perf_counter() - started) * 1000, 2))
         fetch_diagnostics = getattr(self.job_aggregator, "last_fetch_diagnostics", None)
         if fetch_diagnostics:
             score_payload["analysis_context"]["fetch_diagnostics"] = fetch_diagnostics
+            logger.info("Analysis step: attached fetch diagnostics in %sms", round((time.perf_counter() - started) * 1000, 2))
         score_payload["experience_years"] = resume_data.get("experience_years", 0)
         if settings.environment == "production":
             ai_summary = self.insight_generator._normalize_summary(
@@ -159,6 +161,7 @@ class AnalysisOrchestrator:
             ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
         logger.info("Analysis step: summary finished in %sms", round((time.perf_counter() - started) * 1000, 2))
         recommendations = self._build_recommendations(score_payload, resume_data)
+        logger.info("Analysis step: recommendations built in %sms", round((time.perf_counter() - started) * 1000, 2))
         if user is None:
             logger.info("Analysis step: returning ephemeral response in %sms", round((time.perf_counter() - started) * 1000, 2))
             return self._build_ephemeral_response(
@@ -235,31 +238,43 @@ class AnalysisOrchestrator:
         ai_summary: dict,
         resume_data: dict,
     ) -> AnalysisResponse:
-        skill_report = self.skill_grounding.build_skill_report(
-            role_query=role_query,
-            resume_text=resume_data.get("raw_text", ""),
-            jobs=score_payload.get("top_job_matches", []),
-            matched_skills=score_payload.get("matched_skills", []),
-            missing_skills=score_payload.get("missing_skills", []),
-            resume_skill_evidence=resume_data.get("skill_evidence"),
-        )
+        try:
+            skill_report = self.skill_grounding.build_skill_report(
+                role_query=role_query,
+                resume_text=resume_data.get("raw_text", ""),
+                jobs=score_payload.get("top_job_matches", []),
+                matched_skills=score_payload.get("matched_skills", []),
+                missing_skills=score_payload.get("missing_skills", []),
+                resume_skill_evidence=resume_data.get("skill_evidence"),
+            )
+        except Exception:
+            logger.exception("Analysis step: skill report build failed, returning reduced detail payload")
+            skill_report = {
+                "matched_skill_details": [],
+                "missing_skill_details": [],
+                "market_skill_frequency": [],
+            }
         analysis_context = score_payload.get("analysis_context", self.skill_grounding.build_analysis_context(score_payload.get("top_job_matches", [])))
-        component_feedback = self._build_component_feedback(
-            breakdown=score_payload.get("breakdown", {}),
-            analysis=type(
-                "EphemeralAnalysis",
-                (),
-                {
-                    "top_job_matches": score_payload.get("top_job_matches", []),
-                    "matched_skills": score_payload.get("matched_skills", []),
-                    "missing_skills": score_payload.get("missing_skills", []),
-                    "component_scores": score_payload.get("breakdown", {}),
-                    "role_query": role_query,
-                },
-            )(),
-            resume_data=resume_data,
-            analysis_context=analysis_context,
-        )
+        try:
+            component_feedback = self._build_component_feedback(
+                breakdown=score_payload.get("breakdown", {}),
+                analysis=type(
+                    "EphemeralAnalysis",
+                    (),
+                    {
+                        "top_job_matches": score_payload.get("top_job_matches", []),
+                        "matched_skills": score_payload.get("matched_skills", []),
+                        "missing_skills": score_payload.get("missing_skills", []),
+                        "component_scores": score_payload.get("breakdown", {}),
+                        "role_query": role_query,
+                    },
+                )(),
+                resume_data=resume_data,
+                analysis_context=analysis_context,
+            )
+        except Exception:
+            logger.exception("Analysis step: component feedback build failed, returning reduced feedback payload")
+            component_feedback = {}
         return AnalysisResponse(
             analysis_id=f"preview-{secrets.token_hex(8)}",
             role_query=role_query,
@@ -308,21 +323,33 @@ class AnalysisOrchestrator:
         resume_data = resume_data or {}
         sections = resume_data.get("sections", {})
         raw_text = resume_data.get("raw_text", "")
-        skill_report = self.skill_grounding.build_skill_report(
-            role_query=analysis.role_query,
-            resume_text=raw_text,
-            jobs=analysis.top_job_matches,
-            matched_skills=analysis.matched_skills,
-            missing_skills=analysis.missing_skills,
-            resume_skill_evidence=resume_data.get("skill_evidence"),
-        )
+        try:
+            skill_report = self.skill_grounding.build_skill_report(
+                role_query=analysis.role_query,
+                resume_text=raw_text,
+                jobs=analysis.top_job_matches,
+                matched_skills=analysis.matched_skills,
+                missing_skills=analysis.missing_skills,
+                resume_skill_evidence=resume_data.get("skill_evidence"),
+            )
+        except Exception:
+            logger.exception("Analysis step: persisted skill report build failed, returning reduced detail payload")
+            skill_report = {
+                "matched_skill_details": [],
+                "missing_skill_details": [],
+                "market_skill_frequency": [],
+            }
         analysis_context = self.skill_grounding.build_analysis_context(analysis.top_job_matches)
-        component_feedback = self._build_component_feedback(
-            breakdown=analysis.component_scores,
-            analysis=analysis,
-            resume_data=resume_data,
-            analysis_context=analysis_context,
-        )
+        try:
+            component_feedback = self._build_component_feedback(
+                breakdown=analysis.component_scores,
+                analysis=analysis,
+                resume_data=resume_data,
+                analysis_context=analysis_context,
+            )
+        except Exception:
+            logger.exception("Analysis step: persisted component feedback build failed, returning reduced feedback payload")
+            component_feedback = {}
         return AnalysisResponse(
             analysis_id=analysis.id,
             role_query=analysis.role_query,
