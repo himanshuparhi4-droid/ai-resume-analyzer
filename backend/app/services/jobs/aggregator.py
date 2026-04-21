@@ -1147,13 +1147,21 @@ class JobAggregator:
             if str(item.get("source", "")).strip()
         }
         active_source_count = max(1, len(active_sources))
-        selection_debug: dict[str, int | list[str]] = {
+        selection_debug: dict[str, int | list[str] | dict[str, int]] = {
             "target_live_count": target_live_count,
             "ranked_candidates": len(ranked),
             "precision_guarded_candidates": len(precision_guarded),
             "active_source_count": active_source_count,
             "exact_precision_query": int(exact_precision_query),
             "partial_live_floor": partial_live_floor,
+            "rejections": {
+                "final_guard": 0,
+                "company_cap": 0,
+                "company_title_cap": 0,
+                "similarity_cap": 0,
+                "source_cap": 0,
+                "post_selection_final_guard": 0,
+            },
         }
 
         def source_selection_cap(source: str) -> int:
@@ -1178,10 +1186,13 @@ class JobAggregator:
             return dynamic_cap
 
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
+            rejection_counts = selection_debug["rejections"]
             for item in candidates:
                 if item in selected:
                     continue
                 if not self._passes_final_live_guard(query, item):
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["final_guard"] += 1
                     continue
                 company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
                 title_key = normalize_role(str(item.get("title", "")).lower()) or "unknown"
@@ -1190,12 +1201,20 @@ class JobAggregator:
                 source = str(item.get("source", "unknown")).lower()
                 max_source_count = source_selection_cap(source)
                 if company_counts.get(company, 0) >= cap_per_company:
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["company_cap"] += 1
                     continue
                 if company_title_counts.get(company_title_key, 0) >= 1:
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["company_title_cap"] += 1
                     continue
                 if similarity_signature in selected_signatures:
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["similarity_cap"] += 1
                     continue
                 if len(selected) >= display_floor and source_counts.get(source, 0) >= max_source_count:
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["source_cap"] += 1
                     continue
                 selected.append(item)
                 company_counts[company] = company_counts.get(company, 0) + 1
@@ -1299,7 +1318,14 @@ class JobAggregator:
             selection_debug["last_resort_themuse_candidates"] = len(last_resort_themuse)
             maybe_add(last_resort_themuse, cap_per_company=5)
 
-        selected = [item for item in selected if self._passes_final_live_guard(query, item)]
+        post_filter_selected: list[dict] = []
+        rejection_counts = selection_debug["rejections"]
+        for item in selected:
+            if self._passes_final_live_guard(query, item):
+                post_filter_selected.append(item)
+            elif isinstance(rejection_counts, dict):
+                rejection_counts["post_selection_final_guard"] += 1
+        selected = post_filter_selected
 
         filtered_source_counts: dict[str, int] = {}
         for item in selected:
@@ -1645,7 +1671,9 @@ class JobAggregator:
 
         if location_score <= 0.0:
             return False
-        if not explicit_alignment and market_quality < 56.0:
+        # This path is intentionally more lenient than the strict=True path.
+        # A higher threshold here caused valid secondary candidates to be discarded.
+        if not explicit_alignment and market_quality < 40.0:
             return False
         if title_precision <= 0 and domain_score < 2 and not explicit_alignment:
             return False

@@ -36,6 +36,15 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Cybersecurity Engineer", item))
 
+    def test_web_developer_alias_keeps_frontend_developer_title(self) -> None:
+        item = {
+            "title": "Frontend Developer",
+            "description": "Build React user interfaces and modern web experiences.",
+            "tags": [],
+            "normalized_data": {"skills": ["react", "typescript", "css"]},
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Web Developer", item))
+
     def test_devops_engineer_rejects_generic_cloud_developer_title(self) -> None:
         item = {
             "title": "Sr Applications Developer_Atlassian Cloud",
@@ -184,6 +193,100 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
 
         self.assertEqual([item["title"] for item in selected], ["Salesforce Administrator (App Builder)"])
+
+    def test_secondary_candidate_path_is_more_lenient_than_strict_path(self) -> None:
+        item = {
+            "title": "Analytics Manager",
+            "company": "Example",
+            "source": "jobicy",
+            "description": "Lead reporting workflows, dashboards, and business analytics for operations teams.",
+            "location": "India",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "analytics", "reporting"],
+                "role_fit_score": 4.0,
+                "market_quality_score": 45.0,
+                "title_alignment_score": 6.0,
+            },
+        }
+
+        self.assertFalse(
+            self.aggregator._is_production_live_candidate("Data Analyst", "India", item, strict=True)
+        )
+        self.assertTrue(
+            self.aggregator._is_production_live_candidate("Data Analyst", "India", item, strict=False)
+        )
+
+    def test_selection_debug_tracks_rejection_reasons(self) -> None:
+        jobs = [
+            {
+                "title": "Data Analyst",
+                "company": "Alpha",
+                "source": "remotive",
+                "description": "Own SQL dashboards and executive reporting for finance.",
+                "location": "India",
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "excel", "analytics"],
+                    "title_alignment_score": 18.0,
+                    "role_fit_score": 12.0,
+                    "market_quality_score": 24.0,
+                },
+            },
+            {
+                "title": "Data Analyst",
+                "company": "Alpha",
+                "source": "jobicy",
+                "description": "Own experimentation analysis and performance reporting for growth.",
+                "location": "India",
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "power bi", "analytics"],
+                    "title_alignment_score": 17.0,
+                    "role_fit_score": 11.0,
+                    "market_quality_score": 23.0,
+                },
+            },
+            {
+                "title": "Senior Data Analyst",
+                "company": "Alpha",
+                "source": "greenhouse",
+                "description": "Own analytics for product planning and operations forecasting.",
+                "location": "India",
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "tableau", "analytics"],
+                    "title_alignment_score": 16.5,
+                    "role_fit_score": 10.5,
+                    "market_quality_score": 22.5,
+                },
+            },
+            {
+                "title": "Lead Data Analyst",
+                "company": "Alpha",
+                "source": "themuse",
+                "description": "Own analytics strategy for supply chain and planning teams.",
+                "location": "India",
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "excel", "analytics"],
+                    "title_alignment_score": 16.0,
+                    "role_fit_score": 10.0,
+                    "market_quality_score": 22.0,
+                },
+            },
+        ]
+
+        self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=8,
+        )
+
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertIn("rejections", debug)
+        self.assertGreaterEqual(sum(debug["rejections"].values()), 1)
 
 
 if __name__ == "__main__":
