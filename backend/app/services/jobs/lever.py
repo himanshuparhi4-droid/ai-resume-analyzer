@@ -11,6 +11,7 @@ from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
 _LEVER_BOARD_CACHE: dict[str, dict] = {}
+_MAX_LEVER_BOARD_CACHE_ENTRIES = 16
 
 _CURATED_LEVER_COMPANIES = {
     "data": [
@@ -129,6 +130,7 @@ class LeverProvider:
         return list(_CURATED_LEVER_COMPANIES.get(role_domain(query) or "", []))
 
     async def _fetch_company_jobs(self, company: str, *, client: httpx.AsyncClient) -> list[dict]:
+        self._prune_cache(_LEVER_BOARD_CACHE, max_entries=_MAX_LEVER_BOARD_CACHE_ENTRIES)
         cached = _LEVER_BOARD_CACHE.get(company)
         now = datetime.now(UTC)
         ttl = timedelta(minutes=settings.ats_board_cache_ttl_minutes)
@@ -140,6 +142,8 @@ class LeverProvider:
         response = await client.get(endpoint, params=params)
         response.raise_for_status()
         raw_jobs = response.json()
+        if settings.environment == "production":
+            raw_jobs = raw_jobs[:60]
 
         jobs: list[dict] = []
         for item in raw_jobs:
@@ -172,6 +176,30 @@ class LeverProvider:
 
         _LEVER_BOARD_CACHE[company] = {"stored_at": now, "jobs": jobs}
         return jobs
+
+    def _prune_cache(self, cache: dict[str, dict], *, max_entries: int) -> None:
+        if not cache:
+            return
+        now = datetime.now(UTC)
+        ttl = timedelta(minutes=settings.ats_board_cache_ttl_minutes)
+        expired_keys = [
+            key
+            for key, payload in cache.items()
+            if now - payload.get("stored_at", now) >= ttl
+        ]
+        for key in expired_keys:
+            cache.pop(key, None)
+        overflow = len(cache) - max_entries
+        if overflow > 0:
+            oldest_keys = [
+                key
+                for key, _ in sorted(
+                    cache.items(),
+                    key=lambda item: item[1].get("stored_at", now),
+                )[:overflow]
+            ]
+            for key in oldest_keys:
+                cache.pop(key, None)
 
     def _company_from_token(self, token: str) -> str:
         cleaned = token.replace("-", " ").replace("_", " ").strip()

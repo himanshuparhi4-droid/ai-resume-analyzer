@@ -12,6 +12,8 @@ from app.utils.text import strip_html, truncate
 
 _GREENHOUSE_BOARD_INDEX_CACHE: dict[str, dict] = {}
 _GREENHOUSE_JOB_DETAIL_CACHE: dict[str, dict] = {}
+_MAX_GREENHOUSE_BOARD_CACHE_ENTRIES = 12
+_MAX_GREENHOUSE_DETAIL_CACHE_ENTRIES = 96
 
 # Public Greenhouse boards used as a lightweight ATS corpus when the app is
 # running without custom board tokens. The set is role-family based so dense
@@ -212,6 +214,7 @@ class GreenhouseProvider:
         return list(_CURATED_GREENHOUSE_BOARDS.get(role_domain(query) or "", []))
 
     async def _fetch_board_index(self, board: str, *, client: httpx.AsyncClient) -> list[dict]:
+        self._prune_cache(_GREENHOUSE_BOARD_INDEX_CACHE, max_entries=_MAX_GREENHOUSE_BOARD_CACHE_ENTRIES)
         cached = _GREENHOUSE_BOARD_INDEX_CACHE.get(board)
         now = datetime.now(UTC)
         ttl = timedelta(minutes=settings.ats_board_cache_ttl_minutes)
@@ -223,6 +226,8 @@ class GreenhouseProvider:
         response.raise_for_status()
         payload = response.json()
         raw_jobs = payload.get("jobs") or []
+        if settings.environment == "production":
+            raw_jobs = raw_jobs[:60]
 
         jobs: list[dict] = []
         for item in raw_jobs:
@@ -262,6 +267,7 @@ class GreenhouseProvider:
     ) -> dict | None:
         if not board or not job_id:
             return None
+        self._prune_cache(_GREENHOUSE_JOB_DETAIL_CACHE, max_entries=_MAX_GREENHOUSE_DETAIL_CACHE_ENTRIES)
         cache_key = f"{board}:{job_id}"
         cached = _GREENHOUSE_JOB_DETAIL_CACHE.get(cache_key)
         now = datetime.now(UTC)
@@ -303,6 +309,30 @@ class GreenhouseProvider:
         }
         _GREENHOUSE_JOB_DETAIL_CACHE[cache_key] = {"stored_at": now, "job": job}
         return job
+
+    def _prune_cache(self, cache: dict[str, dict], *, max_entries: int) -> None:
+        if not cache:
+            return
+        now = datetime.now(UTC)
+        ttl = timedelta(minutes=settings.ats_board_cache_ttl_minutes)
+        expired_keys = [
+            key
+            for key, payload in cache.items()
+            if now - payload.get("stored_at", now) >= ttl
+        ]
+        for key in expired_keys:
+            cache.pop(key, None)
+        overflow = len(cache) - max_entries
+        if overflow > 0:
+            oldest_keys = [
+                key
+                for key, _ in sorted(
+                    cache.items(),
+                    key=lambda item: item[1].get("stored_at", now),
+                )[:overflow]
+            ]
+            for key in oldest_keys:
+                cache.pop(key, None)
 
     def _company_from_board(self, board: str) -> str:
         cleaned = board.replace("-", " ").replace("_", " ").strip()

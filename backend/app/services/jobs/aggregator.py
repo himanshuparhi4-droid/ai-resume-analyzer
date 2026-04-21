@@ -819,8 +819,8 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                primary_order = ["remotive", "jobicy", "jooble", "adzuna"]
-                supplemental_order = ["themuse", "greenhouse", "indianapi"]
+                primary_order = ["remotive", "jobicy", "themuse", "jooble", "adzuna"]
+                supplemental_order = ["indianapi"]
             elif query_domain == "security":
                 primary_order = ["greenhouse", "lever", "remotive", "jooble", "adzuna"]
                 supplemental_order = ["jobicy", "themuse", "indianapi"]
@@ -839,6 +839,11 @@ class JobAggregator:
         fallback_sources = [source for source in source_groups.keys() if source not in {*primary_sources, *supplemental_sources}]
         if query_domain not in {"software", "security"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
+        if query_domain == "data":
+            # Greenhouse and Lever add a lot of ATS-board payload for data-role
+            # searches on Render free tier, but they rarely improve the final
+            # selected set enough to justify the extra memory and restart risk.
+            fallback_sources = [source for source in fallback_sources if source not in {"greenhouse", "lever"}]
         elif (
             query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
