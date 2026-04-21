@@ -170,9 +170,11 @@ class JobAggregator:
             self.providers = [TheMuseProvider(), RemotiveProvider(), RemoteOKProvider(), ArbeitnowProvider()]
 
     def _production_cache_key(self, *, query: str, location: str, limit: int) -> str:
+        query_profile = role_profile(query)
         return "|".join(
             [
-                normalize_role(query),
+                query_profile.normalized_role,
+                query_profile.cleaned_query or query_profile.normalized_role,
                 normalize_role(location),
                 str(limit),
                 normalize_role(settings.default_job_source or "auto"),
@@ -281,13 +283,13 @@ class JobAggregator:
             return 6.0 if stage == "primary" else 4.0
         if stage == "primary":
             if query_domain == "data":
-                return 9.5
+                return 8.0
             if query_domain in {"software", "security"}:
-                return 10.5
-            return 8.5
+                return 9.0
+            return 7.5
         if stage == "supplemental":
-            return 10.0
-        return 8.0
+            return 8.0
+        return 6.5
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -319,8 +321,6 @@ class JobAggregator:
             add(RemotiveProvider())
             if source in {"auto", "themuse"}:
                 add(TheMuseProvider())
-            if source == "auto":
-                add(RemoteOKProvider())
             return providers
 
         if source == "remotive":
@@ -571,6 +571,15 @@ class JobAggregator:
     ) -> list[dict]:
         query_domain = role_domain(query)
         query_profile = role_profile(query)
+        fetch_started_at = time.perf_counter()
+
+        def _remaining_runtime_budget(*, reserve_seconds: float = 0.0) -> float:
+            return max(
+                settings.production_live_runtime_cap_seconds
+                - (time.perf_counter() - fetch_started_at)
+                - reserve_seconds,
+                0.0,
+            )
 
         def _silence_background_task(task: asyncio.Task) -> None:
             def _consume_result(completed: asyncio.Task) -> None:
@@ -586,38 +595,47 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 10.0
+                provider_timeout = 8.5
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 9.5
+                    provider_timeout = 8.0
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 13.0
-                else:
                     provider_timeout = 10.0
+                else:
+                    provider_timeout = 8.5
             elif source_name == "lever":
-                provider_timeout = 10.0
+                provider_timeout = 8.5
             elif source_name == "jooble":
-                provider_timeout = 9.0
+                provider_timeout = 7.5
             elif source_name == "adzuna":
-                provider_timeout = 9.0
+                provider_timeout = 7.5
             elif source_name == "remotive":
-                provider_timeout = 10.0
+                provider_timeout = 8.0
             elif source_name == "themuse":
-                provider_timeout = 9.0
+                provider_timeout = 7.5
             elif source_name == "findwork":
                 provider_timeout = 7.0
             elif source_name == "remoteok":
-                provider_timeout = 3.5
+                provider_timeout = 3.0
             else:
                 provider_timeout = 5.0
+            base_provider_timeout = provider_timeout
+            remaining_global_budget = _remaining_runtime_budget(reserve_seconds=1.0)
             provider_diag = {
                 "provider": provider.__class__.__name__,
                 "source": source_name,
-                "timeout_seconds": provider_timeout,
+                "requested_timeout_seconds": base_provider_timeout,
                 "query": search_query,
                 "location": search_location,
                 "stage": stage,
             }
+            if remaining_global_budget <= 0.75:
+                provider_diag["timeout_seconds"] = 0.0
+                provider_diag["error"] = "skipped_insufficient_runtime_budget"
+                self.last_fetch_diagnostics["providers"].append(provider_diag)
+                return []
+            provider_timeout = min(base_provider_timeout, max(0.75, remaining_global_budget))
+            provider_diag["timeout_seconds"] = round(provider_timeout, 2)
             try:
                 items = await asyncio.wait_for(
                     provider.search(query=search_query, location=search_location, limit=max(8, limit)),
@@ -644,6 +662,7 @@ class JobAggregator:
         near_seen: set[str] = set()
         sparse_role = is_sparse_live_market_role(query)
         live_floor = self._production_display_floor(query=query, limit=limit)
+        partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
 
         def absorb_results(provider_results: list[list[dict]]) -> None:
             for items in provider_results:
@@ -692,14 +711,33 @@ class JobAggregator:
                         tasks.append(task)
             if not tasks:
                 return []
-            soft_timeout = self._production_stage_soft_timeout(
+            base_soft_timeout = self._production_stage_soft_timeout(
                 stage=stage,
                 query_domain=query_domain,
                 sparse_role=sparse_role,
             )
+            if stage == "primary":
+                reserve_seconds = 12.0 if not sparse_role else 5.0
+            elif stage == "supplemental":
+                reserve_seconds = 5.0
+            else:
+                reserve_seconds = 1.5
+            remaining_global_budget = _remaining_runtime_budget(reserve_seconds=reserve_seconds)
+            if remaining_global_budget <= 0.75:
+                self.last_fetch_diagnostics.setdefault("stage_short_circuits", []).append(
+                    {
+                        "stage": stage,
+                        "cancelled_pending_tasks": 0,
+                        "soft_timeout_seconds": 0.0,
+                        "reason": "insufficient_global_budget",
+                        "detached_pending_tasks": 0,
+                        "cancelled_and_drained_tasks": 0,
+                    }
+                )
+                return self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
+            soft_timeout = min(base_soft_timeout, max(0.75, remaining_global_budget))
             started_at = time.perf_counter()
             pending = set(tasks)
-            cancelled_count = 0
             while pending:
                 elapsed = time.perf_counter() - started_at
                 remaining = soft_timeout - elapsed
@@ -718,7 +756,6 @@ class JobAggregator:
                 preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
                 if len(preferred_live) >= live_floor:
                     if pending:
-                        cancelled_count += len(pending)
                         await _cancel_pending_tasks(
                             pending,
                             stage=stage,
@@ -727,7 +764,6 @@ class JobAggregator:
                         )
                     return preferred_live
             if pending:
-                cancelled_count += len(pending)
                 await _cancel_pending_tasks(
                     pending,
                     stage=stage,
@@ -746,11 +782,17 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                primary_order = ["remotive", "greenhouse", "jooble", "adzuna"]
-                supplemental_order = ["themuse", "jobicy", "indianapi"]
+                primary_order = ["remotive", "jobicy", "jooble", "adzuna"]
+                supplemental_order = ["themuse", "greenhouse", "indianapi"]
+            elif query_domain == "security":
+                primary_order = ["greenhouse", "lever", "remotive", "jooble", "adzuna"]
+                supplemental_order = ["jobicy", "themuse", "indianapi"]
+            elif query_domain == "software":
+                primary_order = ["greenhouse", "lever", "remotive", "jobicy", "jooble", "adzuna"]
+                supplemental_order = ["themuse", "indianapi"]
             elif query_domain in {"product", "design"}:
-                primary_order = ["greenhouse", "jooble", "adzuna", "jobicy"]
-                supplemental_order = ["lever", "remotive", "themuse", "indianapi"]
+                primary_order = ["greenhouse", "jobicy", "themuse", "jooble", "adzuna"]
+                supplemental_order = ["lever", "remotive", "indianapi"]
             else:
                 primary_order = ["greenhouse", "lever", "jooble", "adzuna", "jobicy"]
                 supplemental_order = ["remotive", "themuse"]
@@ -854,9 +896,60 @@ class JobAggregator:
                     query,
                 )
                 return preferred_live
+            elapsed_after_supplemental = time.perf_counter() - fetch_started_at
+            if len(preferred_live) >= partial_live_floor:
+                self.last_fetch_diagnostics["stage_results"] = stage_results
+                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+                self.last_fetch_diagnostics["selected_live_sources"] = {
+                    source: len([item for item in preferred_live if item.get("source") == source])
+                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
+                }
+                self.last_fetch_diagnostics["partial_live_return"] = {
+                    "stage": "supplemental",
+                    "selected_live": len(preferred_live),
+                    "partial_live_floor": partial_live_floor,
+                    "elapsed_seconds": round(elapsed_after_supplemental, 2),
+                    "reason": "acceptable_partial_live_set",
+                }
+                logger.info(
+                    "Production live selection accepted partial result after supplemental fetch with %s jobs in %ss for query=%s",
+                    len(preferred_live),
+                    round(elapsed_after_supplemental, 2),
+                    query,
+                )
+                return preferred_live
 
         fallback_providers = [provider for source in fallback_sources for provider in source_groups.get(source, [])]
         if fallback_providers:
+            elapsed_before_fallback = time.perf_counter() - fetch_started_at
+            remaining_budget = max(settings.production_live_runtime_cap_seconds - elapsed_before_fallback, 0.0)
+            if preferred_live and (
+                len(preferred_live) >= partial_live_floor
+                or remaining_budget <= 6.0
+            ):
+                self.last_fetch_diagnostics["stage_results"] = stage_results
+                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+                self.last_fetch_diagnostics["selected_live_sources"] = {
+                    source: len([item for item in preferred_live if item.get("source") == source])
+                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
+                }
+                self.last_fetch_diagnostics["partial_live_return"] = {
+                    "stage": "pre-fallback",
+                    "selected_live": len(preferred_live),
+                    "partial_live_floor": partial_live_floor,
+                    "elapsed_seconds": round(elapsed_before_fallback, 2),
+                    "remaining_budget_seconds": round(remaining_budget, 2),
+                    "reason": "preserve_response_budget",
+                }
+                logger.info(
+                    "Skipping fallback stage and returning %s live jobs with %ss remaining budget for query=%s",
+                    len(preferred_live),
+                    round(remaining_budget, 2),
+                    query,
+                )
+                return preferred_live
             preferred_live = await run_stage("fallback", fallback_providers)
             stage_results.append(
                 {
@@ -1050,11 +1143,40 @@ class JobAggregator:
             selection_debug["last_resort_themuse_candidates"] = len(last_resort_themuse)
             maybe_add(last_resort_themuse, cap_per_company=5)
 
+        selected = [item for item in selected if self._passes_final_live_guard(query, item)]
+
+        filtered_source_counts: dict[str, int] = {}
+        for item in selected:
+            source = str(item.get("source", "unknown")).lower()
+            filtered_source_counts[source] = filtered_source_counts.get(source, 0) + 1
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
-        selection_debug["selected_sources"] = source_counts
+        selection_debug["selected_sources"] = filtered_source_counts
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         return selected[:limit]
+
+    def _passes_final_live_guard(self, query: str, item: dict) -> bool:
+        query_domain = role_domain(query)
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        specialty_overlap = self._specialty_token_overlap(query, item)
+        normalized = item.get("normalized_data", {}) or {}
+        role_fit = float(normalized.get("role_fit_score", 0.0))
+
+        if canonical_alignment <= -3:
+            return False
+        if self._requires_specialty_guard(query) and specialty_overlap == 0:
+            return False
+        if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
+            return False
+        if query_domain == "data" and canonical_alignment < 0 and title_overlap == 0 and title_precision <= 0:
+            return False
+        if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
+            return False
+        return True
 
     def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
         raw_query = self._query_signature(query)
@@ -1066,6 +1188,8 @@ class JobAggregator:
         ]
         if not raw_tokens or raw_query == normalized_query or len(raw_tokens) > 2:
             return True
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
+            return False
 
         title_text = self._query_signature(item.get("title", ""))
         description_text = self._query_signature(item.get("description", ""))
@@ -1098,6 +1222,17 @@ class JobAggregator:
         web_tokens = {"react", "frontend", "web", "javascript", "typescript", "ui"}
         return any(token in title_text for token in mobile_tokens) and not any(token in title_text for token in web_tokens)
 
+    def _contains_phrase(self, haystack: str, needle: str) -> bool:
+        cleaned_haystack = re.sub(r"[^a-z0-9+ ]+", " ", str(haystack).lower()).strip()
+        cleaned_haystack = re.sub(r"\s+", " ", cleaned_haystack)
+        cleaned_needle = re.sub(r"[^a-z0-9+ ]+", " ", str(needle).lower()).strip()
+        cleaned_needle = re.sub(r"\s+", " ", cleaned_needle)
+        if not cleaned_haystack or not cleaned_needle:
+            return False
+        if " " in cleaned_needle:
+            return cleaned_needle in cleaned_haystack
+        return bool(re.search(rf"\b{re.escape(cleaned_needle)}\b", cleaned_haystack))
+
     def _job_similarity_signature(self, item: dict) -> str:
         company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
         title = normalize_role(str(item.get("title", "")).lower()) or "unknown"
@@ -1109,10 +1244,40 @@ class JobAggregator:
         ][:12]
         return f"{company}::{title}::{' '.join(desc_tokens[:10])}"
 
+    def _requires_specialty_guard(self, query: str) -> bool:
+        profile = role_profile(query)
+        return bool(profile.specialty_tokens) and (
+            profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
+            or profile.cleaned_query != profile.normalized_role
+        )
+
+    def _specialty_token_overlap(self, query: str, item: dict) -> int:
+        profile = role_profile(query)
+        specialty_tokens = {
+            token
+            for token in profile.specialty_tokens
+            if token and token not in STOPWORDS and token not in GENERIC_ROLE_MATCH_TOKENS
+        }
+        if not specialty_tokens:
+            return 0
+        normalized = item.get("normalized_data", {}) or {}
+        extracted_skills = " ".join(str(skill).lower() for skill in normalized.get("skills", []) or [])
+        haystack = " ".join(
+            [
+                re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower()),
+                re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("description", "")).lower()),
+                " ".join(re.sub(r"[^a-z0-9+ ]+", " ", str(tag).lower()) for tag in item.get("tags", []) if str(tag).strip()),
+                extracted_skills,
+            ]
+        )
+        return sum(1 for token in specialty_tokens if re.search(rf"\b{re.escape(token)}\b", haystack))
+
     def _has_explicit_role_alignment(self, query: str, item: dict) -> bool:
         title_text = str(item.get("title", "")).lower()
         negative_hints = role_negative_title_hints(query)
-        if negative_hints and any(hint in title_text for hint in negative_hints):
+        if negative_hints and any(self._contains_phrase(title_text, hint) for hint in negative_hints):
+            return False
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
@@ -1147,6 +1312,10 @@ class JobAggregator:
         return sum(1 for token in query_tokens if re.search(rf"\b{re.escape(token)}\b", haystack))
 
     def _canonical_role_alignment(self, query: str, item: dict) -> int:
+        title_text = str(item.get("title", "")).lower()
+        negative_hints = role_negative_title_hints(query)
+        if negative_hints and any(self._contains_phrase(title_text, hint) for hint in negative_hints):
+            return -3
         return canonical_role_alignment(query, str(item.get("title", "")))
 
     def _title_precision_score(self, query: str, item: dict) -> int:
@@ -1163,6 +1332,7 @@ class JobAggregator:
 
     def _is_production_live_candidate(self, query: str, location: str, item: dict, *, strict: bool) -> bool:
         normalized = item.get("normalized_data", {}) or {}
+        query_domain = role_domain(query)
         role_fit = float(normalized.get("role_fit_score", 0.0))
         market_quality = float(normalized.get("market_quality_score", 0.0))
         title_overlap = self._title_hint_overlap(query, item)
@@ -1176,12 +1346,19 @@ class JobAggregator:
         canonical_alignment = self._canonical_role_alignment(query, item)
         title_precision = self._title_precision_score(query, item)
         title_alignment = float(normalized.get("title_alignment_score", 0.0))
+        specialty_overlap = self._specialty_token_overlap(query, item)
 
         if self._is_location_hard_mismatch(location, item):
             return False
+        if self._requires_specialty_guard(query) and specialty_overlap == 0:
+            return False
         if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
             return False
+        if canonical_alignment < 0 and title_precision <= 0 and title_overlap == 0:
+            return False
         if title_alignment <= -6.0:
+            return False
+        if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
             return False
         if is_sparse_live_market_role(query):
             if title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
@@ -1261,6 +1438,8 @@ class JobAggregator:
         family_overlap = self._family_token_overlap(query, item)
         if self._is_location_hard_mismatch(location, item):
             return False
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
+            return False
         if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
             return False
         return (
@@ -1318,6 +1497,14 @@ class JobAggregator:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
         return min(limit, max(4, settings.production_live_display_minimum))
+
+    def _production_partial_live_floor(self, *, query: str, limit: int) -> int:
+        if is_sparse_live_market_role(query):
+            return min(limit, 1)
+        query_domain = role_domain(query)
+        if query_domain in {"data", "security", "software"}:
+            return min(limit, 3)
+        return min(limit, 2)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}
@@ -1405,6 +1592,7 @@ class JobAggregator:
         title_text = str(item.get("title", "")).lower()
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
+        listing_quality = float(normalized.get("listing_quality_score", self._listing_quality_score(query, item)))
         skills = {str(skill).lower() for skill in normalized.get("skills", []) or []}
         skill_count = len(skills)
         title_overlap = self._title_hint_overlap(query, item)
@@ -1419,7 +1607,7 @@ class JobAggregator:
         negative_hints = role_negative_title_hints(query)
         if self._is_location_hard_mismatch(location, item):
             return False
-        if negative_hints and any(hint in title_text for hint in negative_hints):
+        if negative_hints and any(self._contains_phrase(title_text, hint) for hint in negative_hints):
             return False
         if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
             return False
