@@ -823,6 +823,7 @@ class JobAggregator:
         )
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
+        primary_selected_count = len(preferred_live)
         stage_results.append(
             {
                 "stage": "primary",
@@ -914,6 +915,33 @@ class JobAggregator:
                 }
                 logger.info(
                     "Production live selection accepted partial result after supplemental fetch with %s jobs in %ss for query=%s",
+                    len(preferred_live),
+                    round(elapsed_after_supplemental, 2),
+                    query,
+                )
+                return preferred_live
+            if preferred_live and (
+                len(preferred_live) == primary_selected_count
+                or elapsed_after_supplemental >= 18.0
+                or query_domain in {"data", "product", "design"}
+            ):
+                self.last_fetch_diagnostics["stage_results"] = stage_results
+                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
+                self.last_fetch_diagnostics["selected_live_sources"] = {
+                    source: len([item for item in preferred_live if item.get("source") == source])
+                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
+                }
+                self.last_fetch_diagnostics["partial_live_return"] = {
+                    "stage": "supplemental",
+                    "selected_live": len(preferred_live),
+                    "primary_selected_live": primary_selected_count,
+                    "partial_live_floor": partial_live_floor,
+                    "elapsed_seconds": round(elapsed_after_supplemental, 2),
+                    "reason": "preserve_response_after_supplemental",
+                }
+                logger.info(
+                    "Production live selection returned early after supplemental fetch with %s jobs in %ss for query=%s",
                     len(preferred_live),
                     round(elapsed_after_supplemental, 2),
                     query,
