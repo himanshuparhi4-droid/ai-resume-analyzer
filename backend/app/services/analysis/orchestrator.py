@@ -46,7 +46,6 @@ class AnalysisOrchestrator:
         location: str,
         limit: int,
         user: User | None = None,
-        request_context: dict | None = None,
     ) -> AnalysisResponse:
         started = time.perf_counter()
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
@@ -64,7 +63,6 @@ class AnalysisOrchestrator:
                         query=role_query,
                         location=location,
                         limit=production_limit,
-                        request_context=request_context,
                     ),
                     # Hosted providers on Render can spend several seconds on
                     # connection/setup before the actual response phase starts.
@@ -114,7 +112,6 @@ class AnalysisOrchestrator:
                             query=role_query,
                             location=location,
                             limit=limit,
-                            request_context=request_context,
                         ),
                         timeout=settings.job_fetch_timeout_seconds,
                     )

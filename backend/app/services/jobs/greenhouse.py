@@ -116,8 +116,8 @@ class GreenhouseProvider:
                 # detail hydration is the expensive part. For dense non-software
                 # families we only need a narrower ATS sample to surface enough
                 # live jobs before the orchestrator budget expires.
-                detail_fetch_budget = min(max(limit + 2, 10), 12)
-                board_budget = 2
+                detail_fetch_budget = min(max(limit + 4, 12), 14)
+                board_budget = 3
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
                 board_budget = 4

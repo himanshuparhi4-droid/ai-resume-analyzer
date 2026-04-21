@@ -8,11 +8,5 @@ class JobProvider(Protocol):
     supports_query_variations: bool
     supports_location_variations: bool
 
-    async def search(
-        self,
-        query: str,
-        location: str,
-        limit: int,
-        request_context: dict | None = None,
-    ) -> list[dict]:
+    async def search(self, query: str, location: str, limit: int) -> list[dict]:
         ...
