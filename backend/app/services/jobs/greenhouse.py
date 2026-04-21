@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -14,6 +15,7 @@ _GREENHOUSE_BOARD_INDEX_CACHE: dict[str, dict] = {}
 _GREENHOUSE_JOB_DETAIL_CACHE: dict[str, dict] = {}
 _MAX_GREENHOUSE_BOARD_CACHE_ENTRIES = 12
 _MAX_GREENHOUSE_DETAIL_CACHE_ENTRIES = 96
+logger = logging.getLogger(__name__)
 
 # Public Greenhouse boards used as a lightweight ATS corpus when the app is
 # running without custom board tokens. The set is role-family based so dense
@@ -64,6 +66,9 @@ _CURATED_GREENHOUSE_BOARDS = {
 }
 
 _ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
+    "data analyst": ["yipitdata", "instacart", "affirm", "robinhood"],
+    "data scientist": ["yipitdata", "asana", "affirm", "instacart"],
+    "data engineer": ["yipitdata", "instacart", "asana", "affirm"],
     "software engineer": ["okta", "discord", "asana", "figma", "robinhood", "affirm"],
     "full stack developer": ["okta", "discord", "asana", "figma", "robinhood"],
     "frontend developer": ["figma", "discord", "asana", "okta", "robinhood"],
@@ -83,12 +88,24 @@ class GreenhouseProvider:
         if not boards:
             return []
 
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
-            board_results = await asyncio.gather(*(self._fetch_board_index(board, client=client) for board in boards))
+        timeout = httpx.Timeout(
+            connect=min(4.0, settings.job_request_timeout_seconds),
+            read=settings.job_request_timeout_seconds,
+            write=10.0,
+            pool=5.0,
+        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            board_results_raw = await asyncio.gather(
+                *(self._fetch_board_index(board, client=client) for board in boards),
+                return_exceptions=True,
+            )
 
             seen_links: set[str] = set()
             candidates: list[dict] = []
-            for items in board_results:
+            for board, items in zip(boards, board_results_raw):
+                if isinstance(items, Exception):
+                    logger.warning("Greenhouse board index fetch failed for %s: %s", board, items)
+                    continue
                 for item in items:
                     link = str(item.get("url") or item.get("external_id") or "").strip()
                     if not link or link in seen_links:
@@ -118,7 +135,7 @@ class GreenhouseProvider:
                 # detail hydration is the expensive part. For dense non-software
                 # families we only need a narrower ATS sample to surface enough
                 # live jobs before the orchestrator budget expires.
-                detail_fetch_budget = min(max(limit + 4, 12), 14)
+                detail_fetch_budget = min(max(limit + 2, 10), 12)
                 board_budget = 3
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
@@ -163,7 +180,7 @@ class GreenhouseProvider:
                 if len(selected_candidates) >= detail_fetch_budget:
                     break
 
-            hydrated = await asyncio.gather(
+            hydrated_raw = await asyncio.gather(
                 *(
                     self._fetch_job_detail(
                         board=str((item.get("normalized_data") or {}).get("board_token") or ""),
@@ -172,10 +189,22 @@ class GreenhouseProvider:
                         client=client,
                     )
                     for item in selected_candidates
-                )
+                ),
+                return_exceptions=True,
             )
 
-        jobs = [item for item in hydrated if item]
+        jobs: list[dict] = []
+        for candidate, item in zip(selected_candidates, hydrated_raw):
+            if isinstance(item, Exception):
+                logger.warning(
+                    "Greenhouse job detail fetch failed for board=%s job=%s: %s",
+                    str((candidate.get("normalized_data") or {}).get("board_token") or ""),
+                    str(candidate.get("external_id") or ""),
+                    item,
+                )
+                continue
+            if item:
+                jobs.append(item)
         positively_aligned_detailed = [
             item
             for item in jobs

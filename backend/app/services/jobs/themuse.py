@@ -69,7 +69,13 @@ class TheMuseProvider:
         collected: list[dict] = []
         seen_ids: set[str] = set()
 
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
+        timeout = httpx.Timeout(
+            connect=min(4.0, settings.job_request_timeout_seconds),
+            read=settings.job_request_timeout_seconds,
+            write=10.0,
+            pool=5.0,
+        )
+        async with httpx.AsyncClient(timeout=timeout, headers=self.request_headers) as client:
             for spec in request_specs:
                 for page in range(1, page_count + 1):
                     params = {"page": page, "items_per_page": items_per_page, **spec}

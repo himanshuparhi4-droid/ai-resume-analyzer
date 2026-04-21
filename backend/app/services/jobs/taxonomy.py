@@ -244,7 +244,7 @@ ROLE_PRIMARY_HINTS = {
 }
 ROLE_TITLE_HINTS = {
     "data analyst": {"data analyst", "reporting analyst", "business intelligence", "business intelligence analyst", "bi analyst", "analytics analyst", "insights analyst", "data analytics"},
-    "data scientist": {"scientist", "ml", "machine learning", "applied"},
+    "data scientist": {"data scientist", "applied scientist", "machine learning scientist", "ml scientist", "research scientist"},
     "machine learning engineer": {"machine learning", "ml engineer", "ai engineer"},
     "data engineer": {"data engineer", "etl", "analytics engineer"},
     "software engineer": {"software engineer", "software developer", "backend engineer", "backend developer", "application engineer", "python developer"},
@@ -1175,6 +1175,7 @@ def _head_query_variants(profile: RoleProfile) -> list[str]:
 def _generic_query_expansions(profile: RoleProfile) -> list[str]:
     expansions: list[str] = []
     specialty = " ".join(profile.specialty_tokens).strip()
+    allowed_head_variants = set(_head_query_variants(profile)) if profile.head_terms else set()
 
     if profile.cleaned_query and _meaningful_raw_query(profile.cleaned_query, profile.normalized_role):
         expansions.append(profile.cleaned_query)
@@ -1189,9 +1190,14 @@ def _generic_query_expansions(profile: RoleProfile) -> list[str]:
                 expansions.append(f"{specialty} {head_variant}".strip())
         for template in DOMAIN_QUERY_TEMPLATES.get(profile.domain or "", ()):
             if "{specialty}" in template:
-                expansions.append(template.format(specialty=specialty).strip())
+                candidate = template.format(specialty=specialty).strip()
             else:
-                expansions.append(template)
+                candidate = template
+            if allowed_head_variants:
+                candidate_tokens = set(candidate.split())
+                if not (candidate_tokens & allowed_head_variants):
+                    continue
+            expansions.append(candidate)
 
     cleaned_expansions: list[str] = []
     for item in expansions:
@@ -1323,7 +1329,10 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
     if profile.specialty_tokens:
         score += len(candidate_tokens & set(profile.specialty_tokens)) * 3.0
     if profile.head_terms:
-        score += len(candidate_tokens & set(profile.head_terms)) * 2.0
+        head_overlap = len(candidate_tokens & set(profile.head_terms))
+        score += head_overlap * 4.0
+        if head_overlap == 0:
+            score -= 5.0
     if source_name in {"jobicy", "themuse", "indianapi", "remoteok"}:
         score -= max(0, len(candidate_tokens) - 3) * 0.6
     elif source_name in {"remotive", "jooble", "adzuna"}:
@@ -1342,7 +1351,9 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
     query_is_narrow = len(profile.specialty_tokens) >= 2 or len(profile.cleaned_query.split()) >= 3
     budget_config = PROVIDER_QUERY_BUDGETS.get(source_name, {"base": 2, "narrow": 1})
     budget = int(budget_config["narrow"] if query_is_narrow else budget_config["base"])
-    if profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
+    if profile.domain == "data" and "analyst" in profile.head_terms and source_name == "jobicy":
+        budget = max(budget, 3)
+    elif profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
         budget = min(budget, 1)
     return ranked[: max(1, budget)]
 

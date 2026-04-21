@@ -29,7 +29,13 @@ class JobicyProvider:
         if role_tag:
             params["tag"] = role_tag
 
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
+        timeout = httpx.Timeout(
+            connect=min(4.0, settings.job_request_timeout_seconds),
+            read=settings.job_request_timeout_seconds,
+            write=10.0,
+            pool=5.0,
+        )
+        async with httpx.AsyncClient(timeout=timeout, headers=self.request_headers) as client:
             response = await client.get(settings.jobicy_base_url, params=params)
             response.raise_for_status()
             payload = response.json()

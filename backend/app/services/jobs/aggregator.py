@@ -292,11 +292,13 @@ class JobAggregator:
             return 6.0 if stage == "primary" else 4.0
         if stage == "primary":
             if query_domain == "data":
-                return 8.0
+                return 10.0
             if query_domain in {"software", "security"}:
-                return 9.0
+                return 10.5
             return 7.5
         if stage == "supplemental":
+            if query_domain == "data":
+                return 20.0
             return 8.0
         return 6.5
 
@@ -635,13 +637,18 @@ class JobAggregator:
                 provider_timeout = 8.5
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 8.0
+                    provider_timeout = 12.0
+                elif query_domain in {"software", "security"}:
+                    provider_timeout = 11.0
+                else:
+                    provider_timeout = 8.5
+            elif source_name == "lever":
+                if query_domain == "data":
+                    provider_timeout = 18.0
                 elif query_domain in {"software", "security"}:
                     provider_timeout = 10.0
                 else:
                     provider_timeout = 8.5
-            elif source_name == "lever":
-                provider_timeout = 8.5
             elif source_name == "jooble":
                 provider_timeout = 7.5
             elif source_name == "adzuna":
@@ -649,7 +656,7 @@ class JobAggregator:
             elif source_name == "remotive":
                 provider_timeout = 8.0
             elif source_name == "themuse":
-                provider_timeout = 7.5
+                provider_timeout = 8.5 if query_domain == "data" else 7.5
             elif source_name == "findwork":
                 provider_timeout = 7.0
             elif source_name == "remoteok":
@@ -819,12 +826,13 @@ class JobAggregator:
             supplemental_sources: list[str] = []
         else:
             if query_domain == "data":
-                # Render handles the faster API-driven providers well enough for
-                # the first pass, but The Muse often turns an otherwise-valid
-                # live fetch into a 20s+ stage on free-tier instances. Keep the
-                # fast APIs first and use lighter ATS board feeds as the backup.
+                # Keep the first pass on the fastest broad data sources, then
+                # widen with ATS-heavy providers. Greenhouse gives excellent
+                # analyst/scientist titles, but in practice it is more stable
+                # when allowed to finish in the widening stage instead of
+                # competing inside the primary soft timeout.
                 primary_order = ["remotive", "jobicy", "jooble", "adzuna"]
-                supplemental_order = ["lever", "indianapi"]
+                supplemental_order = ["greenhouse", "lever", "themuse", "indianapi"]
             elif query_domain == "security":
                 primary_order = ["greenhouse", "lever", "remotive", "jooble", "adzuna"]
                 supplemental_order = ["jobicy", "themuse", "indianapi"]
@@ -844,10 +852,10 @@ class JobAggregator:
         if query_domain not in {"software", "security"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
         if query_domain == "data":
-            # Greenhouse and Lever add a lot of ATS-board payload for data-role
-            # searches on Render free tier, but they rarely improve the final
-            # selected set enough to justify the extra memory and restart risk.
-            fallback_sources = [source for source in fallback_sources if source not in {"greenhouse", "lever"}]
+            # Keep Greenhouse out of the default data-role fallback path on
+            # Render free tier. Lever can still help as a narrower ATS backup,
+            # but Greenhouse detail hydration is usually the most expensive.
+            fallback_sources = [source for source in fallback_sources if source not in {"greenhouse"}]
         elif (
             query_profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in query_profile.head_terms)
@@ -968,7 +976,7 @@ class JobAggregator:
                 return preferred_live
             if preferred_live and (
                 (len(preferred_live) == primary_selected_count and query_domain != "data")
-                or elapsed_after_supplemental >= 18.0
+                or (elapsed_after_supplemental >= 18.0 and query_domain not in {"data", "software", "security"})
                 or query_domain in {"product", "design"}
             ):
                 self.last_fetch_diagnostics["stage_results"] = stage_results
@@ -1000,7 +1008,7 @@ class JobAggregator:
             remaining_budget = max(settings.production_live_runtime_cap_seconds - elapsed_before_fallback, 0.0)
             if preferred_live and (
                 len(preferred_live) >= partial_live_floor
-                or remaining_budget <= 6.0
+                or (remaining_budget <= 6.0 and query_domain not in {"data", "software", "security"})
             ):
                 self.last_fetch_diagnostics["stage_results"] = stage_results
                 self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
@@ -1100,6 +1108,8 @@ class JobAggregator:
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
             for item in candidates:
                 if item in selected:
+                    continue
+                if not self._passes_final_live_guard(query, item):
                     continue
                 company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
                 title_key = normalize_role(str(item.get("title", "")).lower()) or "unknown"
@@ -1589,6 +1599,8 @@ class JobAggregator:
     def _production_live_target(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 4)
+        if role_domain(query) in {"data", "software", "security"}:
+            return min(limit, max(settings.production_live_display_minimum, 10))
         return min(limit, max(settings.production_live_display_minimum, settings.production_live_fetch_minimum))
 
     def _production_display_floor(self, *, query: str, limit: int) -> int:

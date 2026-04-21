@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     production_live_runtime_cap_seconds: float = 42.0
     enable_live_market_fetch: bool = True
     production_live_fetch_minimum: int = 8
-    production_live_fetch_maximum: int = 8
+    production_live_fetch_maximum: int = 10
     production_live_display_minimum: int = 8
     production_live_candidate_fetch: int = 80
     production_live_cache_ttl_minutes: int = 360

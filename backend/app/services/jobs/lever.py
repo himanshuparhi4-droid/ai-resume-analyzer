@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -12,6 +13,7 @@ from app.utils.text import strip_html, truncate
 
 _LEVER_BOARD_CACHE: dict[str, dict] = {}
 _MAX_LEVER_BOARD_CACHE_ENTRIES = 16
+logger = logging.getLogger(__name__)
 
 _CURATED_LEVER_COMPANIES = {
     "data": [
@@ -83,10 +85,23 @@ class LeverProvider:
 
         jobs: list[dict] = []
         seen_links: set[str] = set()
-        async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
-            company_results = await asyncio.gather(
-                *(self._fetch_company_jobs(company, client=client) for company in companies)
+        timeout = httpx.Timeout(
+            connect=min(4.0, settings.job_request_timeout_seconds),
+            read=settings.job_request_timeout_seconds,
+            write=10.0,
+            pool=5.0,
+        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            company_results_raw = await asyncio.gather(
+                *(self._fetch_company_jobs(company, client=client) for company in companies),
+                return_exceptions=True,
             )
+        company_results: list[list[dict]] = []
+        for company, company_jobs in zip(companies, company_results_raw):
+            if isinstance(company_jobs, Exception):
+                logger.warning("Lever company fetch failed for %s: %s", company, company_jobs)
+                continue
+            company_results.append(company_jobs)
         for company_jobs in company_results:
             for item in company_jobs:
                 link = str(item.get("url") or item.get("external_id") or "").strip()
