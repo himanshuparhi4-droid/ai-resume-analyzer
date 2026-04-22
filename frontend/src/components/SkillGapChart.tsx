@@ -65,7 +65,9 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Market Gaps</p>
           <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Missing role-specific tools</h3>
           <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-            {liveMissingDetails.length
+            {liveMissingDetails.length && calibratedMissingDetails.length
+              ? "The strongest gaps are backed by live job listings, with additional role-family calibration added so narrow live samples do not underreport missing tools."
+              : liveMissingDetails.length
               ? "These gaps are backed by live job listings from the current market sample."
               : calibratedMissingDetails.length
                 ? "Live listings were too thin for a reliable skills map, so calibrated role baselines widened the missing-skill view."

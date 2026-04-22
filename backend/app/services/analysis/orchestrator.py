@@ -20,7 +20,7 @@ from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints, role_recommendation_skills
 from app.services.nlp.skill_grounding import SkillGroundingService
-from app.services.nlp.skill_extractor import infer_skill_frequency
+from app.services.nlp.skill_extractor import augment_missing_skills, infer_skill_frequency
 from app.services.parsers.resume_parser import ResumeParser
 from app.utils.text import truncate
 
@@ -402,9 +402,15 @@ class AnalysisOrchestrator:
 
         matched_skills = sorted(resume_skills & market_skills)
         missing_skills = [
-            {"skill": skill, "share": demand_map[skill]}
+            {"skill": skill, "share": demand_map[skill], "signal_source": "live"}
             for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
         ][:10]
+        missing_skills = augment_missing_skills(
+            role_query=role_query,
+            resume_skills=resume_skills,
+            job_items=scoring_jobs or jobs,
+            existing_missing_skills=missing_skills,
+        )
 
         live_jobs = [job for job in scoring_jobs if job.get("source") != "role-baseline"]
         live_company_count = len(

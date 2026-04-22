@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from app.services.nlp.skill_grounding import SkillGroundingService
+from app.services.nlp.skill_extractor import augment_missing_skills
 
 
 class UniversalSkillGroundingTest(unittest.TestCase):
@@ -55,6 +56,44 @@ class UniversalSkillGroundingTest(unittest.TestCase):
 
         self.assertTrue(sample["needs_blend"])
         self.assertLess(sample["role_coverage"], 0.5)
+
+    def test_dense_role_missing_gaps_are_backfilled_beyond_single_live_skill(self) -> None:
+        jobs = [
+            {
+                "source": "greenhouse",
+                "company": "Alpha",
+                "title": "Data Scientist",
+                "description": "Requirements: Python, machine learning, feature engineering, model deployment, and forecasting.",
+                "normalized_data": {"skills": ["python", "machine learning", "feature engineering", "model deployment", "forecasting"]},
+            },
+            {
+                "source": "jobicy",
+                "company": "Beta",
+                "title": "Machine Learning Scientist",
+                "description": "Requirements: Python, PyTorch, deep learning, and model deployment.",
+                "normalized_data": {"skills": ["python", "pytorch", "deep learning", "model deployment"]},
+            },
+            {
+                "source": "remotive",
+                "company": "Gamma",
+                "title": "Data Scientist",
+                "description": "Requirements: Python, SQL, statistics, and forecasting.",
+                "normalized_data": {"skills": ["python", "sql", "statistics", "forecasting"]},
+            },
+        ]
+
+        gaps = augment_missing_skills(
+            role_query="Data Scientist",
+            resume_skills={"python", "sql", "statistics", "machine learning", "pandas", "numpy", "scikit-learn"},
+            job_items=jobs,
+            existing_missing_skills=[{"skill": "forecasting", "share": 13.0, "signal_source": "live"}],
+        )
+
+        gap_names = {item["skill"] for item in gaps}
+        self.assertIn("forecasting", gap_names)
+        self.assertIn("feature engineering", gap_names)
+        self.assertIn("model deployment", gap_names)
+        self.assertGreaterEqual(len(gaps), 3)
 
 
 if __name__ == "__main__":

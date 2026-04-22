@@ -410,8 +410,18 @@ class SkillGroundingService:
             {
                 "skill": item["skill"],
                 "market_share": item["share"],
-                "job_evidence": self._rank_job_evidence(job_evidence_map.get(item["skill"], []), prefer_live=live_jobs_present)[:2],
-                "primary_source": self._primary_evidence_source(job_evidence_map.get(item["skill"], []), prefer_live=live_jobs_present),
+                "job_evidence": self._rank_job_evidence(
+                    [*job_evidence_map.get(item["skill"], []), *item.get("job_evidence", [])],
+                    prefer_live=live_jobs_present,
+                )[:2],
+                "primary_source": (
+                    item.get("primary_source")
+                    or self._primary_evidence_source(
+                        [*job_evidence_map.get(item["skill"], []), *item.get("job_evidence", [])],
+                        prefer_live=live_jobs_present,
+                    )
+                ),
+                "signal_source": item.get("signal_source", "live"),
             }
             for item in missing_skills
         ]

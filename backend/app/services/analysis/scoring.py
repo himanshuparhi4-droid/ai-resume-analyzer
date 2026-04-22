@@ -5,7 +5,7 @@ import re
 from app.schemas.common import ScoreBreakdown
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
-from app.services.nlp.skill_extractor import infer_skill_frequency
+from app.services.nlp.skill_extractor import augment_missing_skills, infer_skill_frequency
 from app.utils.text import normalize_whitespace, truncate
 
 JOB_YEARS_RE = re.compile(r"(\d{1,2})\+?\s+years")
@@ -29,9 +29,15 @@ class ScoringEngine:
         matched_skills = sorted(resume_skills & market_skills)
         role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "") | set(role_baseline_skills(role_query or "", limit=18))
         missing_skills = [
-            {"skill": skill, "share": demand_map[skill]}
+            {"skill": skill, "share": demand_map[skill], "signal_source": "live"}
             for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
         ]
+        missing_skills = augment_missing_skills(
+            role_query=role_query,
+            resume_skills=resume_skills,
+            job_items=jobs,
+            existing_missing_skills=missing_skills,
+        )
 
         skill_match = self._skill_match_score(resume_skills, jobs) * market_confidence
         semantic_match = self._semantic_score(resume_data, jobs, role_query=role_query)

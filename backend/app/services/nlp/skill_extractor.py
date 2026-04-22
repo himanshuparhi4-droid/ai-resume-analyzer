@@ -1,7 +1,7 @@
 import re
 from collections import Counter, defaultdict
 
-from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
+from app.services.jobs.taxonomy import role_domain, role_family, role_market_hints, role_primary_hints, role_recommendation_skills
 from app.utils.text import normalize_whitespace
 
 URL_RE = re.compile(r"https?://\S+")
@@ -202,6 +202,23 @@ ROLE_GENERIC_SECONDARY_SKILLS = {
     "data visualization",
     "business intelligence",
     "excel",
+}
+DENSE_ROLE_GAP_FAMILIES = {
+    "software engineer",
+    "frontend developer",
+    "full stack developer",
+    "mobile developer",
+    "embedded engineer",
+    "data analyst",
+    "data scientist",
+    "machine learning engineer",
+    "data engineer",
+    "database engineer",
+    "devops engineer",
+    "cybersecurity engineer",
+    "qa engineer",
+    "solutions architect",
+    "enterprise applications engineer",
 }
 SOURCE_TRUST_WEIGHTS = {
     "jobicy": 1.0,
@@ -467,3 +484,118 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
         if len(result) >= 20:
             break
     return result
+
+
+def _missing_gap_target(role_query: str | None) -> int:
+    if not role_query:
+        return 3
+    family = role_family(role_query)
+    domain = role_domain(role_query)
+    if family in {"data scientist", "machine learning engineer", "data engineer", "data analyst"}:
+        return 5
+    if family in DENSE_ROLE_GAP_FAMILIES or domain in {"data", "software", "security"}:
+        return 4
+    return 3
+
+
+def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]]:
+    evidence_items: list[dict[str, str]] = []
+    seen_company_skill: set[str] = set()
+    for item in job_items:
+        if item.get("source") == "role-baseline":
+            continue
+        company = normalize_whitespace(str(item.get("company", ""))).lower() or "unknown"
+        key = f"{company}::{skill}"
+        if key in seen_company_skill:
+            continue
+        job_text = normalize_whitespace(f"{item.get('title', '')} {item.get('description', '')}")
+        evidence = extract_skill_evidence(job_text, [skill], source="job")
+        if not evidence:
+            continue
+        seen_company_skill.add(key)
+        evidence_items.append(
+            {
+                "title": str(item.get("title", "Unknown Role")),
+                "company": str(item.get("company", "Unknown Company")),
+                "snippet": evidence[0]["snippet"],
+                "source": str(item.get("source", "unknown")),
+            }
+        )
+    return evidence_items
+
+
+def augment_missing_skills(
+    *,
+    role_query: str | None,
+    resume_skills: set[str],
+    job_items: list[dict],
+    existing_missing_skills: list[dict],
+) -> list[dict]:
+    if not role_query:
+        return existing_missing_skills[:10]
+
+    normalized_resume_skills = {normalize_whitespace(skill).lower() for skill in resume_skills if normalize_whitespace(skill)}
+    augmented: list[dict] = [{**item, "signal_source": str(item.get("signal_source", "live"))} for item in existing_missing_skills]
+    existing_names = {str(item.get("skill", "")).lower() for item in augmented if str(item.get("skill", "")).strip()}
+    target_count = _missing_gap_target(role_query)
+    live_jobs = [item for item in job_items if item.get("source") != "role-baseline"]
+    live_job_count = max(len(live_jobs), 1)
+    recommendation_skills = role_recommendation_skills(role_query, limit=14)
+
+    evidence_backfill: list[dict] = []
+    calibrated_backfill: list[dict] = []
+
+    for rank, skill in enumerate(recommendation_skills, start=1):
+        normalized_skill = normalize_whitespace(skill).lower()
+        if not normalized_skill or normalized_skill in normalized_resume_skills or normalized_skill in existing_names:
+            continue
+
+        live_evidence = _live_gap_evidence(live_jobs, normalized_skill)
+        if live_evidence:
+            live_company_count = len({normalize_whitespace(item["company"]).lower() for item in live_evidence})
+            share = round(max(4.5, min(18.0, (live_company_count / live_job_count) * 100)), 1)
+            evidence_backfill.append(
+                {
+                    "skill": normalized_skill,
+                    "share": share,
+                    "signal_source": "live-support",
+                    "primary_source": live_evidence[0]["source"],
+                    "job_evidence": live_evidence[:2],
+                }
+            )
+            existing_names.add(normalized_skill)
+            continue
+
+        calibrated_share = round(max(3.5, 9.5 - ((rank - 1) * 0.8)), 1)
+        calibrated_backfill.append(
+            {
+                "skill": normalized_skill,
+                "share": calibrated_share,
+                "signal_source": "role-family",
+                "primary_source": "role-baseline",
+                "job_evidence": [],
+            }
+        )
+        existing_names.add(normalized_skill)
+
+    augmented.extend(evidence_backfill)
+    if len(augmented) < target_count:
+        augmented.extend(calibrated_backfill[: max(0, target_count - len(augmented))])
+
+    priority = {"live": 3, "live-support": 2, "role-family": 1}
+    deduped: list[dict] = []
+    seen: set[str] = set()
+    for item in sorted(
+        augmented,
+        key=lambda candidate: (
+            priority.get(str(candidate.get("signal_source", "live")), 0),
+            float(candidate.get("share", 0.0) or 0.0),
+        ),
+        reverse=True,
+    ):
+        skill = str(item.get("skill", "")).lower()
+        if not skill or skill in seen:
+            continue
+        seen.add(skill)
+        deduped.append(item)
+    return deduped[:10]
