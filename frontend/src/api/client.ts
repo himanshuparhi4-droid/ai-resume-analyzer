@@ -103,6 +103,19 @@ export async function login(input: { email: string; password: string }): Promise
   return data;
 }
 
+export async function resetPassword(input: { email: string; fullName: string; newPassword: string }): Promise<AuthResponse> {
+  const { data } = await withWakeRetry(() =>
+    api.post<AuthResponse>("/auth/reset-password", {
+      email: input.email,
+      full_name: input.fullName,
+      new_password: input.newPassword
+    }, {
+      timeout: AUTH_TIMEOUT_MS
+    })
+  );
+  return data;
+}
+
 export async function getHistory(): Promise<HistoryItem[]> {
   const { data } = await withWakeRetry(() =>
     api.get<HistoryItem[]>("/users/me/analyses", {

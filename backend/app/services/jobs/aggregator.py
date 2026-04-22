@@ -341,11 +341,15 @@ class JobAggregator:
         india_focused_location = self._is_india_focused_location(location)
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
+        normalized_query = role_profile(query).normalized_role
 
         fallback_order: list[str] = []
         if sparse_role:
             primary_order = ["remotive"]
             supplemental_order: list[str] = []
+        elif normalized_query == "frontend developer":
+            primary_order = ["remotive", "jobicy", "greenhouse"]
+            supplemental_order = ["themuse"]
         elif dense_family:
             if india_focused_location:
                 primary_order = ["jooble", "remotive", "greenhouse"]
@@ -1536,6 +1540,7 @@ class JobAggregator:
 
     def _passes_final_live_guard(self, query: str, item: dict) -> bool:
         query_domain = role_domain(query)
+        normalized_query = normalize_role(query)
         canonical_alignment = self._canonical_role_alignment(query, item)
         title_precision = self._title_precision_score(query, item)
         title_overlap = self._title_hint_overlap(query, item)
@@ -1551,6 +1556,20 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
+        if (
+            normalized_query == "frontend developer"
+            and canonical_alignment >= 1
+            and not self._is_mobile_web_mismatch(query, title_text)
+            and (
+                title_precision >= 1
+                or title_overlap >= 1
+                or self._contains_phrase(title_text, "full stack")
+                or self._contains_phrase(title_text, "fullstack")
+                or self._contains_phrase(title_text, "web")
+                or self._contains_phrase(title_text, "react")
+            )
+        ):
+            return True
         if self._uses_strict_precision_guard(query):
             requested_leadership = {"manager", "director", "head", "chief", "vp", "vice", "president"}
             if not any(token in query_text.split() for token in requested_leadership) and re.search(
@@ -1591,6 +1610,24 @@ class JobAggregator:
         if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
             return False
         return True
+
+    def _is_frontend_adjacent_live_candidate(self, query: str, item: dict) -> bool:
+        if normalize_role(query) != "frontend developer":
+            return False
+        title_text = self._query_signature(item.get("title", ""))
+        if self._is_mobile_web_mismatch(query, title_text):
+            return False
+        if self._canonical_role_alignment(query, item) < 1:
+            return False
+        role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+        if role_fit < 1.5:
+            return False
+        return (
+            self._contains_phrase(title_text, "full stack")
+            or self._contains_phrase(title_text, "fullstack")
+            or self._contains_phrase(title_text, "web")
+            or self._contains_phrase(title_text, "react")
+        )
 
     def _passes_exact_query_backup_guard(self, query: str, location: str, item: dict) -> bool:
         query_domain = role_domain(query)
@@ -1748,6 +1785,8 @@ class JobAggregator:
             return True
         if len(profile.cleaned_query.split()) < 2:
             return False
+        if profile.normalized_role == "frontend developer":
+            return False
         alias_target = profile.family_role or profile.normalized_role
         if not alias_target:
             return False
@@ -1804,6 +1843,8 @@ class JobAggregator:
 
     def _requires_specialty_guard(self, query: str) -> bool:
         profile = role_profile(query)
+        if profile.normalized_role == "frontend developer":
+            return False
         return bool(profile.specialty_tokens) and (
             profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or profile.cleaned_query != profile.normalized_role
@@ -2036,6 +2077,8 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
+        if self._is_frontend_adjacent_live_candidate(query, item):
+            return True
         if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
             return False
         if (

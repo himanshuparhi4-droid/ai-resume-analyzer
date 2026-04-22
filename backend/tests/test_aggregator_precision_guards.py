@@ -96,6 +96,41 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Web Developer", item))
 
+    def test_web_developer_alias_uses_balanced_precision_not_exact_alias_locking(self) -> None:
+        self.assertFalse(self.aggregator._uses_strict_precision_guard("Web Developer"))
+        self.assertTrue(self.aggregator._uses_strict_precision_guard("Frontend Developer"))
+
+    def test_web_developer_alias_does_not_require_literal_web_specialty_token(self) -> None:
+        self.assertFalse(self.aggregator._requires_specialty_guard("Web Developer"))
+
+    def test_web_developer_final_guard_keeps_full_stack_react_title(self) -> None:
+        item = {
+            "title": "Senior Full-stack React Developer",
+            "description": "Build React interfaces, component systems, and modern web experiences.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["react", "javascript", "typescript", "css"],
+                "role_fit_score": 4.2,
+                "market_quality_score": 18.0,
+                "title_alignment_score": 10.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_final_live_guard("Web Developer", item))
+
+    def test_web_developer_family_candidate_keeps_fullstack_adjacent_title(self) -> None:
+        item = {
+            "title": "Fullstack Developer",
+            "description": "Build React and web application features across the frontend stack.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["react", "javascript", "typescript", "css"],
+                "role_fit_score": 2.0,
+                "market_quality_score": 18.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertTrue(self.aggregator._is_family_live_candidate("Web Developer", "Global", item))
+
     def test_devops_engineer_rejects_generic_cloud_developer_title(self) -> None:
         item = {
             "title": "Sr Applications Developer_Atlassian Cloud",
@@ -316,6 +351,24 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
         self.assertIn("themuse", plan["supplemental_sources"])
         self.assertNotIn("themuse", plan["primary_sources"])
+
+    def test_web_developer_prioritizes_fast_frontend_sources(self) -> None:
+        source_groups = {
+            "adzuna": [object()],
+            "greenhouse": [object()],
+            "jobicy": [object()],
+            "jooble": [object()],
+            "remotive": [object()],
+            "themuse": [object()],
+        }
+        plan = self.aggregator._build_production_provider_plan(
+            query="Web Developer",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "greenhouse"])
+        self.assertEqual(plan["supplemental_sources"], ["themuse"])
+        self.assertEqual(plan["fallback_sources"], [])
 
     def test_selection_debug_tracks_rejection_reasons(self) -> None:
         jobs = [

@@ -5,17 +5,28 @@ from typing import Any
 
 import jwt
 from passlib.context import CryptContext
+from passlib.exc import MissingBackendError, PasswordValueError, UnknownHashError
 
 from app.core.config import settings
 
-# Stable cross-platform password hashing without the bcrypt backend mismatch
-# that was causing registration failures on this setup.
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+# Prefer a stable pbkdf2 hash for new passwords, but keep bcrypt available so
+# older deployment-local accounts can still log in and get upgraded in place.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except (MissingBackendError, PasswordValueError, TypeError, UnknownHashError, ValueError):
+        return False
+
+
+def verify_and_update_password(plain_password: str, hashed_password: str) -> tuple[bool, str | None]:
+    try:
+        return pwd_context.verify_and_update(plain_password, hashed_password)
+    except (MissingBackendError, PasswordValueError, TypeError, UnknownHashError, ValueError):
+        return False, None
 
 
 def get_password_hash(password: str) -> str:

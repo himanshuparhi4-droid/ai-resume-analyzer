@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { analyzeResume, compareAnalyses, getHistory, login, register, setAuthToken } from "./api/client";
+import { analyzeResume, compareAnalyses, getHistory, login, register, resetPassword, setAuthToken } from "./api/client";
 import { AuthPanel } from "./components/AuthPanel";
 import { Header } from "./components/Header";
 import { HistoryPanel } from "./components/HistoryPanel";
@@ -133,11 +133,33 @@ function App() {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setUser(data.user);
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        setError("Login failed on the hosted app. This deployment uses its own database, so if you have not created an account here yet, use Register first.");
-      } else {
-        setError(getBackendErrorMessage(err, "Login failed. Check your email and password."));
-      }
+      setError(
+        getBackendErrorMessage(
+          err,
+          "Login failed. Check your email and password. If this deployment says the email already exists, use Forgot password to reset it here."
+        )
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleResetPassword(payload: { email: string; fullName: string; newPassword: string }) {
+    try {
+      setAuthLoading(true);
+      setError(null);
+      const data = await resetPassword(payload);
+      setAuthToken(data.access_token);
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setUser(data.user);
+    } catch (err: any) {
+      setError(
+        getBackendErrorMessage(
+          err,
+          "Password reset failed. Double-check the email and full name used when you registered on this deployment."
+        )
+      );
     } finally {
       setAuthLoading(false);
     }
@@ -164,7 +186,14 @@ function App() {
     <main className="min-h-screen bg-transparent text-ink transition-colors duration-300 dark:text-slate-100">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
         <Header theme={theme} onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))} />
-        <AuthPanel user={user} onRegister={handleRegister} onLogin={handleLogin} onLogout={handleLogout} busy={authLoading} />
+        <AuthPanel
+          user={user}
+          onRegister={handleRegister}
+          onLogin={handleLogin}
+          onResetPassword={handleResetPassword}
+          onLogout={handleLogout}
+          busy={authLoading}
+        />
         <UploadPanel loading={loading} onSubmit={handleAnalyze} />
         {error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">

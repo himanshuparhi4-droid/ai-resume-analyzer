@@ -119,7 +119,13 @@ class GreenhouseProvider:
                 return []
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
-            if normalized_query in {"software engineer", "full stack developer", "frontend developer", "devops engineer"}:
+            if normalized_query == "frontend developer":
+                # Frontend/web queries benefit from board diversity, but full
+                # hydration on Render free tier is too expensive and tends to
+                # time out before the selector sees the ATS-backed candidates.
+                detail_fetch_budget = min(max(limit // 2 + 1, 3), 4)
+                board_budget = 1
+            elif normalized_query in {"software engineer", "full stack developer", "devops engineer"}:
                 detail_fetch_budget = min(max(limit + 2, 10), 14)
                 board_budget = 2
             elif normalized_query in {
@@ -253,6 +259,8 @@ class GreenhouseProvider:
                 "product": 4,
                 "design": 3,
             }.get(family_domain, len(boards))
+            if normalized == "frontend developer":
+                board_limit = min(board_limit, 3)
             boards = boards[:board_limit]
         return boards
 
