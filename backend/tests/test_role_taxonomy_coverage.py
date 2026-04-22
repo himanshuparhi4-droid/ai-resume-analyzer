@@ -211,6 +211,25 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertEqual(profile.family_role, "data engineer")
         self.assertEqual(profile.domain, "data")
 
+    def test_compact_role_aliases_expand_before_query_generation(self) -> None:
+        scientist_profile = role_profile("Datascientist")
+        self.assertEqual(scientist_profile.normalized_role, "data scientist")
+        self.assertEqual(scientist_profile.cleaned_query, "data scientist")
+        scientist_queries = provider_query_variations("Datascientist", "remotive", production=True)
+        self.assertIn("data scientist", scientist_queries)
+        self.assertFalse(any(query.startswith("datascientist") for query in scientist_queries))
+
+        salesforce_profile = role_profile("SalesforceAdmin")
+        self.assertEqual(salesforce_profile.cleaned_query, "salesforce admin")
+        salesforce_queries = provider_query_variations("SalesforceAdmin", "remotive", production=True)
+        self.assertIn("salesforce admin", salesforce_queries)
+
+        support_profile = role_profile("TechnicalSupportEngineer")
+        self.assertEqual(support_profile.cleaned_query, "technical support engineer")
+        support_queries = provider_query_variations("TechnicalSupportEngineer", "jooble", production=True)
+        self.assertIn("technical support engineer", support_queries)
+        self.assertFalse(any(query.startswith("technicalsupportengineer") for query in support_queries))
+
     def test_explicit_canonical_roles_do_not_drift_into_sibling_production_queries(self) -> None:
         analyst_queries = production_query_variations("Data Analyst")
         self.assertIn("data analyst", analyst_queries)

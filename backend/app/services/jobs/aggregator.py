@@ -1581,7 +1581,7 @@ class JobAggregator:
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
         query_text = self._query_signature(query)
-        title_text = self._query_signature(item.get("title", ""))
+        title_text = self._expanded_title_query_text(item)
 
         if canonical_alignment <= -3:
             return False
@@ -1658,7 +1658,7 @@ class JobAggregator:
 
     def _passes_family_bridge_guard(self, query: str, item: dict) -> bool:
         profile = role_profile(query)
-        title_text = self._query_signature(item.get("title", ""))
+        title_text = self._expanded_title_query_text(item)
         canonical_alignment = self._canonical_role_alignment(query, item)
         if canonical_alignment < 1:
             return False
@@ -1793,7 +1793,7 @@ class JobAggregator:
 
     def _passes_precise_query_guard(self, query: str, item: dict) -> bool:
         profile = role_profile(query)
-        raw_query = self._query_signature(query)
+        raw_query = self._query_signature(profile.cleaned_query or query)
         raw_tokens = [
             token
             for token in raw_query.split()
@@ -1804,25 +1804,25 @@ class JobAggregator:
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
 
-        title_text = self._query_signature(item.get("title", ""))
+        title_text = self._expanded_title_query_text(item)
         description_text = self._query_signature(item.get("description", ""))
         tags_text = " ".join(self._query_signature(tag) for tag in item.get("tags", []) if str(tag).strip())
         if self._is_mobile_web_mismatch(query, title_text):
             return False
         matched_title_hints = self._matched_title_hints(query, item)
-        raw_phrase_title_hit = raw_query in title_text or raw_query in tags_text
+        raw_phrase_title_hit = self._contains_phrase(title_text, raw_query) or self._contains_phrase(tags_text, raw_query)
         raw_token_hits = sum(
             1
             for token in raw_tokens
-            if re.search(rf"\b{re.escape(token)}\b", title_text)
-            or re.search(rf"\b{re.escape(token)}\b", description_text)
-            or re.search(rf"\b{re.escape(token)}\b", tags_text)
+            if self._contains_phrase(title_text, token)
+            or self._contains_phrase(description_text, token)
+            or self._contains_phrase(tags_text, token)
         )
         raw_title_token_hits = sum(
             1
             for token in raw_tokens
-            if re.search(rf"\b{re.escape(token)}\b", title_text)
-            or re.search(rf"\b{re.escape(token)}\b", tags_text)
+            if self._contains_phrase(title_text, token)
+            or self._contains_phrase(tags_text, token)
         )
         title_hint_overlap = self._title_hint_overlap(query, item)
         title_precision = self._title_precision_score(query, item)
@@ -1876,12 +1876,19 @@ class JobAggregator:
             self._query_signature(hint) for hint in role_title_hints(query)
         }
 
+    def _expanded_title_query_text(self, item: dict) -> str:
+        raw_title = str(item.get("title", "") or "")
+        cleaned_title = self._query_signature(raw_title)
+        expanded_title = self._query_signature(role_profile(raw_title).cleaned_query)
+        if expanded_title and expanded_title != cleaned_title:
+            return f"{cleaned_title} {expanded_title}".strip()
+        return cleaned_title
+
     def _matched_title_hints(self, query: str, item: dict) -> set[str]:
-        title = str(item.get("title", "")).lower()
+        title = self._expanded_title_query_text(item)
         matched: set[str] = set()
         for hint in role_title_hints(query):
-            pattern = rf"\b{re.escape(hint)}\b" if " " not in hint else re.escape(hint)
-            if re.search(pattern, title):
+            if self._contains_phrase(title, hint):
                 matched.add(hint)
         return matched
 
@@ -1901,8 +1908,16 @@ class JobAggregator:
         if not cleaned_haystack or not cleaned_needle:
             return False
         if " " in cleaned_needle:
-            return cleaned_needle in cleaned_haystack
-        return bool(re.search(rf"\b{re.escape(cleaned_needle)}\b", cleaned_haystack))
+            if cleaned_needle in cleaned_haystack:
+                return True
+            compact_haystack = re.sub(r"[^a-z0-9+]+", "", cleaned_haystack)
+            compact_needle = re.sub(r"[^a-z0-9+]+", "", cleaned_needle)
+            return bool(compact_needle and compact_needle in compact_haystack)
+        if re.search(rf"\b{re.escape(cleaned_needle)}\b", cleaned_haystack):
+            return True
+        compact_haystack = re.sub(r"[^a-z0-9+]+", "", cleaned_haystack)
+        compact_needle = re.sub(r"[^a-z0-9+]+", "", cleaned_needle)
+        return bool(len(compact_needle) >= 8 and compact_needle in compact_haystack)
 
     def _job_similarity_signature(self, item: dict) -> str:
         company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
@@ -1935,18 +1950,19 @@ class JobAggregator:
             return 0
         normalized = item.get("normalized_data", {}) or {}
         extracted_skills = " ".join(str(skill).lower() for skill in normalized.get("skills", []) or [])
+        expanded_title = self._expanded_title_query_text(item)
         haystack = " ".join(
             [
-                re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower()),
+                expanded_title,
                 re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("description", "")).lower()),
                 " ".join(re.sub(r"[^a-z0-9+ ]+", " ", str(tag).lower()) for tag in item.get("tags", []) if str(tag).strip()),
                 extracted_skills,
             ]
         )
-        return sum(1 for token in specialty_tokens if re.search(rf"\b{re.escape(token)}\b", haystack))
+        return sum(1 for token in specialty_tokens if self._contains_phrase(haystack, token))
 
     def _has_explicit_role_alignment(self, query: str, item: dict) -> bool:
-        title_text = str(item.get("title", "")).lower()
+        title_text = self._expanded_title_query_text(item)
         negative_hints = role_negative_title_hints(query)
         if negative_hints and any(self._contains_phrase(title_text, hint) for hint in negative_hints):
             return False
@@ -1977,19 +1993,19 @@ class JobAggregator:
         query_tokens = role_query_tokens(query)
         if not query_tokens:
             return 0
-        title_text = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("title", "")).lower())
+        title_text = self._expanded_title_query_text(item)
         haystack = title_text
         if include_description:
             desc_text = re.sub(r"[^a-z0-9+ ]+", " ", str(item.get("description", "")).lower())
             haystack = f"{title_text} {desc_text}"
-        return sum(1 for token in query_tokens if re.search(rf"\b{re.escape(token)}\b", haystack))
+        return sum(1 for token in query_tokens if self._contains_phrase(haystack, token))
 
     def _canonical_role_alignment(self, query: str, item: dict) -> int:
-        title_text = str(item.get("title", "")).lower()
+        title_text = self._expanded_title_query_text(item)
         negative_hints = role_negative_title_hints(query)
         if negative_hints and any(self._contains_phrase(title_text, hint) for hint in negative_hints):
             return -3
-        return canonical_role_alignment(query, str(item.get("title", "")))
+        return canonical_role_alignment(query, title_text)
 
     def _title_precision_score(self, query: str, item: dict) -> int:
         title_overlap = self._title_hint_overlap(query, item)
@@ -2005,7 +2021,7 @@ class JobAggregator:
 
     def _unrequested_title_penalty(self, query: str, item: dict) -> int:
         query_text = self._query_signature(query)
-        title_text = self._query_signature(item.get("title", ""))
+        title_text = self._expanded_title_query_text(item)
         if not title_text:
             return 0
         requested_leadership = {"manager", "director", "head", "chief", "lead", "principal", "staff", "cto"}
@@ -2184,7 +2200,7 @@ class JobAggregator:
         return len(self._matched_title_hints(query, item))
 
     def _family_token_overlap(self, query: str, item: dict) -> int:
-        raw_title = re.sub(r"[^a-z0-9+]+", " ", str(item.get("title", "")).lower())
+        raw_title = self._expanded_title_query_text(item)
         title_tokens = {token for token in raw_title.split() if token and len(token) > 2}
         query_tokens = {
             token
@@ -2309,7 +2325,7 @@ class JobAggregator:
 
     def _passes_quality_gate(self, query: str, item: dict, *, location: str = "") -> bool:
         normalized = item.get("normalized_data", {}) or {}
-        title_text = str(item.get("title", "")).lower()
+        title_text = self._expanded_title_query_text(item)
         role_fit = float(normalized.get("role_fit_score", 0.0))
         requirement_quality = float(normalized.get("requirement_quality", 0.0))
         listing_quality = float(normalized.get("listing_quality_score", self._listing_quality_score(query, item)))

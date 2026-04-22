@@ -29,6 +29,22 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertFalse(self.aggregator._passes_precise_query_guard("Data Scientist", item))
         self.assertFalse(self.aggregator._passes_final_live_guard("Data Scientist", item))
 
+    def test_compact_data_scientist_query_keeps_compact_title(self) -> None:
+        item = {
+            "title": "Datascientist",
+            "description": "Build machine learning models, Python pipelines, and statistical analysis workflows.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["python", "machine learning", "statistics"],
+                "role_fit_score": 5.0,
+                "market_quality_score": 22.0,
+                "title_alignment_score": 14.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Datascientist", item))
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Data Scientist", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("Datascientist", item))
+
     def test_data_analyst_keeps_data_operations_analyst_title(self) -> None:
         item = {
             "title": "Data Operations Analyst",
@@ -105,6 +121,21 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             "normalized_data": {"skills": ["react", "typescript", "css"]},
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Web Developer", item))
+
+    def test_compact_full_stack_title_keeps_full_stack_query(self) -> None:
+        item = {
+            "title": "FullstackDeveloper",
+            "description": "Build React and Node web applications across the full product stack.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["react", "node", "typescript"],
+                "role_fit_score": 4.0,
+                "market_quality_score": 18.0,
+                "title_alignment_score": 12.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Full Stack Developer", item))
+        self.assertTrue(self.aggregator._passes_precise_query_guard("FullstackDeveloper", item))
 
     def test_web_developer_alias_uses_balanced_precision_not_exact_alias_locking(self) -> None:
         self.assertFalse(self.aggregator._uses_strict_precision_guard("Web Developer"))
@@ -205,6 +236,21 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             },
         }
         self.assertFalse(self.aggregator._passes_final_live_guard("Enterprise Applications Engineer", item))
+
+    def test_compact_salesforce_admin_query_keeps_compact_title(self) -> None:
+        item = {
+            "title": "SalesforceAdmin",
+            "description": "Own Salesforce administration, CRM workflows, automation, and platform support.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["salesforce", "crm", "automation"],
+                "role_fit_score": 5.0,
+                "market_quality_score": 20.0,
+                "title_alignment_score": 12.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("SalesforceAdmin", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("SalesforceAdmin", item))
 
     def test_full_stack_developer_rejects_full_time_driver_ad(self) -> None:
         item = {

@@ -1139,6 +1139,10 @@ def _clean_role_text(value: str) -> str:
     return re.sub(r"\s+", " ", cleaned)
 
 
+def _compact_role_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9+]+", "", str(value).lower()).strip()
+
+
 def _tokenize_role_text(value: str) -> set[str]:
     return {
         token
@@ -1164,6 +1168,36 @@ def _role_alias_map() -> dict[str, str]:
             if cleaned:
                 alias_map.setdefault(cleaned, canonical)
     return alias_map
+
+
+@lru_cache(maxsize=None)
+def _compact_role_alias_phrase_map() -> dict[str, str]:
+    phrase_map: dict[str, str] = {}
+    alias_map = _role_alias_map()
+    grouped: dict[str, list[str]] = {}
+    for phrase in alias_map.keys():
+        compact = _compact_role_text(phrase)
+        if compact:
+            grouped.setdefault(compact, []).append(phrase)
+
+    for compact, phrases in grouped.items():
+        ranked = sorted(
+            set(phrases),
+            key=lambda phrase: (
+                0 if phrase in ROLE_FAMILY_CANONICALS else 1,
+                len(phrase.split()),
+                len(phrase),
+            ),
+        )
+        if ranked:
+            phrase_map[compact] = ranked[0]
+    return phrase_map
+
+
+def _expand_compact_role_alias(cleaned: str) -> str | None:
+    if not cleaned or len(cleaned.split()) != 1:
+        return None
+    return _compact_role_alias_phrase_map().get(_compact_role_text(cleaned))
 
 
 def _infer_role_from_fuzzy_alias(cleaned: str) -> str | None:
@@ -1501,6 +1535,9 @@ def normalize_role(query: str) -> str:
     cleaned = _clean_role_text(query)
     if cleaned in ROLE_SYNONYMS:
         return ROLE_SYNONYMS[cleaned]
+    expanded_compact_alias = _expand_compact_role_alias(cleaned)
+    if expanded_compact_alias and expanded_compact_alias in ROLE_SYNONYMS:
+        return ROLE_SYNONYMS[expanded_compact_alias]
     exact_keyword_match = _match_keyword_family(cleaned, exact_only=True)
     if exact_keyword_match:
         return exact_keyword_match
@@ -1517,16 +1554,17 @@ def normalize_role(query: str) -> str:
 def role_profile(query: str) -> RoleProfile:
     cleaned = _clean_role_text(query)
     normalized = normalize_role(query)
-    domain = _infer_domain_from_cleaned_query(cleaned, normalized)
-    head_terms = _extract_head_terms(cleaned, normalized)
-    seniority_terms = _extract_seniority_terms(cleaned)
-    specialty_tokens = _extract_specialty_tokens(cleaned, normalized)
+    expanded_cleaned = _expand_compact_role_alias(cleaned) or cleaned
+    domain = _infer_domain_from_cleaned_query(expanded_cleaned, normalized)
+    head_terms = _extract_head_terms(expanded_cleaned, normalized)
+    seniority_terms = _extract_seniority_terms(expanded_cleaned)
+    specialty_tokens = _extract_specialty_tokens(expanded_cleaned, normalized)
     return RoleProfile(
         raw_query=str(query or ""),
-        cleaned_query=cleaned,
+        cleaned_query=expanded_cleaned,
         normalized_role=normalized,
         family_role=_infer_family_role_from_values(
-            cleaned=cleaned,
+            cleaned=expanded_cleaned,
             normalized=normalized,
             domain=domain,
             head_terms=head_terms,
@@ -1794,9 +1832,13 @@ def _provider_query_anchors(profile: RoleProfile) -> list[str]:
 def provider_query_variations(query: str, source_name: str, *, production: bool = False) -> list[str]:
     profile = role_profile(query)
     variations = production_query_variations(query) if production else query_variations(query)
+    candidate_scores = {
+        item: _query_priority_score(item, profile, source_name)
+        for item in variations
+    }
     ranked = sorted(
         variations,
-        key=lambda item: (_query_priority_score(item, profile, source_name), -len(item.split())),
+        key=lambda item: (candidate_scores.get(item, 0.0), -len(item.split())),
         reverse=True,
     )
     query_is_narrow = len(profile.specialty_tokens) >= 2 or len(profile.cleaned_query.split()) >= 3
@@ -1808,8 +1850,18 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
             return
         if len(selected) < max(1, budget):
             selected.append(candidate)
-        elif selected:
-            selected[-1] = candidate
+            return
+        if not selected:
+            return
+
+        weakest_selected = min(
+            selected,
+            key=lambda item: (candidate_scores.get(item, 0.0), -len(item.split())),
+        )
+        candidate_rank = (candidate_scores.get(candidate, 0.0), -len(candidate.split()))
+        weakest_rank = (candidate_scores.get(weakest_selected, 0.0), -len(weakest_selected.split()))
+        if candidate_rank > weakest_rank:
+            selected[selected.index(weakest_selected)] = candidate
 
     for anchor in _provider_query_anchors(profile):
         ensure_selected(anchor)
