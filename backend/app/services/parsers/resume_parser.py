@@ -91,8 +91,11 @@ class ResumeParser:
         skills = extract_skills(normalized)
         grouped_sections = self._group_section_lines(text)
         sections = {key: normalize_whitespace(" ".join(value)) for key, value in grouped_sections.items() if value}
+        synthetic_skills_section = False
         if "skills" not in sections and re.search(r"\bskills\b", normalized, re.IGNORECASE) and skills:
             sections["skills"] = ", ".join(skills[:12])
+            synthetic_skills_section = True
+        extract_meta = {**extract_meta, "synthetic_skills_section": synthetic_skills_section}
         experience_years = self._estimate_experience_years(normalized, sections)
         parse_signals = self._analyze_parse_signals(
             text=text,
@@ -113,7 +116,7 @@ class ResumeParser:
             "content_type": content_type,
             "raw_text": normalized,
             "sections": sections,
-            "contact": self._extract_contact(normalized),
+            "contact": self._extract_contact(normalized, link_urls=extract_meta.get("link_urls", [])),
             "skills": skills,
             "experience_years": experience_years,
             "education_years": sorted({int(year) for year in YEAR_RE.findall(normalized)}),
@@ -131,18 +134,42 @@ class ResumeParser:
                 text = f"{text}\n{self._extract_pdf(file_bytes)}".strip()
             if len(text.split()) < 60:
                 text = f"{text}\n{self.ocr_service.extract_text_from_pdf(file_bytes)}"
+            layout_meta = {**layout_meta, "link_urls": self._extract_pdf_annotation_links(file_bytes)}
             return text, layout_meta
         if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or lower_name.endswith(".docx"):
-            return self._extract_docx(file_bytes), {"multi_column_detected": False, "page_count": 1}
+            return self._extract_docx(file_bytes), {"multi_column_detected": False, "page_count": 1, "link_urls": []}
         if lower_name.endswith((".png", ".jpg", ".jpeg")):
-            return self.ocr_service.extract_text_from_image(file_bytes), {"multi_column_detected": False, "page_count": 1}
-        return file_bytes.decode("utf-8", errors="ignore"), {"multi_column_detected": False, "page_count": 1}
+            return self.ocr_service.extract_text_from_image(file_bytes), {"multi_column_detected": False, "page_count": 1, "link_urls": []}
+        return file_bytes.decode("utf-8", errors="ignore"), {"multi_column_detected": False, "page_count": 1, "link_urls": []}
 
     def _extract_pdf(self, file_bytes: bytes) -> str:
         try:
             return "\n".join((page.extract_text() or "") for page in PdfReader(io.BytesIO(file_bytes)).pages)
         except Exception:
             return ""
+
+    def _extract_pdf_annotation_links(self, file_bytes: bytes) -> list[str]:
+        links: list[str] = []
+        seen: set[str] = set()
+        try:
+            reader = PdfReader(io.BytesIO(file_bytes))
+            for page in reader.pages:
+                for annotation_ref in page.get("/Annots") or []:
+                    try:
+                        annotation = annotation_ref.get_object()
+                        action = annotation.get("/A")
+                        uri = str(action.get("/URI", "")).strip() if action else ""
+                    except Exception:
+                        continue
+                    if not uri:
+                        continue
+                    normalized_uri = normalize_whitespace(uri)
+                    if normalized_uri and normalized_uri not in seen:
+                        seen.add(normalized_uri)
+                        links.append(normalized_uri)
+        except Exception:
+            return []
+        return links
 
     def _extract_pdf_layout_aware(self, file_bytes: bytes) -> tuple[str, dict[str, Any]]:
         pages_out = []
@@ -238,10 +265,16 @@ class ResumeParser:
             if value
         }
 
-    def _extract_contact(self, text: str) -> dict[str, str | None]:
+    def _extract_contact(self, text: str, *, link_urls: list[str] | None = None) -> dict[str, str | list[str] | None]:
         email = EMAIL_RE.search(text)
         phone = PHONE_RE.search(text)
-        return {"email": email.group(0) if email else None, "phone": phone.group(0) if phone else None}
+        cleaned_links = [normalize_whitespace(url) for url in (link_urls or []) if normalize_whitespace(url)]
+        public_links = [url for url in cleaned_links if not url.lower().startswith("mailto:")]
+        return {
+            "email": email.group(0) if email else None,
+            "phone": phone.group(0) if phone else None,
+            "links": public_links[:4] if public_links else None,
+        }
 
     def _analyze_parse_signals(
         self,
@@ -259,6 +292,11 @@ class ResumeParser:
         merged_headers = 0
         quantified_lines = 0
         bullet_like_lines = 0
+        linked_urls = {
+            normalize_whitespace(url)
+            for url in extract_meta.get("link_urls", []) or []
+            if normalize_whitespace(url)
+        }
 
         for line in lines:
             lowered = line.lower().strip(":")
@@ -285,7 +323,8 @@ class ResumeParser:
             section_leakage += 1
 
         suspicious_urls = 0
-        for url in URL_RE.findall(normalized):
+        visible_urls = {normalize_whitespace(url) for url in URL_RE.findall(normalized) if normalize_whitespace(url)}
+        for url in visible_urls:
             lowered = url.lower()
             if "linkedin" not in lowered and "github" not in lowered and "http" in lowered:
                 suspicious_urls += 1
@@ -298,17 +337,27 @@ class ResumeParser:
             if "=" in token or any(marker in token.lower() for marker in OCR_NOISE_MARKERS)
         }
 
-        inferred_skills_section = "skills" in sections and not any(line.lower().strip(":") == "skills" for line in lines)
-        date_range_count = len(DATE_RANGE_RE.findall(text))
-        contact_link_count = sum(
-            1
-            for url in URL_RE.findall(normalized)
-            if any(domain in url.lower() for domain in ("linkedin", "github", "portfolio", "behance", "dribbble"))
+        synthetic_skills_section = bool(extract_meta.get("synthetic_skills_section"))
+        inline_skills_header_detected = any(
+            line.lower().strip(":").startswith("skills ")
+            for line in lines
         )
-        portfolio_link_count = sum(
-            1
-            for url in URL_RE.findall(normalized)
-            if any(domain in url.lower() for domain in ("github", "portfolio", "behance", "dribbble"))
+        inferred_skills_section = synthetic_skills_section
+        date_range_count = len(DATE_RANGE_RE.findall(text))
+        all_urls = visible_urls | linked_urls
+        contact_link_count = len(
+            {
+                url.lower()
+                for url in all_urls
+                if any(domain in url.lower() for domain in ("linkedin", "github", "portfolio", "behance", "dribbble"))
+            }
+        )
+        portfolio_link_count = len(
+            {
+                url.lower()
+                for url in all_urls
+                if any(domain in url.lower() for domain in ("github", "portfolio", "behance", "dribbble"))
+            }
         )
 
         section_word_counts = {
@@ -407,6 +456,8 @@ class ResumeParser:
             "suspicious_token_count": len(suspicious_tokens),
             "suspicious_url_count": suspicious_urls,
             "inferred_skills_section": inferred_skills_section,
+            "synthetic_skills_section": synthetic_skills_section,
+            "inline_skills_header_detected": inline_skills_header_detected,
             "skills_count": len(skills),
             "quantified_line_count": quantified_lines,
             "bullet_like_line_count": bullet_like_lines,

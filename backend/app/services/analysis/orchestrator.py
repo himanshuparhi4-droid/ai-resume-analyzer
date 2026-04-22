@@ -746,6 +746,22 @@ class AnalysisOrchestrator:
         breakdown = score_payload.get("breakdown", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
         resume_skills = {str(skill).lower() for skill in resume_data.get("skills", [])}
+        synthetic_skills_section = bool(parse_signals.get("synthetic_skills_section"))
+        hard_parse_noise = (
+            parse_signals.get("suspicious_token_count", 0) >= 3
+            or parse_signals.get("merged_header_count", 0) >= 2
+            or parse_signals.get("suspicious_url_count", 0) >= 1
+            or parse_signals.get("section_leakage_count", 0) >= 1
+        )
+        recoverable_structure_noise = synthetic_skills_section and (
+            parse_signals.get("section_count", 0) < 4
+            or parse_signals.get("skills_section_word_count", 0) < 8
+        )
+
+        def _has_skill_recommendation(skill_name: str) -> bool:
+            normalized_skill = str(skill_name).lower().strip()
+            return any(normalized_skill and normalized_skill in item.title.lower() for item in items)
+
         modeled_role_gaps = [
             skill
             for skill in role_recommendation_skills(role_query, limit=8)
@@ -754,22 +770,40 @@ class AnalysisOrchestrator:
 
         for item in score_payload.get("missing_skills", [])[:2]:
             source = str(item.get("signal_source", "live"))
-            detail = (
-                f"This skill accounts for {item['share']}% of the current market-demand signal for the chosen role."
-                if source == "live"
-                else "The live market sample stayed narrow here, so this recommendation also leans on the broader role-family skill model."
-            )
+            share = float(item.get("share", 0.0) or 0.0)
+            skill_name = str(item.get("skill", "")).strip()
+            if source == "weak-resume-proof":
+                title = f"Build stronger proof for {skill_name}"
+                detail = (
+                    f"This skill appears on the resume, but the current evidence is lighter than the market expects "
+                    f"({share:.1f}% demand in the sampled jobs). Add a bullet that shows where you used it and what it changed."
+                )
+                impact = "High" if share >= 8.0 else "Medium"
+            elif source == "live-support":
+                title = f"Build stronger proof for {skill_name}"
+                detail = (
+                    "This tool showed up in live listings tied to the role family. If you know it, prove it with a project, dashboard, workflow, or outcome bullet."
+                )
+                impact = "Medium"
+            elif source == "role-family":
+                title = f"Consider adding or learning {skill_name}"
+                detail = "The live market sample stayed narrow here, so this recommendation also leans on the broader role-family skill model."
+                impact = "Medium"
+            else:
+                title = f"Add or learn {skill_name}"
+                detail = f"This skill accounts for {share:.1f}% of the current market-demand signal for the chosen role."
+                impact = "High"
             items.append(
                 RecommendationItem(
-                    title=f"Add or learn {item['skill']}",
+                    title=title,
                     detail=detail,
-                    impact="High",
+                    impact=impact,
                 )
             )
         for skill in modeled_role_gaps:
             if len(items) >= 3:
                 break
-            if any(existing.title == f"Add or learn {skill}" for existing in items):
+            if _has_skill_recommendation(skill):
                 continue
             items.append(
                 RecommendationItem(
@@ -907,11 +941,7 @@ class AnalysisOrchestrator:
                 )
             )
 
-        if (
-            parse_signals.get("merged_header_count", 0)
-            or parse_signals.get("inline_header_count", 0) >= 2
-            or parse_signals.get("suspicious_token_count", 0) >= 3
-        ):
+        if hard_parse_noise or recoverable_structure_noise:
             items.append(
                 RecommendationItem(
                     title="Use a cleaner one-column resume export",
@@ -919,7 +949,7 @@ class AnalysisOrchestrator:
                     impact="High",
                 )
             )
-        if float(breakdown.get("ats_compliance", 0) or 0) < 70:
+        if float(breakdown.get("ats_compliance", 0) or 0) < 70 and (hard_parse_noise or recoverable_structure_noise):
             items.append(
                 RecommendationItem(
                     title="Make ATS parsing easier",
@@ -927,7 +957,7 @@ class AnalysisOrchestrator:
                     impact="High",
                 )
             )
-        if parse_signals.get("inferred_skills_section") or parse_signals.get("section_leakage_count", 0):
+        if parse_signals.get("section_leakage_count", 0) or recoverable_structure_noise:
             items.append(
                 RecommendationItem(
                     title="Separate Skills, Experience, and Projects into clean blocks",
@@ -1050,7 +1080,10 @@ class AnalysisOrchestrator:
         feedback["resume_quality"].append("This score is mostly document-specific, so it should only move when the resume itself gets clearer or stronger.")
         feedback["ats_compliance"].append("This score is layout-specific, so it will usually stay similar for the same file until the export or section structure changes.")
 
-        if parse_signals.get("merged_header_count", 0):
+        if parse_signals.get("merged_header_count", 0) >= 2 or (
+            parse_signals.get("synthetic_skills_section")
+            and parse_signals.get("section_count", 0) < 4
+        ):
             feedback["ats_compliance"].append("Some headings or sections appear merged in the extracted text. Put each heading on its own line.")
         if parse_signals.get("suspicious_url_count", 0):
             feedback["ats_compliance"].append("One or more exported links look corrupted. Clean up LinkedIn or portfolio URLs before exporting again.")
@@ -1060,7 +1093,10 @@ class AnalysisOrchestrator:
             feedback["ats_compliance"].append("Chronology is weak in the parsed text. Add month-year date ranges to each role, internship, and major project.")
         if parse_signals.get("contact_link_count", 0) == 0:
             feedback["ats_compliance"].append("Add at least one clean LinkedIn, GitHub, or portfolio URL in the header so the contact block is easier to verify.")
-        if parse_signals.get("section_leakage_count", 0) or parse_signals.get("inferred_skills_section"):
+        if parse_signals.get("section_leakage_count", 0) or (
+            parse_signals.get("synthetic_skills_section")
+            and parse_signals.get("section_count", 0) < 4
+        ):
             feedback["resume_quality"].append("Separate Skills, Projects, and Experience so each block is easy to parse and scan.")
         if parse_signals.get("quantified_line_count", 0) < 2:
             feedback["resume_quality"].append("There are too few quantified results in the extracted text. Add metrics to at least two bullets so impact is concrete.")

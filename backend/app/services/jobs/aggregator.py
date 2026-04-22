@@ -326,6 +326,28 @@ class JobAggregator:
             return 7.5
         return 4.5
 
+    def _production_underfill_grace_seconds(
+        self,
+        *,
+        stage: str,
+        query: str,
+        current_live_count: int,
+        pending_task_count: int,
+        live_floor: int,
+        partial_live_floor: int,
+    ) -> float:
+        if pending_task_count <= 0 or stage not in {"primary", "supplemental"}:
+            return 0.0
+        if is_sparse_live_market_role(query) or not self._is_dense_production_family(query):
+            return 0.0
+        target_floor = live_floor if stage == "primary" else partial_live_floor
+        if current_live_count >= target_floor:
+            return 0.0
+        gap = max(target_floor - current_live_count, 0)
+        if gap <= 0:
+            return 0.0
+        return min(3.0, 0.75 + (0.45 * min(gap, 3)) + (0.2 * min(pending_task_count, 3)))
+
     def _is_india_focused_location(self, location: str) -> bool:
         lowered = normalize_role(location)
         return bool(lowered and any(hint in lowered for hint in INDIA_LOCATION_HINTS))
@@ -1137,10 +1159,35 @@ class JobAggregator:
             soft_timeout = min(base_soft_timeout, max(0.75, remaining_global_budget))
             started_at = time.perf_counter()
             pending = set(tasks)
+            grace_applied = False
             while pending:
                 elapsed = time.perf_counter() - started_at
                 remaining = soft_timeout - elapsed
                 if remaining <= 0:
+                    current_live = self._select_production_live_jobs(
+                        query=query,
+                        location=location,
+                        jobs=collected,
+                        limit=limit,
+                    )
+                    grace_seconds = 0.0
+                    if not grace_applied:
+                        grace_seconds = self._production_underfill_grace_seconds(
+                            stage=stage,
+                            query=query,
+                            current_live_count=len(current_live),
+                            pending_task_count=len(pending),
+                            live_floor=live_floor,
+                            partial_live_floor=partial_live_floor,
+                        )
+                        grace_seconds = min(
+                            grace_seconds,
+                            max(0.0, _remaining_runtime_budget(reserve_seconds=max(0.5, reserve_seconds - 0.5))),
+                        )
+                    if grace_seconds >= 0.75:
+                        soft_timeout += grace_seconds
+                        grace_applied = True
+                        continue
                     break
                 done, pending = await asyncio.wait(
                     pending,
@@ -1833,33 +1880,34 @@ class JobAggregator:
                 return False
             if query_domain == "data" and re.search(r"\bdata entry\b|\bentry operator\b", title_text):
                 return False
+            if (
+                normalize_role(query) == "data analyst"
+                and not self._contains_phrase(query_text, "business analyst")
+                and self._contains_phrase(title_text, "business analyst")
+            ):
+                return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
             return False
         if (
-            query_domain == "data"
-            and self._uses_strict_precision_guard(query)
+            self._uses_strict_precision_guard(query)
             and title_precision <= 0
             and title_overlap == 0
             and core_title_overlap == 0
         ):
-            if not self._data_analyst_recovery_signal(query, item):
+            if not self._passes_contextual_family_recovery_guard(query, item):
                 return False
         if (
-            query_domain == "data"
-            and self._uses_strict_precision_guard(query)
+            self._uses_strict_precision_guard(query)
             and canonical_alignment == 1
             and title_precision <= 0
             and title_overlap == 0
         ):
-            if not self._data_analyst_recovery_signal(query, item):
+            if not self._passes_contextual_family_recovery_guard(query, item):
                 return False
-        # This is the over-strict guard identified in the handoff document.
-        # It rejects relevant jobs (like 'BI Analyst' for a 'Data Analyst' query)
-        # if their titles don't perfectly match simple heuristics, causing an unrepresentative market sample.
+        # Keep strict exact queries honest, but allow strong same-family recoveries
+        # when the title is compact, aliased, or slightly reshaped by provider data.
         if query_domain == "data" and title_precision <= 0 and title_overlap == 0 and family_overlap == 0 and core_title_overlap == 0:
-            # We add an "escape hatch": if all title heuristics fail, we still accept the job
-            # if its overall role_fit_score is high enough, preserving accuracy.
-            if role_fit < 3.5:
+            if not self._passes_contextual_family_recovery_guard(query, item) and role_fit < 3.5:
                 return False
         if query_domain == "data" and canonical_alignment < 0 and title_overlap == 0 and title_precision <= 0:
             return False
@@ -1910,9 +1958,7 @@ class JobAggregator:
             return family_overlap >= 1 or role_fit >= 2.5
         return False
 
-    def _data_analyst_recovery_signal(self, query: str, item: dict) -> bool:
-        if normalize_role(query) != "data analyst":
-            return False
+    def _contextual_signal_counts(self, query: str, item: dict) -> dict[str, int]:
         title_text = self._expanded_title_query_text(item)
         description_text = self._query_signature(item.get("description", ""))
         tags_text = " ".join(self._query_signature(tag) for tag in item.get("tags", []) if str(tag).strip())
@@ -1923,42 +1969,84 @@ class JobAggregator:
         )
         haystack = " ".join([title_text, description_text, tags_text, skills_text]).strip()
         if not haystack:
+            return {"title_hint_hits": 0, "primary_hits": 0, "market_hits": 0}
+        return {
+            "title_hint_hits": sum(1 for hint in role_title_hints(query) if self._contains_phrase(title_text, hint)),
+            "primary_hits": sum(1 for hint in role_primary_hints(query) if self._contains_phrase(haystack, hint)),
+            "market_hits": sum(1 for hint in role_market_hints(query) if self._contains_phrase(haystack, hint)),
+        }
+
+    def _passes_contextual_family_recovery_guard(self, query: str, item: dict) -> bool:
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
 
-        tool_signals = {
-            "sql",
-            "power bi",
-            "tableau",
-            "looker",
-            "excel",
-        }
-        artifact_signals = {
-            "dashboard",
-            "dashboards",
-            "dashboarding",
-            "business intelligence",
-            "data visualization",
-            "kpi",
-            "kpis",
-            "scorecard",
-            "scorecards",
-        }
-        tool_count = sum(1 for signal in tool_signals if self._contains_phrase(haystack, signal))
-        artifact_count = sum(1 for signal in artifact_signals if self._contains_phrase(haystack, signal))
-        if tool_count < 1 or artifact_count < 1:
+        query_domain = role_domain(query)
+        if not query_domain:
             return False
 
+        profile = role_profile(query)
+        title_profile = role_profile(str(item.get("title", "")))
         canonical_alignment = self._canonical_role_alignment(query, item)
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
         domain_score = self._role_domain_match_score(query, item)
         skill_overlap = self._skill_overlap_score(query, item)
         role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+        head_overlap = bool(set(profile.head_terms) & set(title_profile.head_terms))
+        signals = self._contextual_signal_counts(query, item)
+        context_hits = (
+            signals["title_hint_hits"]
+            + (signals["primary_hits"] * 2)
+            + min(signals["market_hits"], 4)
+        )
+
+        if title_precision >= 1 or title_overlap >= 1:
+            return True
+        if canonical_alignment < 0 and core_title_overlap < 2:
+            return False
+        if query_domain == "data":
+            if title_overlap == 0 and core_title_overlap == 0:
+                return (
+                    (signals["market_hits"] >= 5 or skill_overlap >= 8.0)
+                    and role_fit >= 2.0
+                    and (
+                        family_overlap >= 1
+                        or domain_score >= 2
+                        or head_overlap
+                    )
+                )
+            return (
+                (signals["primary_hits"] >= 3 or signals["market_hits"] >= 4 or skill_overlap >= 5.0)
+                and role_fit >= 2.0
+                and (
+                    family_overlap >= 1
+                    or core_title_overlap >= 1
+                    or domain_score >= 2
+                    or head_overlap
+                )
+            )
+        if query_domain in {"software", "security", "infra"}:
+            return (
+                context_hits >= 3
+                and role_fit >= 1.75
+                and (
+                    family_overlap >= 1
+                    or core_title_overlap >= 1
+                    or domain_score >= 2
+                    or head_overlap
+                )
+            )
         return (
-            canonical_alignment >= 2
-            and family_overlap >= 1
-            and domain_score >= 3
-            and skill_overlap >= 2.0
-            and role_fit >= 2.5
+            context_hits >= 3
+            and role_fit >= 2.0
+            and (
+                family_overlap >= 1
+                or core_title_overlap >= 1
+                or domain_score >= 2
+                or head_overlap
+            )
         )
 
     def _passes_exact_query_backup_guard(self, query: str, location: str, item: dict) -> bool:
@@ -1980,20 +2068,19 @@ class JobAggregator:
         if canonical_alignment < 0:
             return False
         if (
-            query_domain == "data"
-            and self._uses_strict_precision_guard(query)
+            self._uses_strict_precision_guard(query)
             and canonical_alignment == 1
             and title_precision <= 0
             and title_overlap == 0
         ):
-            if not self._data_analyst_recovery_signal(query, item):
+            if not self._passes_contextual_family_recovery_guard(query, item):
                 return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
         if title_overlap >= 1 or title_precision >= 1:
             return True
         if query_domain == "data":
-            if self._data_analyst_recovery_signal(query, item):
+            if self._passes_contextual_family_recovery_guard(query, item):
                 return True
             return canonical_alignment >= 0 and core_title_overlap >= 1 and (
                 domain_score >= 2 or skill_overlap >= 1.0 or role_fit >= 3.0
@@ -2031,10 +2118,10 @@ class JobAggregator:
                 and title_precision <= 0
                 and title_overlap == 0
             ):
-                return False
+                return self._passes_contextual_family_recovery_guard(query, item)
             if title_precision >= 1 or title_overlap >= 1:
                 return True
-            if self._data_analyst_recovery_signal(query, item):
+            if self._passes_contextual_family_recovery_guard(query, item):
                 return True
             return (
                 canonical_alignment >= 0

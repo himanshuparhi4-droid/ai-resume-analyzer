@@ -80,6 +80,34 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertTrue(self.aggregator._passes_same_family_recovery_guard("Data Analyst", "Global", item))
         self.assertTrue(self.aggregator._passes_final_live_guard("Data Analyst", item))
 
+    def test_contextual_recovery_guard_rejects_adjacent_business_analyst_noise(self) -> None:
+        item = {
+            "title": "Senior Business Analyst",
+            "description": "Own dashboards, SQL reporting, and analytics for commercial teams.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "excel", "analytics"],
+                "role_fit_score": 5.5,
+                "market_quality_score": 26.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertFalse(self.aggregator._passes_contextual_family_recovery_guard("Data Analyst", item))
+
+    def test_contextual_recovery_guard_keeps_data_engineering_analyst_with_analyst_signals(self) -> None:
+        item = {
+            "title": "Data Engineering Analyst Lead/Scientist",
+            "description": "Own SQL reporting, dashboarding, data visualization, and business intelligence workflows.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "reporting", "dashboarding", "tableau", "data visualization"],
+                "role_fit_score": 2.0,
+                "market_quality_score": 28.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_contextual_family_recovery_guard("Data Analyst", item))
+
     def test_data_analyst_rejects_data_entry_operator_live_card(self) -> None:
         item = {
             "title": "Data Entry Operator",
@@ -101,6 +129,21 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
                 "title_alignment_score": 8.0,
             },
         }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
+
+    def test_data_analyst_rejects_credit_business_analyst_noise_even_with_sql_signals(self) -> None:
+        item = {
+            "title": "Credit Business Analyst, Banking Fraud",
+            "description": "Own SQL reporting, dashboarding, fraud analytics, and Excel-based banking insights.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "excel", "reporting", "analytics"],
+                "role_fit_score": 4.0,
+                "market_quality_score": 20.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertFalse(self.aggregator._passes_contextual_family_recovery_guard("Data Analyst", item))
         self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
 
     def test_exact_query_rejects_manager_title_when_manager_not_requested(self) -> None:
@@ -223,6 +266,16 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
         plan = self.aggregator._build_production_provider_plan(
             query="Data Analyst",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"], ["remotive", "jooble", "greenhouse"])
+        self.assertEqual(plan["supplemental_sources"], ["jobicy", "adzuna"])
+
+    def test_business_analyst_reuses_the_same_analyst_friendly_global_provider_plan(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="Business Analyst",
             location="Global",
             source_groups=source_groups,
         )
@@ -564,6 +617,28 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertGreaterEqual(len(plan["supplemental_sources"]), 1)
         self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
         self.assertEqual(plan["fallback_sources"], [])
+
+    def test_dense_underfill_grace_window_extends_underfilled_primary_stage(self) -> None:
+        grace_seconds = self.aggregator._production_underfill_grace_seconds(
+            stage="primary",
+            query="Data Analyst",
+            current_live_count=1,
+            pending_task_count=3,
+            live_floor=6,
+            partial_live_floor=4,
+        )
+        self.assertGreaterEqual(grace_seconds, 0.75)
+
+    def test_dense_underfill_grace_window_stays_off_once_floor_is_met(self) -> None:
+        grace_seconds = self.aggregator._production_underfill_grace_seconds(
+            stage="supplemental",
+            query="Web Developer",
+            current_live_count=4,
+            pending_task_count=2,
+            live_floor=6,
+            partial_live_floor=4,
+        )
+        self.assertEqual(grace_seconds, 0.0)
 
     def test_selection_debug_tracks_rejection_reasons(self) -> None:
         jobs = [

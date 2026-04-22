@@ -795,6 +795,11 @@ class SkillGroundingService:
         raw_text = resume_data.get("raw_text", "")
         parse_signals = resume_data.get("parse_signals", {})
         targeted = set(selected_skills or [])
+        seeded_skills = {
+            normalize_whitespace(skill).lower()
+            for skill in resume_data.get("skills", [])
+            if normalize_whitespace(skill)
+        }
         section_priority = {
             "skills": 4,
             "experience": 3,
@@ -808,7 +813,7 @@ class SkillGroundingService:
         for section_name, section_text in sections.items():
             if not section_text:
                 continue
-            if section_name == "skills" and parse_signals.get("inferred_skills_section"):
+            if section_name == "skills" and parse_signals.get("synthetic_skills_section"):
                 continue
             section_evidence = extract_skill_matches(section_text, source=f"resume:{section_name}")
             if targeted:
@@ -832,7 +837,7 @@ class SkillGroundingService:
         for skill, items in evidence_map.items():
             sections_for_skill = section_hits.get(skill, set())
             strongest_section = max((section_priority.get(name, 0) for name in sections_for_skill), default=0)
-            if strongest_section >= 2 or len(items) >= 2:
+            if strongest_section >= 2 or len(items) >= 2 or (skill in seeded_skills and items):
                 kept.extend(items[:2])
 
         if not kept and selected_skills:
