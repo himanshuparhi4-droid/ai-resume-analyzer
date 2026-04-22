@@ -1135,7 +1135,10 @@ ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
 
 
 def _clean_role_text(value: str) -> str:
-    cleaned = re.sub(r"[^a-z0-9+ ]+", " ", str(value).lower()).strip()
+    raw_text = str(value or "").strip()
+    raw_text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", raw_text)
+    raw_text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", raw_text)
+    cleaned = re.sub(r"[^a-z0-9+ ]+", " ", raw_text.lower()).strip()
     return re.sub(r"\s+", " ", cleaned)
 
 
@@ -1195,20 +1198,27 @@ def _compact_role_alias_phrase_map() -> dict[str, str]:
 
 
 def _expand_compact_role_alias(cleaned: str) -> str | None:
-    if not cleaned or len(cleaned.split()) != 1:
+    if not cleaned:
         return None
-    return _compact_role_alias_phrase_map().get(_compact_role_text(cleaned))
+    expanded = _compact_role_alias_phrase_map().get(_compact_role_text(cleaned))
+    if not expanded or expanded == cleaned:
+        return None
+    return expanded
 
 
 def _infer_role_from_fuzzy_alias(cleaned: str) -> str | None:
     if not cleaned:
         return None
-    if len(cleaned.split()) != 1:
-        return None
     alias_map = _role_alias_map()
-    matches = get_close_matches(cleaned, alias_map.keys(), n=1, cutoff=0.82)
+    cutoff = 0.9 if len(cleaned.split()) >= 2 else 0.82
+    matches = get_close_matches(cleaned, alias_map.keys(), n=1, cutoff=cutoff)
     if not matches:
-        return None
+        compact_cleaned = _compact_role_text(cleaned)
+        compact_matches = get_close_matches(compact_cleaned, _compact_role_alias_phrase_map().keys(), n=1, cutoff=0.9)
+        if not compact_matches:
+            return None
+        expanded = _compact_role_alias_phrase_map().get(compact_matches[0], "")
+        return alias_map.get(expanded) or ROLE_SYNONYMS.get(expanded)
     return alias_map.get(matches[0])
 
 
@@ -1646,6 +1656,27 @@ def _generic_query_expansions(profile: RoleProfile) -> list[str]:
                     continue
             expansions.append(candidate)
 
+    canonical_role = profile.family_role or profile.normalized_role
+    if canonical_role:
+        family_safe_candidates = {
+            *ROLE_SEARCH_VARIATIONS.get(canonical_role, []),
+            *ROLE_PRODUCTION_VARIATIONS.get(canonical_role, []),
+            *ROLE_TITLE_HINTS.get(canonical_role, set()),
+        }
+        for candidate in family_safe_candidates:
+            cleaned_candidate = _clean_role_text(candidate)
+            if not cleaned_candidate or cleaned_candidate in {profile.cleaned_query, profile.normalized_role}:
+                continue
+            candidate_profile = role_profile(cleaned_candidate)
+            candidate_family = candidate_profile.family_role or candidate_profile.normalized_role
+            if candidate_family != canonical_role:
+                continue
+            candidate_tokens = set(cleaned_candidate.split())
+            if allowed_head_variants and cleaned_candidate != profile.normalized_role:
+                if not (candidate_tokens & allowed_head_variants):
+                    continue
+            expansions.append(cleaned_candidate)
+
     cleaned_expansions: list[str] = []
     for item in expansions:
         words = item.split()
@@ -1768,6 +1799,8 @@ def production_query_variations(query: str) -> list[str]:
 def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str) -> float:
     cleaned_candidate = _clean_role_text(candidate)
     candidate_tokens = set(cleaned_candidate.split())
+    candidate_profile = role_profile(cleaned_candidate)
+    candidate_heads = set(candidate_profile.head_terms)
     score = 0.0
     if cleaned_candidate == profile.cleaned_query:
         score += 18.0
@@ -1778,7 +1811,12 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
     if profile.head_terms:
         head_overlap = len(candidate_tokens & set(profile.head_terms))
         score += head_overlap * 4.0
-        if head_overlap == 0:
+        exact_head_overlap = len(candidate_heads & set(profile.head_terms))
+        if exact_head_overlap:
+            score += exact_head_overlap * 2.5
+        if head_overlap == 0 and candidate_heads:
+            score -= 6.5
+        elif head_overlap == 0:
             score -= 5.0
     if source_name in {"jobicy", "themuse", "remoteok"}:
         score -= max(0, len(candidate_tokens) - 3) * 0.6
@@ -1793,6 +1831,10 @@ def _provider_query_budget(profile: RoleProfile, source_name: str, *, production
     family_alias_query = bool(profile.family_role and profile.family_role != profile.normalized_role)
     abstract_family = profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
     broad_dense_query = profile.domain in {"software", "data", "security"} and not query_is_narrow
+    security_analyst_style = profile.domain == "security" and any(
+        head in {"analyst", "specialist"} for head in profile.head_terms
+    )
+    weak_software_family = profile.normalized_role in {"frontend developer", "mobile developer", "embedded engineer"}
 
     if not production:
         if family_alias_query:
@@ -1804,11 +1846,19 @@ def _provider_query_budget(profile: RoleProfile, source_name: str, *, production
             budget = max(budget, 3)
         if source_name == "remotive" and (broad_dense_query or family_alias_query or abstract_family):
             budget = max(budget, 4)
+        if source_name in {"jooble", "adzuna"} and security_analyst_style:
+            budget = max(budget, 3)
+        if source_name == "jooble" and weak_software_family:
+            budget = max(budget, 3)
     if source_name == "jobicy":
-        if profile.domain in {"data", "security"}:
+        if profile.domain == "security":
+            budget = max(budget, 2) if security_analyst_style else 1
+        elif profile.domain == "data":
             budget = 1
         elif profile.domain == "software":
             budget = max(budget, 2 if (broad_dense_query or family_alias_query or abstract_family) else 1)
+            if weak_software_family and not query_is_narrow:
+                budget = max(budget, 3)
             if query_is_narrow and not family_alias_query and not abstract_family:
                 budget = 1
     if source_name == "themuse" and profile.domain in {"data", "security"}:

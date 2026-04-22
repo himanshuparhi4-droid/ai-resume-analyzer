@@ -125,6 +125,50 @@ class UniversalSkillGroundingTest(unittest.TestCase):
         self.assertIsNotNone(pytorch_gap)
         self.assertEqual(pytorch_gap["signal_source"], "weak-resume-proof")
 
+    def test_beginner_dense_roles_require_stronger_proof_for_high_demand_skills(self) -> None:
+        jobs = [
+            {
+                "source": "greenhouse",
+                "company": "Alpha",
+                "title": "Data Scientist",
+                "description": "Requirements: Python, model deployment, feature engineering, and forecasting.",
+                "normalized_data": {"skills": ["python", "model deployment", "feature engineering", "forecasting"]},
+            },
+            {
+                "source": "remotive",
+                "company": "Beta",
+                "title": "Applied Scientist",
+                "description": "Requirements: Python, model deployment, experimentation, and forecasting.",
+                "normalized_data": {"skills": ["python", "model deployment", "experimentation", "forecasting"]},
+            },
+            {
+                "source": "jobicy",
+                "company": "Gamma",
+                "title": "Machine Learning Scientist",
+                "description": "Requirements: Python, feature engineering, and model deployment.",
+                "normalized_data": {"skills": ["python", "feature engineering", "model deployment"]},
+            },
+        ]
+
+        gaps = augment_missing_skills(
+            role_query="Data Scientist",
+            resume_skills={"python", "sql", "model deployment"},
+            resume_sections={
+                "summary": "Aspiring data scientist with Python, SQL, and model deployment exposure.",
+                "certifications": "Completed certification modules covering model deployment and machine learning workflows.",
+                "skills": "Python, SQL, Model Deployment",
+            },
+            job_items=jobs,
+            existing_missing_skills=[],
+            experience_years=0.4,
+        )
+
+        gap_names = {item["skill"] for item in gaps}
+        self.assertIn("model deployment", gap_names)
+        self.assertIn("feature engineering", gap_names)
+        self.assertIn("forecasting", gap_names)
+        self.assertGreaterEqual(len(gaps), 3)
+
     def test_summary_and_skills_only_mentions_stay_weak(self) -> None:
         support = resume_skill_support_levels(
             resume_sections={

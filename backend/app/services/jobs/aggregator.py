@@ -330,6 +330,18 @@ class JobAggregator:
         lowered = normalize_role(location)
         return bool(lowered and any(hint in lowered for hint in INDIA_LOCATION_HINTS))
 
+    def _is_security_analyst_style_query(self, query: str) -> bool:
+        profile = role_profile(query)
+        normalized = profile.family_role or profile.normalized_role
+        return normalized == "cybersecurity engineer" and any(
+            head in {"analyst", "specialist"} for head in profile.head_terms
+        )
+
+    def _is_weak_software_live_family(self, query: str) -> bool:
+        profile = role_profile(query)
+        normalized = profile.family_role or profile.normalized_role
+        return normalized in {"frontend developer", "mobile developer", "embedded engineer"}
+
     def _build_production_provider_plan(
         self,
         *,
@@ -341,6 +353,8 @@ class JobAggregator:
         india_focused_location = self._is_india_focused_location(location)
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
+        security_analyst_style = self._is_security_analyst_style_query(query)
+        weak_software_family = self._is_weak_software_live_family(query)
 
         fallback_order: list[str] = []
         if sparse_role:
@@ -348,14 +362,39 @@ class JobAggregator:
             supplemental_order: list[str] = []
         elif dense_family:
             if india_focused_location:
-                primary_order = ["jooble", "remotive", "greenhouse"]
-                supplemental_order = ["jobicy", "adzuna", "themuse"]
+                if security_analyst_style:
+                    primary_order = ["jooble", "adzuna", "remotive"]
+                    supplemental_order = ["jobicy", "greenhouse", "themuse"]
+                elif weak_software_family:
+                    primary_order = ["remotive", "jobicy", "jooble"]
+                    supplemental_order = ["greenhouse", "themuse", "adzuna"]
+                elif family_group == "data":
+                    primary_order = ["jooble", "remotive", "greenhouse"]
+                    supplemental_order = ["jobicy", "adzuna", "themuse"]
+                elif family_group in {"software", "infra"}:
+                    primary_order = ["remotive", "jobicy", "jooble"]
+                    supplemental_order = ["greenhouse", "themuse", "adzuna"]
+                elif family_group == "security":
+                    primary_order = ["remotive", "jooble", "adzuna"]
+                    supplemental_order = ["jobicy", "greenhouse", "themuse"]
+                else:
+                    primary_order = ["jooble", "remotive", "greenhouse"]
+                    supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
-            elif family_group in {"software", "infra", "security"}:
+            elif security_analyst_style:
+                primary_order = ["adzuna", "jooble", "remotive"]
+                supplemental_order = ["jobicy", "greenhouse", "themuse"]
+            elif weak_software_family:
+                primary_order = ["remotive", "jobicy", "jooble"]
+                supplemental_order = ["greenhouse", "themuse"]
+            elif family_group in {"software", "infra"}:
                 primary_order = ["remotive", "jobicy", "greenhouse"]
-                supplemental_order = ["themuse", "jooble", "adzuna"]
+                supplemental_order = ["jooble", "themuse", "adzuna"]
+            elif family_group == "security":
+                primary_order = ["remotive", "adzuna", "jobicy"]
+                supplemental_order = ["jooble", "greenhouse", "themuse"]
             else:
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
@@ -711,7 +750,10 @@ class JobAggregator:
         return selected
 
     def _query_signature(self, value: str) -> str:
-        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+ ]+", " ", str(value).lower())).strip()
+        raw_text = str(value or "").strip()
+        raw_text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", raw_text)
+        raw_text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", raw_text)
+        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+ ]+", " ", raw_text.lower())).strip()
 
     def _cache_query_bucket(self, query: str, item: dict) -> str:
         query_signature = self._query_signature(query)
@@ -1933,6 +1975,8 @@ class JobAggregator:
     def _requires_specialty_guard(self, query: str) -> bool:
         profile = role_profile(query)
         if profile.normalized_role == "frontend developer":
+            return False
+        if self._is_security_analyst_style_query(query):
             return False
         return bool(profile.specialty_tokens) and (
             profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES

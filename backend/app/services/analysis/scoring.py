@@ -6,9 +6,9 @@ from app.schemas.common import ScoreBreakdown
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
 from app.services.nlp.skill_extractor import (
-    RESUME_PROOF_LEVEL_WEIGHTS,
     augment_missing_skills,
     infer_skill_frequency,
+    required_resume_proof_weight,
     resume_skill_proof_weight,
     resume_skill_support_levels,
 )
@@ -34,7 +34,10 @@ class ScoringEngine:
         }
         skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
+        skill_stats_map = {item["skill"]: item for item in skill_frequency}
         market_skills = set(demand_map.keys())
+        live_job_count = sum(1 for job in jobs if job.get("source") != "role-baseline")
+        experience_years = float(resume_data.get("experience_years", 0) or 0)
         resume_support = resume_skill_support_levels(
             resume_sections=resume_data.get("sections", {}),
             skills=sorted(
@@ -53,7 +56,13 @@ class ScoringEngine:
                 resume_skills=resume_skills,
                 support_levels=resume_support,
             )
-            >= RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+            >= required_resume_proof_weight(
+                skill=skill,
+                role_query=role_query,
+                market_stats=skill_stats_map.get(skill, {}),
+                experience_years=experience_years,
+                live_job_count=live_job_count,
+            )
         )
         role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "") | set(role_baseline_skills(role_query or "", limit=18))
         missing_skills = [
@@ -68,7 +77,13 @@ class ScoringEngine:
                 resume_skills=resume_skills,
                 support_levels=resume_support,
             )
-            < RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+            < required_resume_proof_weight(
+                skill=skill,
+                role_query=role_query,
+                market_stats=skill_stats_map.get(skill, {}),
+                experience_years=experience_years,
+                live_job_count=live_job_count,
+            )
         ]
         missing_skills = augment_missing_skills(
             role_query=role_query,
@@ -77,6 +92,7 @@ class ScoringEngine:
             job_items=jobs,
             existing_missing_skills=missing_skills,
             market_skill_frequency=skill_frequency,
+            experience_years=experience_years,
         )
 
         skill_match = self._skill_match_score(

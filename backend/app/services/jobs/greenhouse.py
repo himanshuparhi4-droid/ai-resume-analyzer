@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role, role_domain, role_family, role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import normalize_role, role_domain, role_family, role_fit_score, role_profile, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -88,6 +88,7 @@ class GreenhouseProvider:
         normalized_query = normalize_role(query)
         family_role = role_family(query)
         domain = role_domain(query)
+        profile = role_profile(query)
         boards = self._boards_for_query(query)
         if not boards:
             return []
@@ -121,10 +122,17 @@ class GreenhouseProvider:
                 return []
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
-            if family_role in {"frontend developer", "mobile developer", "embedded engineer"}:
+            security_analyst_style = family_role == "cybersecurity engineer" and "analyst" in profile.head_terms
+            weak_software_family = family_role in {"frontend developer", "mobile developer", "embedded engineer"}
+            if weak_software_family:
                 # UI/mobile/embedded families benefit from board diversity, but
                 # full hydration on Render free tier is expensive and tends to
                 # time out before the selector sees the ATS-backed candidates.
+                detail_fetch_budget = min(max(limit // 2, 2), 3)
+                board_budget = 1
+            elif security_analyst_style:
+                # Analyst-shaped security searches usually get more value from
+                # one fast ATS-backed candidate than from broad board hydration.
                 detail_fetch_budget = min(max(limit // 2 + 1, 3), 4)
                 board_budget = 1
             elif domain in {"software", "security"} or family_role in {"devops engineer", "qa engineer", "solutions architect"}:
@@ -245,6 +253,7 @@ class GreenhouseProvider:
 
     def _boards_for_query(self, query: str) -> list[str]:
         normalized = normalize_role(query)
+        profile = role_profile(query)
         specific = _ROLE_SPECIFIC_GREENHOUSE_BOARDS.get(normalized)
         if specific:
             boards = list(specific)
@@ -261,8 +270,10 @@ class GreenhouseProvider:
                 "product": 4,
                 "design": 3,
             }.get(family_domain, len(boards))
-            if normalized == "frontend developer":
-                board_limit = min(board_limit, 3)
+            if normalized in {"frontend developer", "mobile developer", "embedded engineer"}:
+                board_limit = min(board_limit, 2)
+            if normalized == "cybersecurity engineer" and "analyst" in profile.head_terms:
+                board_limit = min(board_limit, 2)
             boards = boards[:board_limit]
         return boards
 

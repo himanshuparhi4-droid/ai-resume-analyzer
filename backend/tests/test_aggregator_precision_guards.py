@@ -104,6 +104,16 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Cybersecurity Engineer", item))
 
+    def test_soc_analyst_keeps_security_analyst_title(self) -> None:
+        item = {
+            "title": "Security Analyst",
+            "description": "Work in SOC operations, SIEM alerting, incident response, and threat detection.",
+            "tags": [],
+            "normalized_data": {"skills": ["siem", "splunk", "incident response", "threat detection"]},
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("SOC Analyst", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("SOC Analyst", item))
+
     def test_devops_engineer_keeps_site_reliability_engineer_title(self) -> None:
         item = {
             "title": "Site Reliability Engineer",
@@ -147,6 +157,29 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
     def test_web_developer_alias_does_not_require_literal_web_specialty_token(self) -> None:
         self.assertFalse(self.aggregator._requires_specialty_guard("Web Developer"))
+
+    def test_soc_analyst_alias_does_not_require_literal_soc_token(self) -> None:
+        self.assertFalse(self.aggregator._requires_specialty_guard("SOC Analyst"))
+
+    def test_soc_analyst_provider_plan_prioritizes_analyst_friendly_sources(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="SOC Analyst",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble", "remotive"])
+        self.assertEqual(plan["fallback_sources"], [])
+
+    def test_web_developer_provider_plan_deprioritizes_slow_global_sources(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="Web Developer",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"], ["remotive", "jobicy", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "themuse"])
 
     def test_web_developer_final_guard_keeps_full_stack_react_title(self) -> None:
         item = {
@@ -422,7 +455,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["fallback_sources"], [])
         self.assertNotIn("lever", plan["fallback_sources"])
 
-    def test_india_focused_dense_roles_prioritize_jooble_and_skip_indianapi(self) -> None:
+    def test_india_focused_dense_roles_keep_fast_public_sources_ahead_of_indianapi(self) -> None:
         source_groups = {
             "adzuna": [object()],
             "greenhouse": [object()],
@@ -436,7 +469,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="India",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][0], "jooble")
+        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
         self.assertNotIn("indianapi", plan["primary_sources"])
         self.assertNotIn("indianapi", plan["supplemental_sources"])
 
@@ -469,9 +502,9 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "greenhouse"])
+        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
         self.assertGreaterEqual(len(plan["supplemental_sources"]), 1)
-        self.assertEqual(plan["supplemental_sources"][0], "themuse")
+        self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
         self.assertEqual(plan["fallback_sources"], [])
 
     def test_selection_debug_tracks_rejection_reasons(self) -> None:

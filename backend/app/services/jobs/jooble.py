@@ -6,7 +6,7 @@ import logging
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import normalize_role, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -28,6 +28,8 @@ class JoobleProvider:
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         if not settings.has_jooble_credentials:
             return []
+        normalized_location = normalize_role(location)
+        location_filter = "" if normalized_location in {"", "remote", "worldwide", "global"} else location
 
         if settings.environment == "production":
             target_candidates = min(max(limit * 3, 24), 36)
@@ -49,7 +51,7 @@ class JoobleProvider:
             for page in range(1, page_count + 1):
                 payload = {
                     "keywords": query,
-                    "location": location,
+                    "location": location_filter,
                     "page": str(page),
                     "companysearch": "false",
                 }
@@ -82,7 +84,7 @@ class JoobleProvider:
                             "external_id": link,
                             "title": title,
                             "company": str(item.get("company") or "Unknown Company"),
-                            "location": str(item.get("location") or location or "Remote"),
+                            "location": str(item.get("location") or location_filter or "Remote"),
                             "remote": "remote" in description.lower() or "remote" in title.lower(),
                             "url": link,
                             "description": description,

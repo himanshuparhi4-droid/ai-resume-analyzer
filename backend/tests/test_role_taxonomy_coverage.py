@@ -230,6 +230,21 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertIn("technical support engineer", support_queries)
         self.assertFalse(any(query.startswith("technicalsupportengineer") for query in support_queries))
 
+        frontend_profile = role_profile("FrontEndDeveloper")
+        self.assertEqual(frontend_profile.normalized_role, "frontend developer")
+        self.assertIn(frontend_profile.cleaned_query, {"front end developer", "frontend developer"})
+        frontend_queries = provider_query_variations("FrontEndDeveloper", "remotive", production=True)
+        self.assertIn("frontend developer", frontend_queries)
+
+    def test_security_analyst_aliases_expand_family_safe_query_variations(self) -> None:
+        profile = role_profile("SOCAnalyst")
+        self.assertEqual(profile.cleaned_query, "soc analyst")
+        remotive_queries = provider_query_variations("SOC Analyst", "remotive", production=True)
+        jooble_queries = provider_query_variations("SOC Analyst", "jooble", production=True)
+        self.assertIn("soc analyst", remotive_queries)
+        self.assertIn("security analyst", remotive_queries)
+        self.assertIn("security analyst", jooble_queries)
+
     def test_explicit_canonical_roles_do_not_drift_into_sibling_production_queries(self) -> None:
         analyst_queries = production_query_variations("Data Analyst")
         self.assertIn("data analyst", analyst_queries)

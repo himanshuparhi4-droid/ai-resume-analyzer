@@ -21,9 +21,9 @@ from app.services.jobs.aggregator import JobAggregator
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints, role_recommendation_skills
 from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.nlp.skill_extractor import (
-    RESUME_PROOF_LEVEL_WEIGHTS,
     augment_missing_skills,
     infer_skill_frequency,
+    required_resume_proof_weight,
     resume_skill_proof_weight,
     resume_skill_support_levels,
 )
@@ -406,8 +406,11 @@ class AnalysisOrchestrator:
         scoring_jobs = [] if low_confidence_baseline_only else jobs
         skill_frequency = infer_skill_frequency(scoring_jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
+        skill_stats_map = {item["skill"]: item for item in skill_frequency}
         market_skills = set(demand_map.keys())
         role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query) | set(role_baseline_skills(role_query, limit=18))
+        live_job_count = sum(1 for job in scoring_jobs if job.get("source") != "role-baseline")
+        experience_years = float(resume_data.get("experience_years", 0) or 0)
         resume_support = resume_skill_support_levels(
             resume_sections=resume_data.get("sections", {}),
             skills=sorted(market_skills | role_skill_pool | resume_skills),
@@ -421,7 +424,13 @@ class AnalysisOrchestrator:
                 resume_skills=resume_skills,
                 support_levels=resume_support,
             )
-            >= RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+            >= required_resume_proof_weight(
+                skill=skill,
+                role_query=role_query,
+                market_stats=skill_stats_map.get(skill, {}),
+                experience_years=experience_years,
+                live_job_count=live_job_count,
+            )
         )
         missing_skills = [
             {
@@ -435,7 +444,13 @@ class AnalysisOrchestrator:
                 resume_skills=resume_skills,
                 support_levels=resume_support,
             )
-            < RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+            < required_resume_proof_weight(
+                skill=skill,
+                role_query=role_query,
+                market_stats=skill_stats_map.get(skill, {}),
+                experience_years=experience_years,
+                live_job_count=live_job_count,
+            )
         ][:10]
         missing_skills = augment_missing_skills(
             role_query=role_query,
@@ -444,6 +459,7 @@ class AnalysisOrchestrator:
             job_items=scoring_jobs or jobs,
             existing_missing_skills=missing_skills,
             market_skill_frequency=skill_frequency,
+            experience_years=experience_years,
         )
 
         live_jobs = [job for job in scoring_jobs if job.get("source") != "role-baseline"]

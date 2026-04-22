@@ -398,6 +398,7 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
     market_hints = role_market_hints(role_query or "") if role_query else set()
     primary_hints = role_primary_hints(role_query or "") if role_query else set()
     live_jobs_present = any(item.get("source") != "role-baseline" for item in job_items)
+    live_job_count = sum(1 for item in job_items if item.get("source") != "role-baseline")
 
     for item in job_items:
         normalized_data = item.get("normalized_data", {}) or {}
@@ -473,16 +474,20 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
                 if live_jobs_present and live_count == 0 and share < 18.0:
                     continue
             elif hinted_skill:
-                if live_jobs_present and live_count < 2 and company_count < 2 and share < 11.0:
-                    continue
-                if skill in ROLE_GENERIC_SECONDARY_SKILLS and live_count < 2 and share < 13.0:
-                    continue
+                hinted_dense_keep = live_jobs_present and live_job_count >= 6 and live_count >= 1 and share >= 7.0
+                if not hinted_dense_keep:
+                    if live_jobs_present and live_count < 2 and company_count < 2 and share < 11.0:
+                        continue
+                    if skill in ROLE_GENERIC_SECONDARY_SKILLS and live_count < 2 and share < 13.0:
+                        continue
             else:
                 if skill in KNOWN_SKILLS:
-                    if live_count < 2 and company_count < 2 and share < 13.0:
-                        continue
-                    if mention_count[skill] < 2 and company_count < 2:
-                        continue
+                    broadly_supported = live_jobs_present and live_job_count >= 8 and live_count >= 1 and share >= 8.0
+                    if not broadly_supported:
+                        if live_count < 2 and company_count < 2 and share < 13.0:
+                            continue
+                        if mention_count[skill] < 2 and company_count < 2:
+                            continue
                 else:
                     if mention_count[skill] < 3 or company_count < 2:
                         continue
@@ -589,6 +594,40 @@ def resume_skill_proof_weight(
     return RESUME_PROOF_LEVEL_WEIGHTS.get(support_level, RESUME_PROOF_LEVEL_WEIGHTS["weak"])
 
 
+def required_resume_proof_weight(
+    *,
+    skill: str,
+    role_query: str | None,
+    market_stats: dict | None = None,
+    experience_years: float | None = None,
+    live_job_count: int = 0,
+) -> float:
+    threshold = RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+    if not role_query:
+        return threshold
+
+    normalized_skill = normalize_whitespace(skill).lower()
+    stats = market_stats or {}
+    share = float(stats.get("share", 0.0) or 0.0)
+    live_count = int(stats.get("live_count", 0) or 0)
+    company_count = int(stats.get("company_count", 0) or 0)
+    family = role_family(role_query)
+    domain = role_domain(role_query)
+    dense_role = family in DENSE_ROLE_GAP_FAMILIES or domain in {"data", "software", "security"}
+    early_career = float(experience_years or 0.0) < 1.5
+    primary_skill = normalized_skill in role_primary_hints(role_query or "")
+    hinted_skill = normalized_skill in role_market_hints(role_query or "") or primary_skill
+    repeated_live_signal = live_count >= 2 or company_count >= 2
+
+    if primary_skill and share >= 8.0 and (dense_role or early_career):
+        return 0.86
+    if hinted_skill and early_career and share >= 10.0 and (repeated_live_signal or live_job_count >= 8):
+        return 0.84
+    if hinted_skill and dense_role and share >= 12.0 and repeated_live_signal:
+        return 0.82
+    return threshold
+
+
 def augment_missing_skills(
     *,
     role_query: str | None,
@@ -597,6 +636,7 @@ def augment_missing_skills(
     job_items: list[dict],
     existing_missing_skills: list[dict],
     market_skill_frequency: list[dict] | None = None,
+    experience_years: float | None = None,
 ) -> list[dict]:
     if not role_query:
         return existing_missing_skills[:10]
@@ -619,6 +659,22 @@ def augment_missing_skills(
         skills=sorted({*recommendation_skills, *normalized_resume_skills, *live_market_stats.keys()}),
     )
 
+    def proof_weight_for(skill_name: str) -> float:
+        return resume_skill_proof_weight(
+            skill=skill_name,
+            resume_skills=normalized_resume_skills,
+            support_levels=resume_support,
+        )
+
+    def required_weight_for(skill_name: str) -> float:
+        return required_resume_proof_weight(
+            skill=skill_name,
+            role_query=role_query,
+            market_stats=live_market_stats.get(skill_name, {}),
+            experience_years=experience_years,
+            live_job_count=live_job_count,
+        )
+
     evidence_backfill: list[dict] = []
     weak_market_backfill: list[dict] = []
     calibrated_backfill: list[dict] = []
@@ -630,7 +686,7 @@ def augment_missing_skills(
     ):
         if skill in existing_names or skill not in normalized_resume_skills:
             continue
-        if resume_support.get(skill, "weak") != "weak":
+        if proof_weight_for(skill) >= required_weight_for(skill):
             continue
         share = float(skill_stats.get("share", 0.0) or 0.0)
         live_count = int(skill_stats.get("live_count", 0) or 0)
@@ -653,9 +709,10 @@ def augment_missing_skills(
         normalized_skill = normalize_whitespace(skill).lower()
         if not normalized_skill or normalized_skill in existing_names:
             continue
-        support_level = resume_support.get(normalized_skill, "none")
-        strongly_covered = normalized_skill in normalized_resume_skills and support_level in {"strong", "medium"}
-        weakly_covered = normalized_skill in normalized_resume_skills and support_level == "weak"
+        current_proof_weight = proof_weight_for(normalized_skill)
+        required_proof_weight = required_weight_for(normalized_skill)
+        strongly_covered = current_proof_weight >= required_proof_weight
+        weakly_covered = normalized_skill in normalized_resume_skills and current_proof_weight < required_proof_weight
         if strongly_covered:
             continue
 
