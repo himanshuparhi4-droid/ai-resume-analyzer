@@ -568,6 +568,7 @@ class JobAggregator:
                 if cached_fallback:
                     self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=cached_fallback)
                     return cached_fallback
+            return []
 
         use_cache = self._use_cache()
         if use_cache and not force_refresh:
@@ -1328,17 +1329,41 @@ class JobAggregator:
                     if isinstance(rejection_counts, dict):
                         rejection_counts["final_guard"] += 1
                     continue
+                source = str(item.get("source", "unknown")).lower()
                 company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
                 title_key = normalize_role(str(item.get("title", "")).lower()) or "unknown"
-                company_title_key = f"{company}::{title_key}"
                 similarity_signature = self._job_similarity_signature(item)
-                source = str(item.get("source", "unknown")).lower()
+                if company == "unknown":
+                    fallback_company_id = self._query_signature(
+                        item.get("external_id") or item.get("url") or item.get("location") or ""
+                    )
+                    company_identity = (
+                        f"{source}::{fallback_company_id}"
+                        if fallback_company_id
+                        else f"{source}::{similarity_signature}"
+                    )
+                else:
+                    company_identity = company
+                company_title_key = f"{company_identity}::{title_key}"
                 max_source_count = source_selection_cap(source)
-                if company_counts.get(company, 0) >= cap_per_company:
+                company_title_limit = 1
+                has_distinct_listing_id = bool(
+                    self._query_signature(item.get("external_id") or item.get("url") or "")
+                )
+                if has_distinct_listing_id and source in {"jobicy", "themuse"} and len(selected) < display_floor:
+                    company_title_limit = 3
+                elif (
+                    has_distinct_listing_id
+                    and len(selected) < display_floor
+                    and self._canonical_role_alignment(query, item) >= 2
+                    and self._title_precision_score(query, item) >= 2
+                ):
+                    company_title_limit = 2
+                if company_counts.get(company_identity, 0) >= cap_per_company:
                     if isinstance(rejection_counts, dict):
                         rejection_counts["company_cap"] += 1
                     continue
-                if company_title_counts.get(company_title_key, 0) >= 1:
+                if company_title_counts.get(company_title_key, 0) >= company_title_limit:
                     if isinstance(rejection_counts, dict):
                         rejection_counts["company_title_cap"] += 1
                     continue
@@ -1357,7 +1382,7 @@ class JobAggregator:
                         rejection_counts["source_cap"] += 1
                     continue
                 selected.append(item)
-                company_counts[company] = company_counts.get(company, 0) + 1
+                company_counts[company_identity] = company_counts.get(company_identity, 0) + 1
                 company_title_counts[company_title_key] = company_title_counts.get(company_title_key, 0) + 1
                 source_counts[source] = source_counts.get(source, 0) + 1
                 selected_signatures.add(similarity_signature)
@@ -1556,20 +1581,34 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
-        if (
-            normalized_query == "frontend developer"
-            and canonical_alignment >= 1
-            and not self._is_mobile_web_mismatch(query, title_text)
-            and (
-                title_precision >= 1
-                or title_overlap >= 1
-                or self._contains_phrase(title_text, "full stack")
-                or self._contains_phrase(title_text, "fullstack")
-                or self._contains_phrase(title_text, "web")
-                or self._contains_phrase(title_text, "react")
-            )
-        ):
+        if self._passes_family_bridge_guard(query, item):
             return True
+        if normalized_query == "embedded engineer":
+            has_embedded_signal = (
+                self._contains_phrase(title_text, "embedded engineer")
+                or self._contains_phrase(title_text, "embedded software")
+                or self._contains_phrase(title_text, "embedded systems")
+                or self._contains_phrase(title_text, "firmware")
+                or self._contains_phrase(title_text, "microcontroller")
+                or self._contains_phrase(title_text, "rtos")
+                or self._contains_phrase(title_text, "iot")
+                or (
+                    self._contains_phrase(title_text, "embedded")
+                    and re.search(r"\b(engineer|developer|software)\b", title_text)
+                )
+            )
+            if not has_embedded_signal:
+                return False
+        if normalized_query == "enterprise applications engineer":
+            has_platform_signal = any(
+                self._contains_phrase(title_text, token)
+                for token in {"salesforce", "sap", "erp", "crm", "oracle", "dynamics", "netsuite"}
+            )
+            has_role_signal = bool(
+                re.search(r"\b(administrator|admin|developer|consultant|engineer|architect|analyst|specialist)\b", title_text)
+            )
+            if not (has_platform_signal and has_role_signal):
+                return False
         if self._uses_strict_precision_guard(query):
             requested_leadership = {"manager", "director", "head", "chief", "vp", "vice", "president"}
             if not any(token in query_text.split() for token in requested_leadership) and re.search(
@@ -1611,23 +1650,48 @@ class JobAggregator:
             return False
         return True
 
-    def _is_frontend_adjacent_live_candidate(self, query: str, item: dict) -> bool:
-        if normalize_role(query) != "frontend developer":
-            return False
+    def _passes_family_bridge_guard(self, query: str, item: dict) -> bool:
+        profile = role_profile(query)
         title_text = self._query_signature(item.get("title", ""))
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        if canonical_alignment < 1:
+            return False
         if self._is_mobile_web_mismatch(query, title_text):
             return False
-        if self._canonical_role_alignment(query, item) < 1:
+        if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
         role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
         if role_fit < 1.5:
             return False
-        return (
-            self._contains_phrase(title_text, "full stack")
-            or self._contains_phrase(title_text, "fullstack")
-            or self._contains_phrase(title_text, "web")
-            or self._contains_phrase(title_text, "react")
-        )
+        title_precision = self._title_precision_score(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        specialty_overlap = self._specialty_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        title_profile = role_profile(str(item.get("title", "")))
+        head_overlap = bool(set(profile.head_terms) & set(title_profile.head_terms))
+
+        if title_precision >= 1 or title_overlap >= 1:
+            return True
+        if profile.specialty_tokens and specialty_overlap >= 1 and not head_overlap and title_precision <= 0:
+            return False
+        if profile.domain == "data" and self._uses_strict_precision_guard(query):
+            return canonical_alignment >= 0 and core_title_overlap >= 1 and (
+                specialty_overlap >= 1
+                or family_overlap >= 1
+                or domain_score >= 2
+                or role_fit >= 3.0
+            )
+        if canonical_alignment >= 3 and head_overlap and domain_score >= 2:
+            return True
+        if specialty_overlap >= 1 and (head_overlap or family_overlap >= 1) and domain_score >= 2:
+            return True
+        if canonical_alignment == 1 and head_overlap and (family_overlap >= 1 or domain_score >= 2):
+            return core_title_overlap >= 1 or role_fit >= 2.0
+        if profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES and domain_score >= 2:
+            return family_overlap >= 1 or role_fit >= 2.5
+        return False
 
     def _passes_exact_query_backup_guard(self, query: str, location: str, item: dict) -> bool:
         query_domain = role_domain(query)
@@ -1643,6 +1707,8 @@ class JobAggregator:
 
         if self._is_location_hard_mismatch(location, item):
             return False
+        if self._passes_family_bridge_guard(query, item):
+            return True
         if canonical_alignment < 0:
             return False
         if (
@@ -1674,6 +1740,8 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
+        if self._passes_family_bridge_guard(query, item):
+            return True
 
         query_domain = role_domain(query)
         canonical_alignment = self._canonical_role_alignment(query, item)
@@ -2077,7 +2145,7 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and self._specialty_token_overlap(query, item) == 0:
             return False
-        if self._is_frontend_adjacent_live_candidate(query, item):
+        if self._passes_family_bridge_guard(query, item):
             return True
         if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
             return False

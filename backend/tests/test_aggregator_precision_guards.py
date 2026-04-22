@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from app.services.jobs.aggregator import JobAggregator
+from app.services.jobs.taxonomy import provider_query_variations
 
 
 class AggregatorPrecisionGuardTest(unittest.TestCase):
@@ -32,6 +33,15 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         item = {
             "title": "Data Operations Analyst",
             "description": "Own SQL dashboards, reporting workflows, and analytics operations.",
+            "tags": [],
+            "normalized_data": {"skills": ["sql", "reporting", "analytics", "power bi"]},
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Data Analyst", item))
+
+    def test_data_analyst_keeps_insights_analyst_title(self) -> None:
+        item = {
+            "title": "Insights Analyst",
+            "description": "Own reporting workflows, dashboard analysis, and business intelligence insights.",
             "tags": [],
             "normalized_data": {"skills": ["sql", "reporting", "analytics", "power bi"]},
         }
@@ -100,6 +110,10 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertFalse(self.aggregator._uses_strict_precision_guard("Web Developer"))
         self.assertTrue(self.aggregator._uses_strict_precision_guard("Frontend Developer"))
 
+    def test_frontend_developer_fast_source_queries_include_web_developer(self) -> None:
+        self.assertIn("web developer", provider_query_variations("Frontend Developer", "remotive", production=True))
+        self.assertIn("web developer", provider_query_variations("Frontend Developer", "jobicy", production=True))
+
     def test_web_developer_alias_does_not_require_literal_web_specialty_token(self) -> None:
         self.assertFalse(self.aggregator._requires_specialty_guard("Web Developer"))
 
@@ -148,6 +162,49 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             "normalized_data": {"skills": ["spark", "sql", "cloud"]},
         }
         self.assertFalse(self.aggregator._passes_precise_query_guard("Cloud Engineer", item))
+
+    def test_embedded_engineer_keeps_firmware_developer_title(self) -> None:
+        item = {
+            "title": "Firmware Developer",
+            "description": "Build low-level C/C++ firmware, RTOS workflows, and embedded device communication.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["c", "c++", "firmware", "rtos", "microcontroller"],
+                "role_fit_score": 8.0,
+                "market_quality_score": 24.0,
+                "title_alignment_score": 16.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_precise_query_guard("Embedded Engineer", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("Embedded Engineer", item))
+
+    def test_embedded_engineer_rejects_embedded_data_specialist_title(self) -> None:
+        item = {
+            "title": "Embedded Data Specialist",
+            "description": "Support data cleanup and reporting for internal business teams.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["excel", "reporting", "data analysis"],
+                "role_fit_score": 4.0,
+                "market_quality_score": 18.0,
+                "title_alignment_score": 6.0,
+            },
+        }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Embedded Engineer", item))
+
+    def test_enterprise_applications_rejects_enterprise_ae_title(self) -> None:
+        item = {
+            "title": "Enterprise AE",
+            "description": "Drive enterprise sales, pipeline generation, and account growth.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["crm", "sales"],
+                "role_fit_score": 6.0,
+                "market_quality_score": 18.0,
+                "title_alignment_score": 7.0,
+            },
+        }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Enterprise Applications Engineer", item))
 
     def test_full_stack_developer_rejects_full_time_driver_ad(self) -> None:
         item = {
@@ -440,6 +497,64 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertIn("rejections", debug)
         self.assertGreaterEqual(sum(debug["rejections"].values()), 1)
+
+    def test_unknown_company_jobs_do_not_collapse_same_title_live_cards(self) -> None:
+        jobs = [
+            {
+                "title": "Product Designer",
+                "company": "",
+                "external_id": "ux-1",
+                "source": "themuse",
+                "description": "Own Figma prototypes, UX research synthesis, and visual design systems for growth surfaces.",
+                "location": "Global",
+                "tags": ["product designer"],
+                "normalized_data": {
+                    "skills": ["figma", "ux design", "ui design"],
+                    "title_alignment_score": 18.0,
+                    "role_fit_score": 10.0,
+                    "market_quality_score": 22.0,
+                },
+            },
+            {
+                "title": "Product Designer",
+                "company": "",
+                "external_id": "ux-2",
+                "source": "themuse",
+                "description": "Design mobile-first user journeys, wireframes, and prototyping systems for onboarding.",
+                "location": "Global",
+                "tags": ["product designer"],
+                "normalized_data": {
+                    "skills": ["figma", "prototyping", "ux design"],
+                    "title_alignment_score": 17.5,
+                    "role_fit_score": 9.5,
+                    "market_quality_score": 21.5,
+                },
+            },
+            {
+                "title": "Product Designer",
+                "company": "",
+                "external_id": "ux-3",
+                "source": "themuse",
+                "description": "Lead interaction design, accessibility reviews, and design system documentation for web experiences.",
+                "location": "Global",
+                "tags": ["product designer"],
+                "normalized_data": {
+                    "skills": ["figma", "ui design", "ux design"],
+                    "title_alignment_score": 17.0,
+                    "role_fit_score": 9.0,
+                    "market_quality_score": 21.0,
+                },
+            },
+        ]
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="UI/UX Designer",
+            location="Global",
+            jobs=jobs,
+            limit=10,
+        )
+
+        self.assertEqual(len(selected), 3)
 
     def test_baseline_jobs_are_never_counted_as_live_cards(self) -> None:
         jobs = [

@@ -100,6 +100,8 @@ ROLE_SEARCH_VARIATIONS = {
         "business analyst",
         "bi analyst",
         "analytics analyst",
+        "insights analyst",
+        "data operations analyst",
         "product analyst",
         "operations analyst",
     ],
@@ -192,12 +194,21 @@ ROLE_SEARCH_VARIATIONS = {
     ],
 }
 ROLE_PRODUCTION_VARIATIONS = {
-    "data analyst": ["data analyst", "business intelligence analyst", "reporting analyst", "bi analyst", "analytics analyst", "data analytics"],
+    "data analyst": [
+        "data analyst",
+        "business intelligence analyst",
+        "reporting analyst",
+        "bi analyst",
+        "analytics analyst",
+        "insights analyst",
+        "data operations analyst",
+        "data analytics",
+    ],
     "data scientist": ["data scientist", "machine learning scientist", "applied scientist"],
     "machine learning engineer": ["machine learning engineer", "machine learning", "ai"],
     "data engineer": ["data engineer", "etl engineer", "analytics engineer"],
     "software engineer": ["software engineer", "backend engineer", "python developer"],
-    "frontend developer": ["frontend developer", "react developer", "frontend engineer"],
+    "frontend developer": ["frontend developer", "web developer", "react developer", "frontend engineer"],
     "full stack developer": ["full stack developer", "mern developer", "mern stack developer", "fullstack developer"],
     "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer"],
     "cybersecurity engineer": ["cybersecurity engineer", "security engineer", "cloud security engineer", "application security engineer", "security operations engineer", "information security engineer"],
@@ -277,7 +288,17 @@ ROLE_PRIMARY_HINTS = {
     "painter": {"painting", "surface preparation", "color matching", "spray painting", "coating"},
 }
 ROLE_TITLE_HINTS = {
-    "data analyst": {"data analyst", "reporting analyst", "business intelligence", "business intelligence analyst", "bi analyst", "analytics analyst", "insights analyst", "data analytics"},
+    "data analyst": {
+        "data analyst",
+        "reporting analyst",
+        "business intelligence",
+        "business intelligence analyst",
+        "bi analyst",
+        "analytics analyst",
+        "insights analyst",
+        "data operations analyst",
+        "data analytics",
+    },
     "data scientist": {"data scientist", "applied scientist", "machine learning scientist", "ml scientist", "research scientist"},
     "machine learning engineer": {"machine learning engineer", "machine learning", "ml engineer", "ai engineer", "ai ml engineer"},
     "data engineer": {"data engineer", "etl", "analytics engineer"},
@@ -821,12 +842,44 @@ ROLE_FAMILY_EXTENSIONS = {
         "adjacent": {"software engineer", "frontend developer", "full stack developer"},
     },
     "embedded engineer": {
-        "search_variations": ["embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer", "embedded developer"],
-        "production_variations": ["embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"],
+        "search_variations": [
+            "embedded engineer",
+            "embedded software engineer",
+            "embedded systems engineer",
+            "embedded software developer",
+            "firmware engineer",
+            "firmware developer",
+            "iot engineer",
+            "embedded developer",
+        ],
+        "production_variations": [
+            "embedded engineer",
+            "embedded software engineer",
+            "embedded systems engineer",
+            "firmware engineer",
+            "firmware developer",
+            "embedded software developer",
+        ],
         "market_hints": {"embedded", "firmware", "c", "c++", "microcontroller", "rtos", "hardware", "device drivers", "serial communication", "iot"},
         "primary_hints": {"embedded", "firmware", "c", "c++", "microcontroller", "rtos", "iot"},
-        "title_hints": {"embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"},
-        "keyword_families": ("embedded engineer", "embedded software engineer", "firmware engineer", "iot engineer"),
+        "title_hints": {
+            "embedded engineer",
+            "embedded software engineer",
+            "embedded systems engineer",
+            "embedded software developer",
+            "firmware engineer",
+            "firmware developer",
+            "iot engineer",
+        },
+        "keyword_families": (
+            "embedded engineer",
+            "embedded software engineer",
+            "embedded systems engineer",
+            "embedded software developer",
+            "firmware engineer",
+            "firmware developer",
+            "iot engineer",
+        ),
         "inference_tokens": {"embedded", "firmware", "microcontroller", "rtos", "iot", "hardware"},
         "domain": "software",
         "adjacent": {"software engineer"},
@@ -865,12 +918,51 @@ ROLE_FAMILY_EXTENSIONS = {
         "adjacent": {"software engineer", "devops engineer", "enterprise applications engineer"},
     },
     "enterprise applications engineer": {
-        "search_variations": ["salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"],
-        "production_variations": ["salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer"],
+        "search_variations": [
+            "salesforce developer",
+            "salesforce admin",
+            "salesforce administrator",
+            "sap consultant",
+            "sap developer",
+            "erp consultant",
+            "crm developer",
+            "oracle developer",
+            "microsoft dynamics consultant",
+        ],
+        "production_variations": [
+            "salesforce developer",
+            "salesforce admin",
+            "salesforce administrator",
+            "sap consultant",
+            "sap developer",
+            "erp consultant",
+            "crm developer",
+            "oracle developer",
+        ],
         "market_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics", "configuration", "workflow automation", "apex", "sql"},
         "primary_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics"},
-        "title_hints": {"salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"},
-        "keyword_families": ("salesforce developer", "salesforce admin", "sap consultant", "erp consultant", "crm developer", "oracle developer", "microsoft dynamics consultant"),
+        "title_hints": {
+            "salesforce developer",
+            "salesforce admin",
+            "salesforce administrator",
+            "sap consultant",
+            "sap developer",
+            "erp consultant",
+            "crm developer",
+            "oracle developer",
+            "microsoft dynamics consultant",
+        },
+        "keyword_families": (
+            "salesforce developer",
+            "salesforce admin",
+            "salesforce administrator",
+            "sap consultant",
+            "sap developer",
+            "erp consultant",
+            "crm developer",
+            "oracle developer",
+            "microsoft dynamics consultant",
+        ),
         "inference_tokens": {"salesforce", "sap", "erp", "crm", "oracle", "dynamics"},
         "domain": "software",
         "adjacent": {"solutions architect", "software engineer", "database engineer"},
@@ -922,7 +1014,10 @@ ROLE_ALIAS_EXTENSIONS = {
     "react native developer": "mobile developer",
     "embedded software engineer": "embedded engineer",
     "embedded engineer": "embedded engineer",
+    "embedded systems engineer": "embedded engineer",
+    "embedded software developer": "embedded engineer",
     "firmware engineer": "embedded engineer",
+    "firmware developer": "embedded engineer",
     "iot engineer": "embedded engineer",
     "business analyst": "data analyst",
     "technical business analyst": "data analyst",
@@ -1000,8 +1095,10 @@ ROLE_ALIAS_EXTENSIONS = {
     "noc engineer": "support engineer",
     "production support engineer": "support engineer",
     "sap consultant": "enterprise applications engineer",
+    "sap developer": "enterprise applications engineer",
     "salesforce developer": "enterprise applications engineer",
     "salesforce admin": "enterprise applications engineer",
+    "salesforce administrator": "enterprise applications engineer",
     "erp consultant": "enterprise applications engineer",
     "crm developer": "enterprise applications engineer",
     "oracle developer": "enterprise applications engineer",
@@ -1652,6 +1749,48 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
     return score
 
 
+def _provider_query_budget(profile: RoleProfile, source_name: str, *, production: bool, query_is_narrow: bool) -> int:
+    budget_config = PROVIDER_QUERY_BUDGETS.get(source_name, {"base": 2, "narrow": 1})
+    budget = int(budget_config["narrow"] if query_is_narrow else budget_config["base"])
+    family_alias_query = bool(profile.family_role and profile.family_role != profile.normalized_role)
+    abstract_family = profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
+    broad_dense_query = profile.domain in {"software", "data", "security"} and not query_is_narrow
+
+    if not production:
+        if family_alias_query:
+            budget = max(budget, 2)
+        return budget
+
+    if source_name in {"remotive", "jooble", "adzuna"}:
+        if broad_dense_query:
+            budget = max(budget, 3)
+        if source_name == "remotive" and (broad_dense_query or family_alias_query or abstract_family):
+            budget = max(budget, 4)
+    if source_name == "jobicy":
+        if profile.domain in {"data", "security"}:
+            budget = 1
+        elif profile.domain == "software":
+            budget = max(budget, 2 if (broad_dense_query or family_alias_query or abstract_family) else 1)
+            if query_is_narrow and not family_alias_query and not abstract_family:
+                budget = 1
+    if source_name == "themuse" and profile.domain in {"data", "security"}:
+        budget = min(budget, 1)
+    if family_alias_query:
+        budget = max(budget, 2)
+    return budget
+
+
+def _provider_query_anchors(profile: RoleProfile) -> list[str]:
+    anchors: list[str] = []
+    if profile.cleaned_query:
+        anchors.append(profile.cleaned_query)
+    if profile.normalized_role:
+        anchors.append(profile.normalized_role)
+    if profile.family_role and profile.family_role != profile.normalized_role:
+        anchors.append(profile.family_role)
+    return list(dict.fromkeys(item for item in anchors if item))
+
+
 def provider_query_variations(query: str, source_name: str, *, production: bool = False) -> list[str]:
     profile = role_profile(query)
     variations = production_query_variations(query) if production else query_variations(query)
@@ -1661,28 +1800,19 @@ def provider_query_variations(query: str, source_name: str, *, production: bool 
         reverse=True,
     )
     query_is_narrow = len(profile.specialty_tokens) >= 2 or len(profile.cleaned_query.split()) >= 3
-    budget_config = PROVIDER_QUERY_BUDGETS.get(source_name, {"base": 2, "narrow": 1})
-    budget = int(budget_config["narrow"] if query_is_narrow else budget_config["base"])
-    if production and source_name == "jobicy" and profile.domain in {"data", "software", "security"}:
-        budget = 1
-    if profile.family_role and profile.family_role != profile.normalized_role:
-        budget = max(budget, 2)
-    if profile.domain in {"data", "security"} and source_name in {"jobicy", "themuse"}:
-        budget = min(budget, 1)
+    budget = _provider_query_budget(profile, source_name, production=production, query_is_narrow=query_is_narrow)
     selected = ranked[: max(1, budget)]
-    family_role = profile.family_role
-    if family_role and family_role != profile.normalized_role:
-        family_variations = (
-            ROLE_PRODUCTION_VARIATIONS.get(family_role, [family_role])
-            if production
-            else ROLE_SEARCH_VARIATIONS.get(family_role, [family_role])
-        )
-        family_candidate = next((item for item in family_variations if item in ranked), None)
-        if family_candidate and family_candidate not in selected:
-            if len(selected) < max(1, budget):
-                selected.append(family_candidate)
-            elif selected:
-                selected[-1] = family_candidate
+
+    def ensure_selected(candidate: str) -> None:
+        if candidate not in ranked or candidate in selected:
+            return
+        if len(selected) < max(1, budget):
+            selected.append(candidate)
+        elif selected:
+            selected[-1] = candidate
+
+    for anchor in _provider_query_anchors(profile):
+        ensure_selected(anchor)
     return list(dict.fromkeys(selected))
 
 
