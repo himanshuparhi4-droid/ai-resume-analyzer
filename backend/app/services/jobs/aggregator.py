@@ -477,6 +477,101 @@ class JobAggregator:
                     entry["timeouts"] += 1
         return summary
 
+    def _aggregate_provider_attempt_rollup(self) -> dict[str, dict[str, object]]:
+        summary: dict[str, dict[str, object]] = {}
+        for provider_diag in self.last_fetch_diagnostics.get("providers", []):
+            source = str(provider_diag.get("source") or provider_diag.get("provider") or "unknown").lower()
+            entry = summary.setdefault(
+                source,
+                {
+                    "requests": 0,
+                    "successes": 0,
+                    "skipped_budget": 0,
+                    "timeouts": 0,
+                    "errors": 0,
+                    "raw_returned": 0,
+                    "queries": [],
+                    "stages": [],
+                    "error_samples": [],
+                    "_elapsed_total_ms": 0.0,
+                    "_elapsed_count": 0,
+                    "max_elapsed_ms": 0.0,
+                },
+            )
+            entry["requests"] = int(entry["requests"]) + 1
+            status = str(provider_diag.get("status") or "").strip().lower()
+            if status == "success":
+                entry["successes"] = int(entry["successes"]) + 1
+            elif status == "skipped_budget":
+                entry["skipped_budget"] = int(entry["skipped_budget"]) + 1
+
+            result_count = int(provider_diag.get("result_count", 0) or 0)
+            entry["raw_returned"] = int(entry["raw_returned"]) + result_count
+
+            stage = str(provider_diag.get("stage") or "").strip()
+            if stage and stage not in entry["stages"]:
+                entry["stages"].append(stage)
+
+            query = str(provider_diag.get("query") or "").strip()
+            if query and query not in entry["queries"]:
+                entry["queries"].append(query)
+
+            elapsed_ms = float(provider_diag.get("elapsed_ms", 0.0) or 0.0)
+            if elapsed_ms > 0:
+                entry["_elapsed_total_ms"] = float(entry["_elapsed_total_ms"]) + elapsed_ms
+                entry["_elapsed_count"] = int(entry["_elapsed_count"]) + 1
+                entry["max_elapsed_ms"] = max(float(entry["max_elapsed_ms"]), elapsed_ms)
+
+            error_text = str(provider_diag.get("error", "") or "").strip()
+            if error_text:
+                entry["errors"] = int(entry["errors"]) + 1
+                if "timeout" in error_text.lower():
+                    entry["timeouts"] = int(entry["timeouts"]) + 1
+                if error_text not in entry["error_samples"]:
+                    entry["error_samples"].append(error_text)
+
+        cleaned: dict[str, dict[str, object]] = {}
+        for source, entry in sorted(summary.items()):
+            elapsed_count = int(entry.pop("_elapsed_count", 0) or 0)
+            elapsed_total_ms = float(entry.pop("_elapsed_total_ms", 0.0) or 0.0)
+            entry["avg_elapsed_ms"] = round(elapsed_total_ms / elapsed_count, 2) if elapsed_count else 0.0
+            entry["max_elapsed_ms"] = round(float(entry.get("max_elapsed_ms", 0.0) or 0.0), 2)
+            entry["queries"] = list(entry["queries"])[:8]
+            entry["stages"] = list(entry["stages"])[:4]
+            entry["error_samples"] = list(entry["error_samples"])[:3]
+            cleaned[source] = entry
+        return cleaned
+
+    def _update_provider_attempt_rollup(self) -> dict[str, dict[str, object]]:
+        rollup = self._aggregate_provider_attempt_rollup()
+        self.last_fetch_diagnostics["provider_attempt_rollup"] = rollup
+        return rollup
+
+    def _log_provider_diagnostic_summary(self, *, query: str) -> None:
+        rollup = self._update_provider_attempt_rollup()
+        if not rollup:
+            return
+        underfill = self.last_fetch_diagnostics.get("underfill") or {}
+        timeout_sources = underfill.get("timeout_sources") or []
+        has_errors = any(
+            int(payload.get("errors", 0) or 0) > 0
+            or int(payload.get("timeouts", 0) or 0) > 0
+            or int(payload.get("skipped_budget", 0) or 0) > 0
+            for payload in rollup.values()
+        )
+        if underfill.get("reason") in {"", "sufficient_live_supply"} and not timeout_sources and not has_errors:
+            return
+        logger.info(
+            "Production provider diagnostics for query=%s: %s",
+            query,
+            {
+                "underfill": underfill,
+                "stage_results": self.last_fetch_diagnostics.get("stage_results", []),
+                "stage_short_circuits": self.last_fetch_diagnostics.get("stage_short_circuits", []),
+                "provider_attempt_rollup": rollup,
+            },
+        )
+
     def _timeout_sources(self) -> list[str]:
         timeout_sources = {
             str(provider_diag.get("source") or provider_diag.get("provider") or "unknown").lower()
@@ -598,6 +693,7 @@ class JobAggregator:
                 finally:
                     if _PRODUCTION_INFLIGHT_FETCHES.get(cache_key) is inflight_task:
                         _PRODUCTION_INFLIGHT_FETCHES.pop(cache_key, None)
+            self._log_provider_diagnostic_summary(query=query)
             if live_jobs:
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 self._persist_production_jobs(query=query, location=location, jobs=live_jobs)
@@ -863,16 +959,21 @@ class JobAggregator:
             }
             if remaining_global_budget <= 0.75:
                 provider_diag["timeout_seconds"] = 0.0
+                provider_diag["elapsed_ms"] = 0.0
+                provider_diag["status"] = "skipped_budget"
                 provider_diag["error"] = "skipped_insufficient_runtime_budget"
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
             provider_timeout = min(base_provider_timeout, max(0.75, remaining_global_budget))
             provider_diag["timeout_seconds"] = round(provider_timeout, 2)
+            started_at = time.perf_counter()
             try:
                 items = await asyncio.wait_for(
                     provider.search(query=search_query, location=search_location, limit=max(8, limit)),
                     timeout=provider_timeout,
                 )
+                provider_diag["elapsed_ms"] = round((time.perf_counter() - started_at) * 1000, 2)
+                provider_diag["status"] = "success"
                 provider_diag["result_count"] = len(items)
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return items
@@ -885,6 +986,9 @@ class JobAggregator:
                     search_location,
                     error_message,
                 )
+                provider_diag["elapsed_ms"] = round((time.perf_counter() - started_at) * 1000, 2)
+                provider_diag["status"] = "timeout" if "timeout" in error_message.lower() else "error"
+                provider_diag["error_type"] = exc.__class__.__name__
                 provider_diag["error"] = error_message
                 self.last_fetch_diagnostics["providers"].append(provider_diag)
                 return []
