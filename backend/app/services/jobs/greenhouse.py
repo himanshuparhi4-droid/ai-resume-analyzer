@@ -137,7 +137,7 @@ class GreenhouseProvider:
                 # detail hydration is the expensive step. Keep one strong role
                 # candidate per curated board so the selector gets ATS-backed
                 # diversity without forcing a long tail of detail requests.
-                detail_fetch_budget = min(max(limit, 6), 8)
+                detail_fetch_budget = min(max(limit // 2 + 2, 4), 6)
                 board_budget = 1
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
@@ -239,10 +239,22 @@ class GreenhouseProvider:
         normalized = normalize_role(query)
         specific = _ROLE_SPECIFIC_GREENHOUSE_BOARDS.get(normalized)
         if specific:
-            return list(specific)
-        if settings.has_greenhouse_boards:
-            return settings.greenhouse_board_tokens
-        return list(_CURATED_GREENHOUSE_BOARDS.get(role_domain(query) or "", []))
+            boards = list(specific)
+        elif settings.has_greenhouse_boards:
+            boards = settings.greenhouse_board_tokens
+        else:
+            boards = list(_CURATED_GREENHOUSE_BOARDS.get(role_domain(query) or "", []))
+        if settings.environment == "production":
+            family_domain = role_domain(query) or role_domain(normalized)
+            board_limit = {
+                "data": 4,
+                "software": 5,
+                "security": 4,
+                "product": 4,
+                "design": 3,
+            }.get(family_domain, len(boards))
+            boards = boards[:board_limit]
+        return boards
 
     async def _fetch_board_index(self, board: str, *, client: httpx.AsyncClient) -> list[dict]:
         self._prune_cache(_GREENHOUSE_BOARD_INDEX_CACHE, max_entries=_MAX_GREENHOUSE_BOARD_CACHE_ENTRIES)

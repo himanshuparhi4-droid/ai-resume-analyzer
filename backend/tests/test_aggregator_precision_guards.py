@@ -46,6 +46,20 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
 
+    def test_data_analyst_rejects_generic_non_data_analyst_titles_even_with_high_role_fit(self) -> None:
+        item = {
+            "title": "Actuarial Analyst II (Intermediate) - P&C Personal Lines",
+            "description": "Own actuarial modeling, risk reporting, and operations analytics for insurance pricing.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "analytics", "reporting"],
+                "role_fit_score": 11.0,
+                "market_quality_score": 42.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
+
     def test_exact_query_rejects_manager_title_when_manager_not_requested(self) -> None:
         item = {
             "title": "Data Manager",

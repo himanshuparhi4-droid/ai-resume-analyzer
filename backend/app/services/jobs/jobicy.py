@@ -23,7 +23,12 @@ class JobicyProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
-        request_count = min(max(limit * 2, 16), 24) if settings.environment == "production" else min(max(limit * 2, settings.production_live_candidate_fetch), 50)
+        if settings.environment == "production":
+            request_count = min(max(limit + 4, 12), 16)
+            extraction_limit = 2600
+        else:
+            request_count = min(max(limit * 2, settings.production_live_candidate_fetch), 50)
+            extraction_limit = 4000
         params = {"count": request_count}
         role_tag = (query or normalized_role).strip()
         if role_tag:
@@ -48,9 +53,10 @@ class JobicyProvider:
             type_tags = [str(tag).strip() for tag in (item.get("jobType") or []) if str(tag).strip()]
             level = str(item.get("jobLevel", "")).strip()
             tags = [tag for tag in [*industry_tags, *type_tags, level] if tag]
+            extraction_description = truncate(raw_description, extraction_limit)
             requirement_profile = extract_job_requirement_profile(
                 title=title,
-                description=raw_description,
+                description=extraction_description,
                 tags=tags,
             )
             description = truncate(raw_description, 4000)

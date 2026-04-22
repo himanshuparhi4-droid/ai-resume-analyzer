@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 
 import httpx
 
@@ -8,6 +9,8 @@ from app.core.config import settings
 from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
+
+logger = logging.getLogger(__name__)
 
 
 class JoobleProvider:
@@ -26,9 +29,14 @@ class JoobleProvider:
         if not settings.has_jooble_credentials:
             return []
 
-        target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
-        page_size = min(max(limit * 4, 30), 100)
-        page_count = min(5, max(1, (target_candidates + page_size - 1) // page_size))
+        if settings.environment == "production":
+            target_candidates = min(max(limit * 3, 24), 36)
+            page_size = min(max(limit * 2, 20), 30)
+            page_count = 1
+        else:
+            target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
+            page_size = min(max(limit * 4, 30), 100)
+            page_count = min(5, max(1, (target_candidates + page_size - 1) // page_size))
         endpoint = f"{settings.jooble_base_url}/{settings.jooble_api_key}"
 
         jobs: list[dict] = []
@@ -41,9 +49,15 @@ class JoobleProvider:
                     "page": str(page),
                     "companysearch": "false",
                 }
-                response = await client.post(endpoint, json=payload)
-                response.raise_for_status()
-                data = response.json()
+                try:
+                    response = await client.post(endpoint, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+                except Exception as exc:
+                    if jobs:
+                        logger.warning("Jooble page fetch failed after partial results for query=%s page=%s: %s", query, page, exc)
+                        break
+                    raise
                 results = data.get("jobs") or []
                 if not results:
                     break
@@ -53,11 +67,20 @@ class JoobleProvider:
                     if not link or link in seen_links:
                         continue
                     seen_links.add(link)
-                    description = strip_html(str(item.get("snippet") or ""))
+                    raw_description = strip_html(str(item.get("snippet") or ""))
                     title = str(item.get("title") or "Unknown Role")
                     type_label = str(item.get("type") or "").strip()
                     tags = [tag for tag in [type_label, str(item.get("source") or "").strip()] if tag]
-                    requirement_profile = extract_job_requirement_profile(title=title, description=description, tags=tags)
+                    extraction_description = truncate(
+                        raw_description,
+                        2600 if settings.environment == "production" else 4000,
+                    )
+                    requirement_profile = extract_job_requirement_profile(
+                        title=title,
+                        description=extraction_description,
+                        tags=tags,
+                    )
+                    description = truncate(raw_description, 4000)
                     jobs.append(
                         {
                             "source": self.source_name,

@@ -143,6 +143,7 @@ class JobAggregator:
         self.db = db
         self.providers = []
         self.last_fetch_diagnostics: dict = {}
+        self.last_live_job_snapshot: list[dict] = []
         if (settings.default_job_source or "").strip().lower() == "indianapi":
             logger.info("IndianAPI source is disabled for this build; falling back to the auto provider mix.")
         if settings.environment == "production":
@@ -744,6 +745,7 @@ class JobAggregator:
         query_domain = role_domain(query)
         query_profile = role_profile(query)
         fetch_started_at = time.perf_counter()
+        self.last_live_job_snapshot = []
 
         def _remaining_runtime_budget(*, reserve_seconds: float = 0.0) -> float:
             return max(
@@ -1460,6 +1462,7 @@ class JobAggregator:
             elif isinstance(rejection_counts, dict):
                 rejection_counts["post_selection_final_guard"] += 1
         selected = post_filter_selected
+        self.last_live_job_snapshot = copy.deepcopy(selected[:limit])
 
         filtered_source_counts: dict[str, int] = {}
         for item in selected:
@@ -1562,6 +1565,14 @@ class JobAggregator:
         if (
             query_domain == "data"
             and self._uses_strict_precision_guard(query)
+            and title_precision <= 0
+            and title_overlap == 0
+            and core_title_overlap == 0
+        ):
+            return False
+        if (
+            query_domain == "data"
+            and self._uses_strict_precision_guard(query)
             and canonical_alignment == 1
             and title_precision <= 0
             and title_overlap == 0
@@ -1610,8 +1621,8 @@ class JobAggregator:
         if title_overlap >= 1 or title_precision >= 1:
             return True
         if query_domain == "data":
-            return canonical_alignment >= 2 and core_title_overlap >= 1 and (
-                domain_score >= 2 or skill_overlap >= 2.0 or role_fit >= 4.0
+            return canonical_alignment >= 0 and core_title_overlap >= 1 and (
+                domain_score >= 2 or skill_overlap >= 1.0 or role_fit >= 3.0
             )
         if query_domain in {"software", "security"}:
             return core_title_overlap >= 1 and (
@@ -1633,6 +1644,7 @@ class JobAggregator:
         title_overlap = self._title_hint_overlap(query, item)
         family_overlap = self._family_token_overlap(query, item)
         core_title_overlap = self._core_token_overlap(query, item, include_description=False)
+        domain_score = self._role_domain_match_score(query, item)
         skill_overlap = self._skill_overlap_score(query, item)
         role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
 
@@ -1647,11 +1659,13 @@ class JobAggregator:
             if title_precision >= 1 or title_overlap >= 1:
                 return True
             return (
-                core_title_overlap >= 1
+                canonical_alignment >= 0
+                and core_title_overlap >= 1
                 and (
                     family_overlap >= 1
-                    or skill_overlap >= 1.5
-                    or role_fit >= 3.5
+                    or domain_score >= 2
+                    or skill_overlap >= 1.0
+                    or role_fit >= 2.5
                 )
             )
         if canonical_alignment >= 1 and core_title_overlap >= 1:

@@ -71,8 +71,16 @@ class AnalysisOrchestrator:
                     timeout=max(settings.job_fetch_timeout_seconds, settings.production_live_runtime_cap_seconds),
                 )
             except asyncio.TimeoutError:
-                logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")
-                jobs = []
+                partial_live = list(getattr(self.job_aggregator, "last_live_job_snapshot", []) or [])
+                if partial_live:
+                    logger.warning(
+                        "Analysis step: production live fetch timed out, preserving %s partial live jobs instead of full baseline fallback",
+                        len(partial_live),
+                    )
+                    jobs = partial_live
+                else:
+                    logger.warning("Analysis step: production live fetch timed out, falling back to role baseline")
+                    jobs = []
             if jobs:
                 original_live_count = len(jobs)
                 jobs = await self.skill_grounding.ensure_market_coverage(

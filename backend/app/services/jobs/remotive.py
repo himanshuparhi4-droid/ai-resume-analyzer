@@ -16,7 +16,12 @@ class RemotiveProvider:
     supports_location_variations = False
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
-        request_limit = min(max(limit * 3, 18), 36)
+        if settings.environment == "production":
+            request_limit = min(max(limit * 2, 12), 24)
+            extraction_limit = 2600
+        else:
+            request_limit = min(max(limit * 3, 18), 36)
+            extraction_limit = 4000
         params = {"search": query, "limit": request_limit}
         async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
             response = await client.get(settings.remotive_base_url, params=params)
@@ -29,7 +34,12 @@ class RemotiveProvider:
             title = item.get("title", "Unknown Role")
             tags = [str(tag).strip() for tag in (item.get("tags") or []) if str(tag).strip()]
             enriched_tags = list(dict.fromkeys(tags + [item.get("category", "General"), item.get("job_type", "Unknown")]))
-            requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=enriched_tags)
+            extraction_description = truncate(raw_description, extraction_limit)
+            requirement_profile = extract_job_requirement_profile(
+                title=title,
+                description=extraction_description,
+                tags=enriched_tags,
+            )
             description = truncate(raw_description, 4000)
             jobs.append(
                 {

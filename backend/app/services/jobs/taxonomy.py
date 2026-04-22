@@ -337,10 +337,10 @@ DOMAIN_QUERY_TEMPLATES = {
 }
 PROVIDER_QUERY_BUDGETS = {
     "jobicy": {"base": 2, "narrow": 1},
-    "remotive": {"base": 4, "narrow": 2},
+    "remotive": {"base": 3, "narrow": 2},
     "themuse": {"base": 2, "narrow": 1},
-    "jooble": {"base": 4, "narrow": 3},
-    "adzuna": {"base": 4, "narrow": 3},
+    "jooble": {"base": 2, "narrow": 1},
+    "adzuna": {"base": 2, "narrow": 1},
     "remoteok": {"base": 1, "narrow": 1},
 }
 ABSTRACT_CANONICAL_QUERY_FAMILIES = {
