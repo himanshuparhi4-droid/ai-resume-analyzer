@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from app.schemas.common import ScoreBreakdown
-from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
+from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
 from app.services.nlp.skill_extractor import infer_skill_frequency
 from app.utils.text import normalize_whitespace, truncate
@@ -27,7 +27,7 @@ class ScoringEngine:
         market_skills = set(demand_map.keys())
 
         matched_skills = sorted(resume_skills & market_skills)
-        role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "")
+        role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "") | set(role_baseline_skills(role_query or "", limit=18))
         missing_skills = [
             {"skill": skill, "share": demand_map[skill]}
             for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)

@@ -66,6 +66,64 @@ class JobRequirementProfileTest(unittest.TestCase):
         self.assertGreater(weights["feature engineering"], weights.get("reporting", 0.0))
         self.assertGreater(weights["model deployment"], weights.get("reporting", 0.0))
 
+    def test_technical_writer_profiles_keep_documentation_tools_over_reporting(self) -> None:
+        profile = extract_job_requirement_profile(
+            title="Technical Writer",
+            description=(
+                "Requirements: technical writing, API documentation, OpenAPI, Markdown, and developer documentation. "
+                "Nice to have internal reporting dashboards."
+            ),
+            source="job",
+        )
+
+        skills = profile["skills"]
+        weights = profile["skill_weights"]
+
+        self.assertIn("technical writing", skills)
+        self.assertIn("api documentation", skills)
+        self.assertIn("openapi", skills)
+        self.assertIn("markdown", skills)
+        self.assertGreater(weights["technical writing"], weights.get("reporting", 0.0))
+        self.assertGreater(weights["api documentation"], weights.get("reporting", 0.0))
+
+    def test_support_titles_keep_troubleshooting_and_ticketing_over_generic_reporting(self) -> None:
+        profile = extract_job_requirement_profile(
+            title="Application Support Engineer",
+            description=(
+                "Responsibilities include troubleshooting incidents, root cause analysis, ticketing, and monitoring. "
+                "Preferred: build weekly reporting for stakeholders."
+            ),
+            source="job",
+        )
+
+        skills = profile["skills"]
+        weights = profile["skill_weights"]
+
+        self.assertIn("troubleshooting", skills)
+        self.assertIn("ticketing", skills)
+        self.assertIn("incident management", skills)
+        self.assertGreater(weights["troubleshooting"], weights.get("reporting", 0.0))
+        self.assertGreater(weights["ticketing"], weights.get("reporting", 0.0))
+
+    def test_mobile_titles_keep_platform_skills_over_generic_reporting(self) -> None:
+        profile = extract_job_requirement_profile(
+            title="Android Developer",
+            description=(
+                "Requirements: Kotlin, Android SDK, APIs, and mobile app development. "
+                "Nice to have stakeholder reporting."
+            ),
+            source="job",
+        )
+
+        skills = profile["skills"]
+        weights = profile["skill_weights"]
+
+        self.assertIn("android", skills)
+        self.assertIn("kotlin", skills)
+        self.assertIn("api", skills)
+        self.assertGreater(weights["android"], weights.get("reporting", 0.0))
+        self.assertGreater(weights["kotlin"], weights.get("reporting", 0.0))
+
 
 if __name__ == "__main__":
     unittest.main()

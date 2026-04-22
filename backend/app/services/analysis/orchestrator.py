@@ -18,7 +18,7 @@ from app.schemas.analysis import AnalysisResponse, RecommendationItem
 from app.services.analysis.insights import InsightGenerator
 from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
-from app.services.jobs.taxonomy import role_market_hints, role_primary_hints
+from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints, role_recommendation_skills
 from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.nlp.skill_extractor import infer_skill_frequency
 from app.services.parsers.resume_parser import ResumeParser
@@ -168,7 +168,7 @@ class AnalysisOrchestrator:
         else:
             ai_summary = await self.insight_generator.summarize(resume_data, score_payload, role_query)
         logger.info("Analysis step: summary finished in %sms", round((time.perf_counter() - started) * 1000, 2))
-        recommendations = self._build_recommendations(score_payload, resume_data)
+        recommendations = self._build_recommendations(score_payload, resume_data, role_query=role_query)
         logger.info("Analysis step: recommendations built in %sms", round((time.perf_counter() - started) * 1000, 2))
         if user is None:
             logger.info("Analysis step: returning ephemeral response in %sms", round((time.perf_counter() - started) * 1000, 2))
@@ -398,7 +398,7 @@ class AnalysisOrchestrator:
         skill_frequency = infer_skill_frequency(scoring_jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
-        role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query)
+        role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query) | set(role_baseline_skills(role_query, limit=18))
 
         matched_skills = sorted(resume_skills & market_skills)
         missing_skills = [
@@ -667,18 +667,42 @@ class AnalysisOrchestrator:
             return f"Detected about {experience_years:.1f} years of experience signal. Stronger quantified outcomes should move this into a more competitive early-career range."
         return f"Detected about {experience_years:.1f} years of experience signal. The next gain comes from making the strongest role-relevant wins easier to verify."
 
-    def _build_recommendations(self, score_payload: dict, resume_data: dict) -> list[RecommendationItem]:
+    def _build_recommendations(self, score_payload: dict, resume_data: dict, *, role_query: str) -> list[RecommendationItem]:
         items: list[RecommendationItem] = []
         parse_signals = resume_data.get("parse_signals", {})
         breakdown = score_payload.get("breakdown", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
+        resume_skills = {str(skill).lower() for skill in resume_data.get("skills", [])}
+        modeled_role_gaps = [
+            skill
+            for skill in role_recommendation_skills(role_query, limit=8)
+            if skill not in resume_skills
+        ]
 
         for item in score_payload.get("missing_skills", [])[:2]:
+            source = str(item.get("signal_source", "live"))
+            detail = (
+                f"This skill accounts for {item['share']}% of the current market-demand signal for the chosen role."
+                if source == "live"
+                else "The live market sample stayed narrow here, so this recommendation also leans on the broader role-family skill model."
+            )
             items.append(
                 RecommendationItem(
                     title=f"Add or learn {item['skill']}",
-                    detail=f"This skill accounts for {item['share']}% of the current market-demand signal for the chosen role.",
+                    detail=detail,
                     impact="High",
+                )
+            )
+        for skill in modeled_role_gaps:
+            if len(items) >= 3:
+                break
+            if any(existing.title == f"Add or learn {skill}" for existing in items):
+                continue
+            items.append(
+                RecommendationItem(
+                    title=f"Build stronger proof for {skill}",
+                    detail="This is a recurring skill expectation for the target role family, even when the current live sample does not surface it repeatedly.",
+                    impact="Medium",
                 )
             )
         if archetype in {"modern_two_column", "modern_two_column_project_first"}:
@@ -888,6 +912,14 @@ class AnalysisOrchestrator:
             )
         items.append(RecommendationItem(title="Rewrite bullets with business outcomes", detail="Replace responsibility-style bullets with action + result + metric statements.", impact="High"))
         items.append(RecommendationItem(title="Match the role headline", detail="Use the exact role language from target jobs in your summary, projects, and skills sections.", impact="Medium"))
+        if role_baseline_skills(role_query):
+            items.append(
+                RecommendationItem(
+                    title="Align your skills block to the target role family",
+                    detail="Group your strongest tools under the exact role family you are targeting so recruiters can verify fit faster.",
+                    impact="Medium",
+                )
+            )
         deduped: list[RecommendationItem] = []
         seen_titles: set[str] = set()
         for item in items:

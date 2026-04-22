@@ -6,7 +6,7 @@ import re
 from app.services.nlp.skill_extractor import KNOWN_SKILLS, extract_skill_matches
 from app.utils.text import normalize_whitespace, truncate
 
-JOB_REQUIREMENT_PROFILE_VERSION = 4
+JOB_REQUIREMENT_PROFILE_VERSION = 5
 
 REQUIRED_HINTS = (
     "must have",
@@ -183,9 +183,45 @@ TITLE_IMPLIED_SKILLS = {
         "crm": 0.6,
         "api": 0.4,
     },
+    "salesforce administrator": {
+        "salesforce": 0.84,
+        "apex": 0.6,
+        "crm": 0.58,
+        "workflow automation": 0.52,
+    },
     "oracle": {"sql": 0.56, "erp": 0.5, "api": 0.34},
     "sap": {"erp": 0.62, "sql": 0.38},
     "microsoft dynamics": {"crm": 0.62, "erp": 0.54, "api": 0.34},
+    "android developer": {"android": 0.82, "kotlin": 0.66, "api": 0.42},
+    "ios developer": {"ios": 0.82, "swift": 0.66, "api": 0.42},
+    "mobile developer": {"android": 0.62, "ios": 0.62, "react native": 0.54, "flutter": 0.52, "api": 0.4},
+    "react native": {"react native": 0.78, "javascript": 0.48, "api": 0.36},
+    "flutter": {"flutter": 0.78, "android": 0.42, "ios": 0.42, "api": 0.34},
+    "embedded": {"embedded": 0.78, "c": 0.58, "c++": 0.54, "microcontroller": 0.58, "rtos": 0.52},
+    "firmware": {"firmware": 0.82, "c": 0.62, "microcontroller": 0.58, "device drivers": 0.54, "rtos": 0.52},
+    "database administrator": {"sql": 0.74, "database administration": 0.76, "postgresql": 0.52, "mysql": 0.48, "backup": 0.42},
+    "sql developer": {"sql": 0.82, "database design": 0.56, "postgresql": 0.46, "mysql": 0.44},
+    "technical support": {"technical support": 0.78, "troubleshooting": 0.7, "incident management": 0.56, "ticketing": 0.58, "monitoring": 0.4},
+    "application support": {"technical support": 0.72, "troubleshooting": 0.66, "incident management": 0.56, "ticketing": 0.58, "root cause analysis": 0.5},
+    "help desk": {"technical support": 0.72, "troubleshooting": 0.68, "ticketing": 0.64, "sla": 0.44},
+    "noc": {"monitoring": 0.74, "incident management": 0.64, "networking": 0.6, "sla": 0.48},
+    "solutions architect": {"solution architecture": 0.82, "system design": 0.72, "integration": 0.62, "aws": 0.48, "api": 0.42},
+    "software architect": {"solution architecture": 0.76, "system design": 0.76, "integration": 0.52, "api": 0.4},
+    "technical architect": {"solution architecture": 0.76, "system design": 0.7, "integration": 0.58, "aws": 0.42},
+    "technical writer": {"technical writing": 0.84, "documentation": 0.8, "api documentation": 0.62, "markdown": 0.5, "openapi": 0.46},
+    "documentation engineer": {"technical writing": 0.78, "documentation": 0.82, "api documentation": 0.62, "openapi": 0.5, "markdown": 0.46},
+    "developer advocate": {"developer relations": 0.82, "documentation": 0.62, "api documentation": 0.56, "markdown": 0.42},
+    "engineering manager": {"leadership": 0.82, "engineering management": 0.76, "mentoring": 0.64, "system design": 0.52, "scalability": 0.48},
+    "principal engineer": {"leadership": 0.74, "system design": 0.68, "architecture": 0.62, "mentoring": 0.58, "scalability": 0.54},
+    "staff engineer": {"leadership": 0.7, "system design": 0.66, "architecture": 0.6, "mentoring": 0.56, "scalability": 0.52},
+    "cto": {"leadership": 0.84, "engineering management": 0.74, "architecture": 0.64, "scalability": 0.58},
+    "qa engineer": {"testing": 0.8, "test automation": 0.7, "api": 0.44, "ci/cd": 0.42},
+    "test engineer": {"testing": 0.78, "test automation": 0.66, "api": 0.4, "ci/cd": 0.4},
+    "automation test engineer": {"testing": 0.76, "test automation": 0.78, "selenium": 0.58, "playwright": 0.54, "cypress": 0.52},
+    "sdet": {"testing": 0.78, "test automation": 0.78, "api": 0.44, "ci/cd": 0.42},
+    "ux designer": {"figma": 0.78, "ux design": 0.8, "prototyping": 0.58, "wireframing": 0.54, "user research": 0.52},
+    "ui designer": {"figma": 0.78, "ui design": 0.8, "prototyping": 0.56, "design systems": 0.52},
+    "ux researcher": {"user research": 0.82, "ux design": 0.62, "figma": 0.44, "interaction design": 0.42},
     "teacher": {"lesson planning": 0.64, "classroom management": 0.66, "curriculum development": 0.6},
     "lecturer": {"lesson planning": 0.6, "curriculum development": 0.64, "student assessment": 0.52, "pedagogy": 0.48},
     "professor": {"curriculum development": 0.62, "student assessment": 0.5, "pedagogy": 0.46},
@@ -464,6 +500,51 @@ SPECIALIST_TITLE_PROFILES = {
         "patterns": ("salesforce", "oracle", "sap", "microsoft dynamics", "crm", "erp"),
         "core_skills": {"salesforce", "apex", "crm", "erp", "sql", "api"},
         "generic_skills": {"reporting", "dashboarding", "business intelligence"},
+    },
+    "mobile": {
+        "patterns": ("mobile", "android", "ios", "react native", "flutter"),
+        "core_skills": {"android", "ios", "swift", "kotlin", "react native", "flutter", "api"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "embedded": {
+        "patterns": ("embedded", "firmware", "iot", "microcontroller"),
+        "core_skills": {"embedded", "firmware", "c", "c++", "microcontroller", "rtos", "device drivers", "serial communication", "iot"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "database": {
+        "patterns": ("database administrator", "database developer", "sql developer", "database architect", "data warehouse"),
+        "core_skills": {"sql", "postgresql", "mysql", "oracle", "database design", "database administration", "performance tuning", "backup", "data warehousing"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "support": {
+        "patterns": ("technical support", "application support", "help desk", "noc", "support engineer"),
+        "core_skills": {"technical support", "troubleshooting", "incident management", "ticketing", "root cause analysis", "monitoring", "networking", "sla"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "architecture": {
+        "patterns": ("solutions architect", "software architect", "technical architect", "enterprise architect", "solutions engineer"),
+        "core_skills": {"solution architecture", "system design", "integration", "aws", "api", "technical consulting", "pre sales"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "documentation": {
+        "patterns": ("technical writer", "documentation engineer", "developer advocate", "documentation writer"),
+        "core_skills": {"technical writing", "documentation", "api documentation", "openapi", "markdown", "developer relations"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "quality": {
+        "patterns": ("qa", "quality assurance", "test engineer", "automation test", "sdet"),
+        "core_skills": {"testing", "test automation", "api", "pytest", "selenium", "playwright", "cypress", "ci/cd", "performance testing"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "design": {
+        "patterns": ("ux designer", "ui designer", "ux researcher", "interaction designer", "product designer"),
+        "core_skills": {"figma", "ui design", "ux design", "prototyping", "wireframing", "user research", "design systems", "interaction design"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
+    },
+    "leadership": {
+        "patterns": ("engineering manager", "principal engineer", "staff engineer", "cto", "head of engineering"),
+        "core_skills": {"leadership", "engineering management", "system design", "architecture", "mentoring", "scalability", "cross functional collaboration"},
+        "generic_skills": {"reporting", "dashboarding", "business intelligence", "excel"},
     },
 }
 LOW_SIGNAL_SENTENCE_HINTS = (

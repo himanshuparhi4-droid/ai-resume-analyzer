@@ -7,7 +7,15 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role
+from app.services.jobs.taxonomy import (
+    normalize_role,
+    role_baseline_skills,
+    role_domain,
+    role_family,
+    role_market_hints,
+    role_primary_hints,
+    role_recommendation_skills,
+)
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
 from app.services.nlp.skill_extractor import KNOWN_SKILLS, extract_skill_evidence, extract_skill_matches, infer_skill_frequency
 from app.utils.text import normalize_whitespace
@@ -700,9 +708,9 @@ class SkillGroundingService:
         return cleaned or "role"
 
     def _expand_baseline_skill_pool(self, role_query: str) -> list[str]:
-        normalized = normalize_role(role_query)
-        if normalized in ROLE_BASELINE_POOLS:
-            return list(ROLE_BASELINE_POOLS[normalized])
+        baseline = role_baseline_skills(role_query)
+        if baseline:
+            return list(baseline)
 
         lowered = normalize_whitespace(role_query).lower()
         if not lowered:
@@ -720,14 +728,15 @@ class SkillGroundingService:
         return ranked
 
     def _baseline_support_profile(self, role_query: str) -> dict[str, Any]:
-        normalized = normalize_role(role_query)
-        if normalized in ROLE_BASELINE_POOLS:
-            return {
-                "skills": list(ROLE_BASELINE_POOLS[normalized]),
-                "confidence": "high",
-                "support_tier": "exact",
-            }
         expanded = self._expand_baseline_skill_pool(role_query)
+        normalized = normalize_role(role_query)
+        family = role_family(role_query)
+        if len(expanded) >= 4:
+            return {
+                "skills": expanded,
+                "confidence": "high",
+                "support_tier": "exact" if family == normalized else "family",
+            }
         if len(expanded) >= 3:
             return {
                 "skills": expanded,
@@ -823,6 +832,7 @@ class SkillGroundingService:
 
     def _inspect_market_sample(self, *, role_query: str, jobs: list[dict]) -> dict[str, Any]:
         normalized_role = normalize_role(role_query)
+        domain = role_domain(role_query)
         live_jobs = [job for job in jobs if job.get("source") != "role-baseline"]
         live_skills = sorted(
             {
@@ -850,25 +860,33 @@ class SkillGroundingService:
         sparse_role = normalized_role in SPARSE_LIVE_MARKET_ROLES
         target_live_floor = 1 if sparse_role else max(4, settings.production_live_display_minimum)
         sufficient_live_depth = len(live_jobs) >= target_live_floor
+        dense_domain = domain in {"software", "data", "security"}
+        min_live_jobs = 1 if sparse_role else 4
+        min_live_skills = (
+            2
+            if sparse_role
+            else max(5 if dense_domain else 4, min(8, max(4, len(expected_skills) // 2 or 4)))
+        )
+        min_role_coverage = 0.2 if sparse_role else 0.5 if dense_domain else 0.42
+        min_company_count = 1 if sparse_role else 2
+        min_title_count = 1 if sparse_role else 2
         live_target_reached = (
             not sparse_role
             and sufficient_live_depth
-            and len(live_skills) >= 3
-            and company_count >= 2
-            and title_count >= 2
+            and len(live_skills) >= min_live_skills
+            and role_coverage >= min_role_coverage
+            and company_count >= min_company_count
+            and title_count >= min_title_count
         )
-        min_live_jobs = 1 if sparse_role else 4
-        min_live_skills = 2 if sparse_role else max(3, min(5, len(expected_skills) or 4))
-        min_role_coverage = 0.2 if sparse_role else 0.22
-        min_company_count = 1 if sparse_role else 2
-        min_title_count = 1 if sparse_role else 2
-        needs_blend = False if live_target_reached else (
+        needs_blend = (
             len(live_jobs) < min_live_jobs
             or len(live_skills) < min_live_skills
             or role_coverage < min_role_coverage
             or company_count < min_company_count
             or title_count < min_title_count
         )
+        if live_target_reached:
+            needs_blend = False
         if len(live_jobs) < min_live_jobs:
             reason = "Too few live job listings were available to form a stable market view."
         elif len(live_skills) < min_live_skills:
@@ -889,21 +907,31 @@ class SkillGroundingService:
         }
 
     def _filter_skills_for_role(self, role_query: str, selected: list[str], expanded: list[str]) -> list[str]:
-        lowered = normalize_role(role_query)
+        normalized = normalize_role(role_query)
+        family = role_family(role_query)
         selected_set = {self._normalize_label(item) for item in selected}
         expanded_set = set(expanded)
+        baseline_set = set(role_baseline_skills(role_query))
+        recommendation_order = role_recommendation_skills(role_query)
+        role_hint_allowlist = expanded_set | baseline_set | set(role_primary_hints(role_query)) | set(role_market_hints(role_query))
 
-        if "data scientist" in lowered:
-            allowed = expanded_set | {"statistics", "data visualization", "feature engineering"}
-            return sorted((selected_set & allowed) | expanded_set)
+        if family == "data scientist":
+            role_hint_allowlist |= {"statistics", "data visualization", "feature engineering", "model deployment", "forecasting"}
+        elif family == "data analyst":
+            role_hint_allowlist |= {"statistics", "reporting", "data visualization", "business intelligence"}
+        elif family == "machine learning engineer":
+            role_hint_allowlist |= {"statistics", "feature engineering", "model deployment", "mlops"}
+        elif family == "devops engineer":
+            role_hint_allowlist |= {"monitoring", "terraform", "kubernetes", "aws"}
+        elif family == "cybersecurity engineer":
+            role_hint_allowlist |= {"cloud security", "siem", "splunk", "incident response"}
 
-        if "data analyst" in lowered:
-            allowed = expanded_set | {"statistics", "reporting", "data visualization"}
-            return sorted((selected_set & allowed) | expanded_set)
+        kept = [skill for skill in recommendation_order if skill in selected_set or skill in expanded_set]
+        kept.extend(sorted((selected_set & role_hint_allowlist) - set(kept)))
+        kept.extend(skill for skill in expanded if skill not in kept)
 
-        if "machine learning" in lowered:
-            allowed = expanded_set | {"statistics", "feature engineering"}
-            return sorted((selected_set & allowed) | expanded_set)
+        if kept:
+            return kept
 
         if expanded_set:
             combined = sorted(selected_set | expanded_set)
@@ -913,4 +941,6 @@ class SkillGroundingService:
         if not expanded_set:
             return []
 
+        if normalized == family and baseline_set:
+            return list(role_baseline_skills(role_query))
         return sorted(selected_set or expanded_set)

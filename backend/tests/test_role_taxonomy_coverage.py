@@ -6,11 +6,13 @@ from app.services.jobs.taxonomy import (
     normalize_role,
     provider_query_variations,
     production_query_variations,
+    role_baseline_skills,
     role_domain,
     role_family,
     role_market_hints,
     role_primary_hints,
     role_profile,
+    role_recommendation_skills,
     role_title_hints,
 )
 
@@ -222,6 +224,33 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertIn("applied scientist", scientist_queries)
         self.assertNotIn("data analyst", scientist_queries)
         self.assertNotIn("data engineer", scientist_queries)
+
+    def test_universal_skill_models_cover_representative_role_families(self) -> None:
+        cases = {
+            "Android Developer": {"android", "kotlin", "react native"},
+            "Embedded Software Engineer": {"embedded", "firmware", "microcontroller"},
+            "Database Administrator (DBA)": {"sql", "database administration", "postgresql"},
+            "Technical Support Engineer": {"technical support", "troubleshooting", "ticketing"},
+            "Solutions Architect": {"solution architecture", "system design", "integration"},
+            "Salesforce Admin": {"salesforce", "apex", "workflow automation"},
+            "Technical Writer": {"technical writing", "api documentation", "openapi"},
+            "Engineering Manager": {"leadership", "engineering management", "mentoring"},
+        }
+        for role, expected_skills in cases.items():
+            with self.subTest(role=role):
+                baseline = set(role_baseline_skills(role))
+                self.assertTrue(expected_skills <= baseline)
+
+    def test_recommendation_skill_models_expand_beyond_minimum_live_keywords(self) -> None:
+        data_scientist_recommendations = set(role_recommendation_skills("Data Scientist"))
+        self.assertIn("forecasting", data_scientist_recommendations)
+        self.assertIn("model deployment", data_scientist_recommendations)
+        self.assertIn("mlops", data_scientist_recommendations)
+
+        qa_recommendations = set(role_recommendation_skills("Automation Test Engineer"))
+        self.assertIn("test automation", qa_recommendations)
+        self.assertIn("playwright", qa_recommendations)
+        self.assertIn("performance testing", qa_recommendations)
 
 
 if __name__ == "__main__":

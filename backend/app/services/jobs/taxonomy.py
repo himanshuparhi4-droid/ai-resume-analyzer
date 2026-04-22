@@ -312,6 +312,131 @@ ROLE_KEYWORD_FAMILIES = {
 }
 ROLE_FAMILY_CANONICALS = set(ROLE_SEARCH_VARIATIONS.keys())
 
+DOMAIN_SKILL_MODEL_DEFAULTS = {
+    "software": {
+        "baseline": ["api", "sql", "docker", "git"],
+        "recommendations": ["api", "sql", "docker", "git", "system design"],
+    },
+    "data": {
+        "baseline": ["sql", "python", "data analysis", "statistics"],
+        "recommendations": ["sql", "python", "data analysis", "statistics", "data visualization"],
+    },
+    "security": {
+        "baseline": ["cloud security", "iam", "siem", "incident response"],
+        "recommendations": ["cloud security", "iam", "siem", "incident response", "vulnerability management"],
+    },
+    "product": {
+        "baseline": ["data analysis", "communication", "leadership"],
+        "recommendations": ["data analysis", "communication", "leadership", "sql"],
+    },
+    "design": {
+        "baseline": ["figma", "ui design", "ux design"],
+        "recommendations": ["figma", "ui design", "ux design", "prototyping"],
+    },
+    "education": {
+        "baseline": ["lesson planning", "classroom management", "curriculum development"],
+        "recommendations": ["lesson planning", "classroom management", "curriculum development", "student assessment"],
+    },
+    "trades": {
+        "baseline": ["safety compliance"],
+        "recommendations": ["safety compliance"],
+    },
+}
+ROLE_FAMILY_SKILL_MODELS = {
+    "software engineer": {
+        "baseline": ["python", "java", "javascript", "sql", "api", "docker", "git", "microservices", "system design"],
+        "recommendations": ["python", "java", "javascript", "sql", "api", "docker", "git", "microservices", "system design", "go", "rest"],
+    },
+    "frontend developer": {
+        "baseline": ["javascript", "typescript", "react", "next.js", "html", "css", "figma", "graphql", "design systems"],
+        "recommendations": ["javascript", "typescript", "react", "next.js", "html", "css", "figma", "graphql", "design systems", "prototyping"],
+    },
+    "full stack developer": {
+        "baseline": ["javascript", "typescript", "react", "node.js", "sql", "api", "docker", "mongodb", "graphql"],
+        "recommendations": ["javascript", "typescript", "react", "node.js", "sql", "api", "docker", "mongodb", "graphql", "microservices"],
+    },
+    "mobile developer": {
+        "baseline": ["android", "ios", "swift", "kotlin", "react native", "flutter", "api", "xcode", "android studio"],
+        "recommendations": ["android", "ios", "swift", "kotlin", "react native", "flutter", "api", "xcode", "android studio", "graphql"],
+    },
+    "embedded engineer": {
+        "baseline": ["embedded", "firmware", "c", "c++", "microcontroller", "rtos", "device drivers", "serial communication", "iot"],
+        "recommendations": ["embedded", "firmware", "c", "c++", "microcontroller", "rtos", "device drivers", "serial communication", "iot", "linux"],
+    },
+    "data analyst": {
+        "baseline": ["sql", "excel", "power bi", "tableau", "data analysis", "statistics", "python", "dashboarding", "reporting", "business intelligence"],
+        "recommendations": ["sql", "excel", "power bi", "tableau", "data analysis", "statistics", "python", "dashboarding", "reporting", "business intelligence", "data visualization", "looker"],
+    },
+    "data scientist": {
+        "baseline": ["python", "sql", "pandas", "numpy", "machine learning", "scikit-learn", "statistics", "feature engineering", "model deployment", "forecasting", "pytorch", "tensorflow", "deep learning", "nlp", "data visualization"],
+        "recommendations": ["python", "sql", "pandas", "numpy", "machine learning", "scikit-learn", "statistics", "feature engineering", "model deployment", "forecasting", "pytorch", "tensorflow", "deep learning", "nlp", "data visualization", "spark", "mlops", "statsmodels"],
+    },
+    "machine learning engineer": {
+        "baseline": ["python", "machine learning", "pytorch", "tensorflow", "scikit-learn", "feature engineering", "model deployment", "mlops", "docker", "kubernetes"],
+        "recommendations": ["python", "machine learning", "pytorch", "tensorflow", "scikit-learn", "feature engineering", "model deployment", "mlops", "docker", "kubernetes", "spark", "api"],
+    },
+    "data engineer": {
+        "baseline": ["python", "sql", "spark", "etl", "airflow", "dbt", "data modeling", "data warehousing", "aws", "postgresql"],
+        "recommendations": ["python", "sql", "spark", "etl", "airflow", "dbt", "data modeling", "data warehousing", "aws", "postgresql", "bigquery", "snowflake", "kafka"],
+    },
+    "database engineer": {
+        "baseline": ["sql", "postgresql", "mysql", "oracle", "database design", "database administration", "data warehousing", "performance tuning", "backup"],
+        "recommendations": ["sql", "postgresql", "mysql", "oracle", "database design", "database administration", "data warehousing", "performance tuning", "backup", "etl"],
+    },
+    "devops engineer": {
+        "baseline": ["aws", "docker", "kubernetes", "terraform", "linux", "ci/cd", "monitoring", "cloudformation", "ec2", "lambda"],
+        "recommendations": ["aws", "docker", "kubernetes", "terraform", "linux", "ci/cd", "monitoring", "cloudformation", "ec2", "lambda", "git"],
+    },
+    "cybersecurity engineer": {
+        "baseline": ["cloud security", "network security", "siem", "splunk", "iam", "incident response", "vulnerability management", "security operations", "penetration testing", "firewall"],
+        "recommendations": ["cloud security", "network security", "siem", "splunk", "iam", "incident response", "vulnerability management", "security operations", "penetration testing", "firewall", "linux", "python"],
+    },
+    "qa engineer": {
+        "baseline": ["testing", "test automation", "api", "pytest", "selenium", "playwright", "cypress", "ci/cd", "performance testing"],
+        "recommendations": ["testing", "test automation", "api", "pytest", "selenium", "playwright", "cypress", "ci/cd", "performance testing", "javascript"],
+    },
+    "product manager": {
+        "baseline": ["data analysis", "sql", "communication", "leadership", "roadmap planning", "stakeholder management", "experimentation"],
+        "recommendations": ["data analysis", "sql", "communication", "leadership", "roadmap planning", "stakeholder management", "experimentation", "dashboarding"],
+    },
+    "ui/ux designer": {
+        "baseline": ["figma", "ui design", "ux design", "prototyping", "wireframing", "user research", "design systems", "interaction design"],
+        "recommendations": ["figma", "ui design", "ux design", "prototyping", "wireframing", "user research", "design systems", "interaction design", "communication"],
+    },
+    "support engineer": {
+        "baseline": ["technical support", "troubleshooting", "incident management", "ticketing", "root cause analysis", "monitoring", "linux", "networking", "sla", "api"],
+        "recommendations": ["technical support", "troubleshooting", "incident management", "ticketing", "root cause analysis", "monitoring", "linux", "networking", "sla", "api", "sql"],
+    },
+    "solutions architect": {
+        "baseline": ["solution architecture", "system design", "integration", "cloud", "aws", "api", "technical consulting", "pre sales"],
+        "recommendations": ["solution architecture", "system design", "integration", "cloud", "aws", "api", "technical consulting", "pre sales", "docker", "kubernetes"],
+    },
+    "enterprise applications engineer": {
+        "baseline": ["salesforce", "apex", "crm", "erp", "sap", "oracle", "microsoft dynamics", "workflow automation", "sql", "api"],
+        "recommendations": ["salesforce", "apex", "crm", "erp", "sap", "oracle", "microsoft dynamics", "workflow automation", "sql", "api", "configuration"],
+    },
+    "technical writer": {
+        "baseline": ["technical writing", "documentation", "api documentation", "openapi", "markdown", "developer relations", "information architecture"],
+        "recommendations": ["technical writing", "documentation", "api documentation", "openapi", "markdown", "developer relations", "information architecture", "communication"],
+    },
+    "engineering leadership": {
+        "baseline": ["leadership", "engineering management", "system design", "architecture", "mentoring", "scalability", "cross functional collaboration"],
+        "recommendations": ["leadership", "engineering management", "system design", "architecture", "mentoring", "scalability", "cross functional collaboration", "delivery management"],
+    },
+    "teacher": {
+        "baseline": ["lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction", "pedagogy"],
+        "recommendations": ["lesson planning", "classroom management", "curriculum development", "student assessment", "differentiated instruction", "pedagogy"],
+    },
+    "carpenter": {
+        "baseline": ["woodworking", "framing", "blueprint reading", "finish carpentry", "power tools", "measuring", "safety compliance"],
+        "recommendations": ["woodworking", "framing", "blueprint reading", "finish carpentry", "power tools", "measuring", "safety compliance"],
+    },
+    "painter": {
+        "baseline": ["painting", "surface preparation", "color matching", "spray painting", "safety compliance", "coating"],
+        "recommendations": ["painting", "surface preparation", "color matching", "spray painting", "safety compliance", "coating"],
+    },
+}
+
 ROLE_HEAD_TOKENS = {
     "engineer",
     "developer",
@@ -1620,6 +1745,67 @@ def role_family(query: str) -> str:
 def role_domain(query: str) -> str | None:
     profile = role_profile(query)
     return _domain_for_normalized_role(profile.family_role or profile.normalized_role) or profile.domain
+
+
+def _ordered_unique_skills(*skill_groups: list[str]) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for group in skill_groups:
+        for skill in group:
+            cleaned = _clean_role_text(skill)
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            ordered.append(cleaned)
+    return ordered
+
+
+def role_skill_model(query: str) -> dict[str, list[str]]:
+    profile = role_profile(query)
+    canonical_role = profile.family_role or profile.normalized_role
+    explicit = ROLE_FAMILY_SKILL_MODELS.get(canonical_role)
+    if explicit:
+        baseline = _ordered_unique_skills(
+            list(explicit.get("baseline", [])),
+            sorted(ROLE_PRIMARY_HINTS.get(canonical_role, set())),
+            sorted(ROLE_MARKET_HINTS.get(canonical_role, set())),
+        )
+        recommendations = _ordered_unique_skills(
+            list(explicit.get("recommendations", [])),
+            baseline,
+            sorted(ROLE_MARKET_HINTS.get(canonical_role, set())),
+        )
+        return {
+            "baseline": baseline,
+            "recommendations": recommendations,
+        }
+
+    domain = role_domain(query)
+    domain_defaults = DOMAIN_SKILL_MODEL_DEFAULTS.get(domain or "", {"baseline": [], "recommendations": []})
+    baseline = _ordered_unique_skills(
+        list(domain_defaults.get("baseline", [])),
+        sorted(role_primary_hints(query)),
+        sorted(role_market_hints(query)),
+    )
+    recommendations = _ordered_unique_skills(
+        list(domain_defaults.get("recommendations", [])),
+        baseline,
+        sorted(role_market_hints(query)),
+    )
+    return {
+        "baseline": baseline,
+        "recommendations": recommendations,
+    }
+
+
+def role_baseline_skills(query: str, *, limit: int | None = None) -> list[str]:
+    baseline = list(role_skill_model(query).get("baseline", []))
+    return baseline[:limit] if limit else baseline
+
+
+def role_recommendation_skills(query: str, *, limit: int | None = None) -> list[str]:
+    recommendations = list(role_skill_model(query).get("recommendations", []))
+    return recommendations[:limit] if limit else recommendations
 
 
 def is_sparse_live_market_role(query: str) -> bool:
