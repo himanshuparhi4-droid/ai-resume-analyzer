@@ -62,7 +62,7 @@ class AdzunaProvider:
                     response.raise_for_status()
                     payload = response.json()
                 except Exception as exc:
-                    if jobs:
+                    if seed_jobs:
                         logger.warning(
                             "Adzuna page fetch failed after partial results for query=%s page=%s: %s",
                             query,

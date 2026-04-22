@@ -62,6 +62,15 @@ PROXY_SKILL_PATTERNS = {
     "regression": [r"\blinear regression\b", r"\blogistic regression\b", r"\bregression models?\b"],
     "hypothesis testing": [r"\bhypothesis testing\b", r"\ba/?b testing\b", r"\bab tests?\b"],
     "forecasting": [r"\bforecasting\b", r"\btime series\b", r"\btime-series\b"],
+    "feature engineering": [r"\bfeature engineering\b", r"\bfeature selection\b"],
+    "model deployment": [
+        r"\bmodel deployment\b",
+        r"\bml deployment\b",
+        r"\bdeploy(?:ed|ing)? (?:machine learning|ml|predictive)? ?models? (?:to|in) production\b",
+        r"\bmodels? in production\b",
+        r"\bproductioni[sz]e models?\b",
+    ],
+    "statsmodels": [r"\bstatsmodels\b"],
 }
 PROXY_CONTEXT_KEYWORDS = {
     "pandas": {"python", "analytics", "analysis", "machine learning", "modelling", "modeling"},
@@ -74,6 +83,8 @@ PROXY_CONTEXT_KEYWORDS = {
     "business intelligence": {"analysis", "analytics", "dashboard", "reporting", "data"},
     "data modeling": {"warehouse", "analytics", "data", "sql", "etl"},
     "data warehousing": {"warehouse", "analytics", "data", "sql", "etl"},
+    "feature engineering": {"python", "machine learning", "model", "models", "prediction", "predictive", "data"},
+    "model deployment": {"python", "machine learning", "mlops", "production", "deployment", "models"},
 }
 IMPLIED_SKILLS = {
     "postgresql": {"sql": 0.72},
@@ -420,6 +431,8 @@ SCIENTIFIC_CORE_SKILLS = {
     "statistics",
     "machine learning",
     "scikit-learn",
+    "feature engineering",
+    "model deployment",
     "pytorch",
     "tensorflow",
     "nlp",

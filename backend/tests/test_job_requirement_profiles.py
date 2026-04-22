@@ -45,6 +45,27 @@ class JobRequirementProfileTest(unittest.TestCase):
         self.assertGreater(weights["salesforce"], weights.get("reporting", 0.0))
         self.assertGreater(weights["apex"], weights.get("reporting", 0.0))
 
+    def test_data_scientist_profiles_keep_advanced_specialist_tools(self) -> None:
+        profile = extract_job_requirement_profile(
+            title="Data Scientist",
+            description=(
+                "Requirements: Python, machine learning, feature engineering, model deployment, forecasting, "
+                "TensorFlow, PyTorch, and statistics. Nice to have stakeholder reporting."
+            ),
+            source="job",
+        )
+
+        skills = profile["skills"]
+        weights = profile["skill_weights"]
+
+        self.assertIn("feature engineering", skills)
+        self.assertIn("model deployment", skills)
+        self.assertIn("forecasting", skills)
+        self.assertIn("tensorflow", skills)
+        self.assertIn("pytorch", skills)
+        self.assertGreater(weights["feature engineering"], weights.get("reporting", 0.0))
+        self.assertGreater(weights["model deployment"], weights.get("reporting", 0.0))
+
 
 if __name__ == "__main__":
     unittest.main()

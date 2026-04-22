@@ -9,8 +9,29 @@ type SkillGapChartProps = {
 };
 
 export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetails, missingSkillDetails }: SkillGapChartProps) {
-  const liveMissingDetails = missingSkillDetails.filter((detail) => detail.primary_source && detail.primary_source !== "role-baseline");
-  const calibratedMissingDetails = missingSkillDetails.filter((detail) => detail.primary_source === "role-baseline");
+  const rankedMissingDetails = [...missingSkillDetails].sort((left, right) => {
+    const leftSource = left.primary_source === "role-baseline" ? 0 : left.primary_source && left.primary_source !== "unknown" ? 2 : 1;
+    const rightSource = right.primary_source === "role-baseline" ? 0 : right.primary_source && right.primary_source !== "unknown" ? 2 : 1;
+    if (leftSource !== rightSource) {
+      return rightSource - leftSource;
+    }
+    return right.market_share - left.market_share;
+  });
+  const missingDetailMap = new Map(rankedMissingDetails.map((detail) => [detail.skill, detail]));
+  const mergedMissingDetails = [
+    ...rankedMissingDetails,
+    ...missingSkills
+      .filter((detail) => !missingDetailMap.has(detail.skill))
+      .map((detail) => ({
+        skill: detail.skill,
+        market_share: detail.share,
+        primary_source: "unknown",
+        job_evidence: [],
+      })),
+  ];
+  const liveMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source && detail.primary_source !== "role-baseline" && detail.primary_source !== "unknown");
+  const calibratedMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source === "role-baseline");
+  const unsupportedMissingDetails = mergedMissingDetails.filter((detail) => !detail.primary_source || detail.primary_source === "unknown");
   const matchedDetails = [...matchedSkillDetails].sort((left, right) => {
     const leftSource = left.primary_source === "role-baseline" ? 0 : 1;
     const rightSource = right.primary_source === "role-baseline" ? 0 : 1;
@@ -19,8 +40,7 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
     }
     return right.market_share - left.market_share;
   });
-  const chartSource = liveMissingDetails.length ? liveMissingDetails : missingSkillDetails;
-  const chartData = (chartSource.length ? chartSource : missingSkills)
+  const chartData = (mergedMissingDetails.length ? mergedMissingDetails : missingSkills)
     .slice(0, 8)
     .map((detail) => ({
       skill: detail.skill,
@@ -49,6 +69,8 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
               ? "These gaps are backed by live job listings from the current market sample."
               : calibratedMissingDetails.length
                 ? "Live listings were too thin for a reliable skills map, so calibrated role baselines widened the missing-skill view."
+                : unsupportedMissingDetails.length
+                  ? "Some gaps were detected from the broader market sample even when the strongest evidence snippet was not preserved for every skill."
                 : "The current market sample did not expose a strong missing-skill cluster."}
           </p>
         </div>
@@ -126,6 +148,32 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
                   {detail.job_evidence?.[0]?.snippet ?? "This gap was inferred from the calibration baseline for this role."}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {unsupportedMissingDetails.length ? (
+          <div className="mt-5 grid gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate dark:text-slate-300">Additional market gaps</p>
+            {unsupportedMissingDetails.slice(0, 3).map((detail) => (
+              <article
+                key={`unsupported-${detail.skill}`}
+                className="rounded-[1.25rem] border border-ink/10 bg-mist/70 p-4 transition-colors duration-300 dark:border-[#223543] dark:bg-[#0f1d27]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-semibold text-ink dark:text-slate-50">{detail.skill}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-mist px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink transition-colors duration-300 dark:bg-[#132531] dark:text-slate-100">
+                      Market sample
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate dark:text-slate-300">
+                      {Math.round(detail.market_share)}% demand
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                  This skill was recurrent in the market-skill frequency map even though a high-confidence snippet was not preserved for the card view.
                 </p>
               </article>
             ))}

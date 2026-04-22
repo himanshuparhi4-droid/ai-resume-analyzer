@@ -182,6 +182,12 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertIn("iam", security_primary)
         self.assertIn("splunk", security_primary)
 
+        scientist_market = role_market_hints("Data Scientist")
+        self.assertIn("forecasting", scientist_market)
+        self.assertIn("feature engineering", scientist_market)
+        self.assertIn("model deployment", scientist_market)
+        self.assertIn("tensorflow", scientist_market)
+
     def test_unlisted_roles_inherit_family_role_and_family_fallback_queries(self) -> None:
         cases = {
             "Release Engineer": ("devops engineer", {"release engineer", "devops engineer"}),

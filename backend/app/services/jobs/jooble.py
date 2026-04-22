@@ -58,7 +58,7 @@ class JoobleProvider:
                     response.raise_for_status()
                     data = response.json()
                 except Exception as exc:
-                    if jobs:
+                    if seed_jobs:
                         logger.warning("Jooble page fetch failed after partial results for query=%s page=%s: %s", query, page, exc)
                         break
                     raise

@@ -520,13 +520,14 @@ class AnalysisOrchestrator:
                     skill: float((normalized.get("skill_weights", {}) or {}).get(skill, 0.0))
                     for skill in filtered_skills
                 }
+                evidence_skill_allowlist = set(filtered_skills[:8])
                 normalized["skill_evidence"] = [
                     item
                     for item in normalized.get("skill_evidence", []) or []
-                    if item.get("skill") in role_skill_pool
-                ][:4]
+                    if item.get("skill") in role_skill_pool and item.get("skill") in evidence_skill_allowlist
+                ][:16]
             elif normalized.get("skills"):
-                normalized["skills"] = list(normalized.get("skills", [])[:4])
+                normalized["skills"] = list(normalized.get("skills", [])[:8])
             normalized["match_strength_label"] = self._job_match_strength_label(job={**job, "normalized_data": normalized})
             normalized["selection_reasons"] = self._build_job_match_reasons(
                 role_query=role_query,
