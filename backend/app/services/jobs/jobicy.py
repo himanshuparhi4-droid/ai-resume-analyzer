@@ -25,10 +25,12 @@ class JobicyProvider:
         normalized_role = normalize_role(query)
         if settings.environment == "production":
             request_count = min(max(limit + 4, 12), 16)
-            extraction_limit = 2600
+            extraction_limit = 1800
+            enrichment_budget = min(max(limit + 1, 5), 7)
         else:
             request_count = min(max(limit * 2, settings.production_live_candidate_fetch), 50)
             extraction_limit = 4000
+            enrichment_budget = max(limit * 2, 20)
         params = {"count": request_count}
         role_tag = (query or normalized_role).strip()
         if role_tag:
@@ -45,7 +47,7 @@ class JobicyProvider:
             response.raise_for_status()
             payload = response.json()
 
-        jobs: list[dict] = []
+        seed_jobs: list[dict] = []
         for item in payload.get("jobs", []) or []:
             title = item.get("jobTitle", "Unknown Role")
             raw_description = strip_html(item.get("jobDescription", "") or item.get("jobExcerpt", "") or "")
@@ -53,14 +55,8 @@ class JobicyProvider:
             type_tags = [str(tag).strip() for tag in (item.get("jobType") or []) if str(tag).strip()]
             level = str(item.get("jobLevel", "")).strip()
             tags = [tag for tag in [*industry_tags, *type_tags, level] if tag]
-            extraction_description = truncate(raw_description, extraction_limit)
-            requirement_profile = extract_job_requirement_profile(
-                title=title,
-                description=extraction_description,
-                tags=tags,
-            )
             description = truncate(raw_description, 4000)
-            jobs.append(
+            seed_jobs.append(
                 {
                     "source": self.source_name,
                     "external_id": str(item.get("id") or item.get("jobSlug") or item.get("url") or title),
@@ -76,7 +72,6 @@ class JobicyProvider:
                         "industry": industry_tags,
                         "job_type": type_tags,
                         "job_level": level,
-                        **requirement_profile,
                     },
                     "posted_at": self._parse_datetime(item.get("pubDate")),
                 }
@@ -84,7 +79,7 @@ class JobicyProvider:
 
         positively_aligned = [
             item
-            for item in jobs
+            for item in seed_jobs
             if role_title_alignment_score(
                 query,
                 str(item.get("title", "")),
@@ -93,9 +88,37 @@ class JobicyProvider:
             )
             > 0
         ]
-        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else jobs
+        ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(3, min(limit, 5)) else seed_jobs
+        ranked_seed = sorted(
+            ranked_seed_pool,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                self._location_score(location, item.get("location", "")),
+            ),
+            reverse=True,
+        )[:enrichment_budget]
+
+        jobs: list[dict] = []
+        for item in ranked_seed:
+            extraction_description = truncate(str(item.get("description", "")), extraction_limit)
+            requirement_profile = extract_job_requirement_profile(
+                title=str(item.get("title", "")),
+                description=extraction_description,
+                tags=item.get("tags") or [],
+            )
+            item["normalized_data"] = {
+                **(item.get("normalized_data") or {}),
+                **requirement_profile,
+            }
+            jobs.append(item)
+
         ranked = sorted(
-            ranked_pool,
+            jobs,
             key=lambda item: (
                 role_title_alignment_score(
                     query,

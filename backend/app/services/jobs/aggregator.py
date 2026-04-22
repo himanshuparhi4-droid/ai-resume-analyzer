@@ -314,13 +314,13 @@ class JobAggregator:
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
             if dense_family:
-                return 11.0
+                return 12.5
             if family_group in {"product", "design"}:
                 return 7.5
             return 7.0
         if stage == "supplemental":
             if dense_family:
-                return 8.5
+                return 10.0
             if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                 return 7.5
             return 7.5
@@ -769,7 +769,7 @@ class JobAggregator:
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
             if source_name == "jobicy":
-                provider_timeout = 8.5
+                provider_timeout = 8.0
             elif source_name == "greenhouse":
                 if query_domain == "data":
                     provider_timeout = 10.5
@@ -785,11 +785,11 @@ class JobAggregator:
                 else:
                     provider_timeout = 6.0
             elif source_name == "jooble":
-                provider_timeout = 7.0
+                provider_timeout = 8.5
             elif source_name == "adzuna":
-                provider_timeout = 7.0
+                provider_timeout = 8.0
             elif source_name == "remotive":
-                provider_timeout = 7.5
+                provider_timeout = 9.0
             elif source_name == "themuse":
                 provider_timeout = 5.0 if query_domain in {"data", "software", "security"} else 5.5
             elif source_name == "findwork":

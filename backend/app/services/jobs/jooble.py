@@ -33,13 +33,17 @@ class JoobleProvider:
             target_candidates = min(max(limit * 3, 24), 36)
             page_size = min(max(limit * 2, 20), 30)
             page_count = 1
+            extraction_limit = 1600
+            enrichment_budget = min(max(limit + 2, 6), 8)
         else:
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             page_size = min(max(limit * 4, 30), 100)
             page_count = min(5, max(1, (target_candidates + page_size - 1) // page_size))
+            extraction_limit = 4000
+            enrichment_budget = target_candidates
         endpoint = f"{settings.jooble_base_url}/{settings.jooble_api_key}"
 
-        jobs: list[dict] = []
+        seed_jobs: list[dict] = []
         seen_links: set[str] = set()
         async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds, headers=self.request_headers) as client:
             for page in range(1, page_count + 1):
@@ -71,17 +75,8 @@ class JoobleProvider:
                     title = str(item.get("title") or "Unknown Role")
                     type_label = str(item.get("type") or "").strip()
                     tags = [tag for tag in [type_label, str(item.get("source") or "").strip()] if tag]
-                    extraction_description = truncate(
-                        raw_description,
-                        2600 if settings.environment == "production" else 4000,
-                    )
-                    requirement_profile = extract_job_requirement_profile(
-                        title=title,
-                        description=extraction_description,
-                        tags=tags,
-                    )
                     description = truncate(raw_description, 4000)
-                    jobs.append(
+                    seed_jobs.append(
                         {
                             "source": self.source_name,
                             "external_id": link,
@@ -95,19 +90,18 @@ class JoobleProvider:
                             "tags": tags,
                             "normalized_data": {
                                 "salary": item.get("salary"),
-                                **requirement_profile,
                             },
                             "posted_at": self._parse_datetime(item.get("updated")),
                         }
                     )
-                    if len(jobs) >= target_candidates:
+                    if len(seed_jobs) >= target_candidates:
                         break
-                if len(jobs) >= target_candidates:
+                if len(seed_jobs) >= target_candidates:
                     break
 
         positively_aligned = [
             item
-            for item in jobs
+            for item in seed_jobs
             if role_title_alignment_score(
                 query,
                 str(item.get("title", "")),
@@ -116,9 +110,37 @@ class JoobleProvider:
             )
             > 0
         ]
-        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else jobs
+        ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(4, min(limit, 6)) else seed_jobs
+        ranked_seed = sorted(
+            ranked_seed_pool,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )[:enrichment_budget]
+
+        jobs: list[dict] = []
+        for item in ranked_seed:
+            extraction_description = truncate(str(item.get("description", "")), extraction_limit)
+            requirement_profile = extract_job_requirement_profile(
+                title=str(item.get("title", "")),
+                description=extraction_description,
+                tags=item.get("tags") or [],
+            )
+            item["normalized_data"] = {
+                **(item.get("normalized_data") or {}),
+                **requirement_profile,
+            }
+            jobs.append(item)
+
         ranked = sorted(
-            ranked_pool,
+            jobs,
             key=lambda item: (
                 role_title_alignment_score(
                     query,

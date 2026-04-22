@@ -33,14 +33,16 @@ class AdzunaProvider:
             results_per_page = min(max(limit * 2, 16), 24)
             target_candidates = min(max(limit * 3, 24), 36)
             page_count = 1
-            extraction_limit = 2600
+            extraction_limit = 1800
+            enrichment_budget = min(max(limit + 2, 6), 8)
         else:
             results_per_page = min(max(limit * 4, settings.production_live_candidate_fetch), 50)
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             page_count = min(5, max(1, ceil(target_candidates / results_per_page)))
             extraction_limit = 4000
+            enrichment_budget = target_candidates
 
-        jobs = []
+        seed_jobs = []
         seen_ids: set[str] = set()
 
         async with httpx.AsyncClient(timeout=settings.job_request_timeout_seconds) as client:
@@ -83,14 +85,8 @@ class AdzunaProvider:
                     category = item.get("category") or {}
                     category_label = category.get("label", "") if isinstance(category, dict) else str(category)
                     tags = [segment.strip() for segment in re.split(r"[/>]", category_label) if segment and segment.strip()]
-                    extraction_description = raw_description if len(raw_description) <= extraction_limit else raw_description[:extraction_limit]
                     description = truncate(raw_description, 4000)
-                    requirement_profile = extract_job_requirement_profile(
-                        title=title,
-                        description=extraction_description,
-                        tags=tags,
-                    )
-                    jobs.append(
+                    seed_jobs.append(
                         {
                             "source": self.source_name,
                             "external_id": external_id,
@@ -104,18 +100,17 @@ class AdzunaProvider:
                             "normalized_data": {
                                 "salary_min": item.get("salary_min"),
                                 "salary_max": item.get("salary_max"),
-                                **requirement_profile,
                             },
                             "posted_at": self._parse_datetime(item.get("created")),
                         }
                     )
-                    if len(jobs) >= target_candidates:
+                    if len(seed_jobs) >= target_candidates:
                         break
-                if len(jobs) >= target_candidates:
+                if len(seed_jobs) >= target_candidates:
                     break
         positively_aligned = [
             item
-            for item in jobs
+            for item in seed_jobs
             if role_title_alignment_score(
                 query,
                 str(item.get("title", "")),
@@ -124,9 +119,36 @@ class AdzunaProvider:
             )
             > 0
         ]
-        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else jobs
+        ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(4, min(limit, 6)) else seed_jobs
+        ranked_seed = sorted(
+            ranked_seed_pool,
+            key=lambda item: (
+                role_title_alignment_score(
+                    query,
+                    str(item.get("title", "")),
+                    description=str(item.get("description", "")),
+                    tags=item.get("tags") or [],
+                ),
+                1 if item.get("remote") else 0,
+            ),
+            reverse=True,
+        )[:enrichment_budget]
+
+        jobs = []
+        for item in ranked_seed:
+            requirement_profile = extract_job_requirement_profile(
+                title=str(item.get("title", "")),
+                description=truncate(str(item.get("description", "")), extraction_limit),
+                tags=item.get("tags") or [],
+            )
+            item["normalized_data"] = {
+                **(item.get("normalized_data") or {}),
+                **requirement_profile,
+            }
+            jobs.append(item)
+
         ranked = sorted(
-            ranked_pool,
+            jobs,
             key=lambda item: (
                 role_title_alignment_score(
                     query,
