@@ -339,9 +339,8 @@ PROVIDER_QUERY_BUDGETS = {
     "jobicy": {"base": 2, "narrow": 1},
     "remotive": {"base": 4, "narrow": 2},
     "themuse": {"base": 2, "narrow": 1},
-    "jooble": {"base": 3, "narrow": 2},
-    "adzuna": {"base": 3, "narrow": 2},
-    "indianapi": {"base": 3, "narrow": 2},
+    "jooble": {"base": 4, "narrow": 3},
+    "adzuna": {"base": 4, "narrow": 3},
     "remoteok": {"base": 1, "narrow": 1},
 }
 ABSTRACT_CANONICAL_QUERY_FAMILIES = {
@@ -1487,7 +1486,7 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
         score += head_overlap * 4.0
         if head_overlap == 0:
             score -= 5.0
-    if source_name in {"jobicy", "themuse", "indianapi", "remoteok"}:
+    if source_name in {"jobicy", "themuse", "remoteok"}:
         score -= max(0, len(candidate_tokens) - 3) * 0.6
     elif source_name in {"remotive", "jooble", "adzuna"}:
         score -= max(0, len(candidate_tokens) - 4) * 0.35

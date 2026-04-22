@@ -161,10 +161,10 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
                 queries = set(provider_query_variations(role, "remotive", production=True))
                 self.assertTrue(expected_queries & queries)
 
-    def test_indianapi_uses_same_universal_query_planner(self) -> None:
-        queries = provider_query_variations("Technical Support Engineer", "indianapi", production=True)
+    def test_jooble_uses_same_universal_query_planner(self) -> None:
+        queries = provider_query_variations("Technical Support Engineer", "jooble", production=True)
         self.assertIn("technical support engineer", queries)
-        self.assertLessEqual(len(queries), 2)
+        self.assertLessEqual(len(queries), 4)
 
     def test_specialty_queries_contribute_dynamic_hints(self) -> None:
         salesforce_primary = role_primary_hints("Salesforce Admin")

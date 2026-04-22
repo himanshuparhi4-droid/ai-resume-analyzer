@@ -13,7 +13,6 @@ from app.services.jobs.arbeitnow import ArbeitnowProvider
 from app.services.jobs.adzuna import AdzunaProvider
 from app.services.jobs.cache import JobCacheService
 from app.services.jobs.greenhouse import GreenhouseProvider
-from app.services.jobs.indianapi import IndianAPIProvider
 from app.services.jobs.jobicy import JobicyProvider
 from app.services.jobs.jooble import JoobleProvider
 from app.services.jobs.lever import LeverProvider
@@ -68,7 +67,6 @@ NON_INDIA_REGION_HINTS = {
 SOURCE_TRUST_WEIGHTS = {
     "greenhouse": 1.08,
     "lever": 1.07,
-    "indianapi": 1.03,
     "jooble": 1.04,
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -108,7 +106,6 @@ FREE_AUTO_SOURCES = {
     "themuse",
     "greenhouse",
     "lever",
-    "indianapi",
     "jooble",
     "adzuna",
     "remoteok",
@@ -121,7 +118,6 @@ KNOWN_PROVIDER_SOURCES = (
     "themuse",
     "greenhouse",
     "lever",
-    "indianapi",
     "jooble",
     "adzuna",
     "usajobs",
@@ -147,6 +143,8 @@ class JobAggregator:
         self.db = db
         self.providers = []
         self.last_fetch_diagnostics: dict = {}
+        if (settings.default_job_source or "").strip().lower() == "indianapi":
+            logger.info("IndianAPI source is disabled for this build; falling back to the auto provider mix.")
         if settings.environment == "production":
             self.providers = self._production_providers()
             if self.providers:
@@ -159,8 +157,6 @@ class JobAggregator:
             self.providers.append(GreenhouseProvider())
         if settings.default_job_source in {"auto", "lever"} and settings.has_lever_companies:
             self.providers.append(LeverProvider())
-        if settings.default_job_source == "indianapi" and settings.has_indianapi_credentials:
-            self.providers.append(IndianAPIProvider())
         if settings.default_job_source in {"auto", "jooble"} and settings.has_jooble_credentials:
             self.providers.append(JoobleProvider())
         if settings.default_job_source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -246,6 +242,8 @@ class JobAggregator:
 
     def _provider_is_selected_by_source(self, source_name: str) -> bool:
         source = (settings.default_job_source or "auto").strip().lower()
+        if source == "indianapi":
+            source = "auto"
         if source == "auto":
             return source_name in FREE_AUTO_SOURCES
         if source_name == "jobicy":
@@ -254,15 +252,11 @@ class JobAggregator:
             return source in {"remotive", "remoteok", "adzuna", "usajobs"}
         if source_name == "themuse":
             return source == "themuse"
-        if source_name == "indianapi":
-            return source in {"auto", "indianapi"}
         return source == source_name
 
     def _provider_requirement_state(self, source_name: str) -> tuple[bool, str]:
         if source_name == "adzuna":
             return settings.has_adzuna_credentials, "missing_credentials"
-        if source_name == "indianapi":
-            return settings.has_indianapi_credentials, "missing_credentials"
         if source_name == "jooble":
             return settings.has_jooble_credentials, "missing_credentials"
         if source_name == "usajobs":
@@ -353,25 +347,25 @@ class JobAggregator:
             supplemental_order: list[str] = []
         elif dense_family:
             if india_focused_location:
-                primary_order = ["indianapi", "greenhouse", "remotive"]
+                primary_order = ["jooble", "remotive", "greenhouse"]
             else:
-                primary_order = ["greenhouse", "remotive", "indianapi"]
-            supplemental_order = ["jobicy", "themuse", "jooble", "adzuna"]
+                primary_order = ["greenhouse", "remotive", "jooble"]
+            supplemental_order = ["jobicy", "adzuna", "themuse"]
         elif family_group in {"product", "design"}:
-            primary_order = ["themuse", "jobicy", "remotive", "jooble", "adzuna", "indianapi"]
+            primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             supplemental_order = ["greenhouse", "lever"]
         elif family_group in {"enterprise", "docs", "leadership"}:
             primary_order = (
-                ["indianapi", "jobicy", "remotive", "themuse", "jooble", "adzuna"]
+                ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
                 if india_focused_location
-                else ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
+                else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             )
             supplemental_order = ["greenhouse", "lever"]
         else:
             primary_order = (
-                ["indianapi", "jobicy", "remotive", "themuse", "jooble", "adzuna"]
+                ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
                 if india_focused_location
-                else ["jobicy", "remotive", "themuse", "jooble", "adzuna", "indianapi"]
+                else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             )
             supplemental_order = ["greenhouse", "lever"]
 
@@ -443,6 +437,8 @@ class JobAggregator:
 
     def _production_providers(self) -> list[object]:
         source = (settings.default_job_source or "auto").strip().lower()
+        if source == "indianapi":
+            source = "auto"
         providers: list[object] = [JobicyProvider()]
 
         def add(provider: object) -> None:
@@ -460,8 +456,6 @@ class JobAggregator:
             settings.has_lever_companies or settings.environment == "production"
         ):
             add(LeverProvider())
-        if source in {"auto", "indianapi"} and settings.has_indianapi_credentials:
-            add(IndianAPIProvider())
         if source in {"auto", "jooble"} and settings.has_jooble_credentials:
             add(JoobleProvider())
         if source in {"auto", "usajobs"} and settings.has_usajobs_credentials:
@@ -792,12 +786,10 @@ class JobAggregator:
                 provider_timeout = 7.0
             elif source_name == "adzuna":
                 provider_timeout = 7.0
-            elif source_name == "indianapi":
-                provider_timeout = 7.5
             elif source_name == "remotive":
                 provider_timeout = 7.5
             elif source_name == "themuse":
-                provider_timeout = 6.5 if query_domain in {"data", "software", "security"} else 6.0
+                provider_timeout = 5.0 if query_domain in {"data", "software", "security"} else 5.5
             elif source_name == "findwork":
                 provider_timeout = 6.0
             elif source_name == "remoteok":
@@ -1301,7 +1293,7 @@ class JobAggregator:
         }
 
         def source_selection_cap(source: str) -> int:
-            trusted_dense_sources = {"remotive", "jobicy", "themuse", "greenhouse", "lever", "jooble", "adzuna", "indianapi"}
+            trusted_dense_sources = {"remotive", "jobicy", "themuse", "greenhouse", "lever", "jooble", "adzuna"}
             sparse_sources = {"remoteok", "arbeitnow"}
             if source in sparse_sources:
                 base_cap = 2 if source == "remoteok" else 1
@@ -1549,12 +1541,31 @@ class JobAggregator:
         specialty_overlap = self._specialty_token_overlap(query, item)
         normalized = item.get("normalized_data", {}) or {}
         role_fit = float(normalized.get("role_fit_score", 0.0))
+        query_text = self._query_signature(query)
+        title_text = self._query_signature(item.get("title", ""))
 
         if canonical_alignment <= -3:
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
+        if self._uses_strict_precision_guard(query):
+            requested_leadership = {"manager", "director", "head", "chief", "vp", "vice", "president"}
+            if not any(token in query_text.split() for token in requested_leadership) and re.search(
+                r"\b(manager|director|head|chief|vp|vice president)\b",
+                title_text,
+            ):
+                return False
+            if query_domain == "data" and re.search(r"\bdata entry\b|\bentry operator\b", title_text):
+                return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
+            return False
+        if (
+            query_domain == "data"
+            and self._uses_strict_precision_guard(query)
+            and canonical_alignment == 1
+            and title_precision <= 0
+            and title_overlap == 0
+        ):
             return False
         # This is the over-strict guard identified in the handoff document.
         # It rejects relevant jobs (like 'BI Analyst' for a 'Data Analyst' query)
@@ -1585,6 +1596,14 @@ class JobAggregator:
         if self._is_location_hard_mismatch(location, item):
             return False
         if canonical_alignment < 0:
+            return False
+        if (
+            query_domain == "data"
+            and self._uses_strict_precision_guard(query)
+            and canonical_alignment == 1
+            and title_precision <= 0
+            and title_overlap == 0
+        ):
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
@@ -1618,6 +1637,13 @@ class JobAggregator:
         role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
 
         if query_domain == "data":
+            if (
+                self._uses_strict_precision_guard(query)
+                and canonical_alignment == 1
+                and title_precision <= 0
+                and title_overlap == 0
+            ):
+                return False
             if title_precision >= 1 or title_overlap >= 1:
                 return True
             return (

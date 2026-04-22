@@ -2,17 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from app.core.config import settings
 from app.services.jobs.aggregator import JobAggregator
 
 
 class AggregatorPrecisionGuardTest(unittest.TestCase):
     def setUp(self) -> None:
         self.aggregator = JobAggregator(None)
-        self._original_indianapi_key = settings.indianapi_api_key
-
-    def tearDown(self) -> None:
-        settings.indianapi_api_key = self._original_indianapi_key
 
     def test_data_analyst_rejects_adjacent_business_analyst_title(self) -> None:
         item = {
@@ -31,6 +26,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             "normalized_data": {"skills": ["spark", "etl", "sql", "databricks"]},
         }
         self.assertFalse(self.aggregator._passes_precise_query_guard("Data Scientist", item))
+        self.assertFalse(self.aggregator._passes_final_live_guard("Data Scientist", item))
 
     def test_data_analyst_keeps_data_operations_analyst_title(self) -> None:
         item = {
@@ -40,6 +36,24 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             "normalized_data": {"skills": ["sql", "reporting", "analytics", "power bi"]},
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Data Analyst", item))
+
+    def test_data_analyst_rejects_data_entry_operator_live_card(self) -> None:
+        item = {
+            "title": "Data Entry Operator",
+            "description": "Enter records, maintain spreadsheets, and support administrative workflows.",
+            "tags": [],
+            "normalized_data": {"skills": ["excel", "data entry"]},
+        }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
+
+    def test_exact_query_rejects_manager_title_when_manager_not_requested(self) -> None:
+        item = {
+            "title": "Data Manager",
+            "description": "Lead the reporting team and own analytics delivery planning.",
+            "tags": [],
+            "normalized_data": {"skills": ["sql", "analytics", "reporting"]},
+        }
+        self.assertFalse(self.aggregator._passes_final_live_guard("Data Analyst", item))
 
     def test_cybersecurity_engineer_keeps_application_security_title(self) -> None:
         item = {
@@ -256,12 +270,12 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["fallback_sources"], [])
         self.assertNotIn("lever", plan["fallback_sources"])
 
-    def test_india_focused_dense_roles_prioritize_indianapi_when_configured(self) -> None:
-        settings.indianapi_api_key = "test-key"
+    def test_india_focused_dense_roles_prioritize_jooble_and_skip_indianapi(self) -> None:
         source_groups = {
+            "adzuna": [object()],
             "greenhouse": [object()],
-            "indianapi": [object()],
             "jobicy": [object()],
+            "jooble": [object()],
             "remotive": [object()],
             "themuse": [object()],
         }
@@ -270,7 +284,9 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="India",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][0], "indianapi")
+        self.assertEqual(plan["primary_sources"][0], "jooble")
+        self.assertNotIn("indianapi", plan["primary_sources"])
+        self.assertNotIn("indianapi", plan["supplemental_sources"])
 
     def test_themuse_stays_supplemental_only_for_dense_roles(self) -> None:
         source_groups = {
