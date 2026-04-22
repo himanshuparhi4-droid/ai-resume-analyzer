@@ -5,7 +5,13 @@ import re
 from app.schemas.common import ScoreBreakdown
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints
 from app.services.nlp.embeddings import EmbeddingService
-from app.services.nlp.skill_extractor import augment_missing_skills, infer_skill_frequency
+from app.services.nlp.skill_extractor import (
+    RESUME_PROOF_LEVEL_WEIGHTS,
+    augment_missing_skills,
+    infer_skill_frequency,
+    resume_skill_proof_weight,
+    resume_skill_support_levels,
+)
 from app.utils.text import normalize_whitespace, truncate
 
 JOB_YEARS_RE = re.compile(r"(\d{1,2})\+?\s+years")
@@ -21,16 +27,48 @@ class ScoringEngine:
         baseline_only = bool(jobs) and baseline_job_count == len(jobs)
         blended_market = baseline_job_count > 0 and not baseline_only
         market_confidence = 0.82 if baseline_only else 0.9 if blended_market else 1.0
-        resume_skills = set(resume_data.get("skills", []))
+        resume_skills = {
+            normalize_whitespace(str(skill)).lower()
+            for skill in resume_data.get("skills", [])
+            if normalize_whitespace(str(skill))
+        }
         skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
+        resume_support = resume_skill_support_levels(
+            resume_sections=resume_data.get("sections", {}),
+            skills=sorted(
+                market_skills
+                | role_market_hints(role_query or "")
+                | role_primary_hints(role_query or "")
+                | resume_skills
+            ),
+        )
 
-        matched_skills = sorted(resume_skills & market_skills)
+        matched_skills = sorted(
+            skill
+            for skill in market_skills
+            if resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            >= RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+        )
         role_skill_pool = market_skills | role_market_hints(role_query or "") | role_primary_hints(role_query or "") | set(role_baseline_skills(role_query or "", limit=18))
         missing_skills = [
-            {"skill": skill, "share": demand_map[skill], "signal_source": "live"}
-            for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
+            {
+                "skill": skill,
+                "share": demand_map[skill],
+                "signal_source": "weak-resume-proof" if skill in resume_skills else "live",
+            }
+            for skill in sorted(market_skills, key=lambda item: demand_map[item], reverse=True)
+            if resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            < RESUME_PROOF_LEVEL_WEIGHTS["medium"]
         ]
         missing_skills = augment_missing_skills(
             role_query=role_query,
@@ -38,12 +76,21 @@ class ScoringEngine:
             resume_sections=resume_data.get("sections", {}),
             job_items=jobs,
             existing_missing_skills=missing_skills,
+            market_skill_frequency=skill_frequency,
         )
 
-        skill_match = self._skill_match_score(resume_skills, jobs) * market_confidence
+        skill_match = self._skill_match_score(
+            resume_skills,
+            jobs,
+            resume_sections=resume_data.get("sections", {}),
+        ) * market_confidence
         semantic_match = self._semantic_score(resume_data, jobs, role_query=role_query)
         experience_match = self._experience_score(resume_data.get("experience_years", 0), jobs)
-        market_demand = self._market_demand_score(matched_skills, demand_map) * market_confidence
+        market_demand = self._market_demand_score(
+            demand_map=demand_map,
+            resume_skills=resume_skills,
+            resume_support=resume_support,
+        ) * market_confidence
         resume_quality = self._resume_quality_score(resume_data)
         ats_compliance = self._ats_score(resume_data)
 
@@ -122,9 +169,25 @@ class ScoringEngine:
             "top_job_matches": top_matches,
         }
 
-    def _skill_match_score(self, resume_skills: set[str], jobs: list[dict]) -> float:
+    def _skill_match_score(
+        self,
+        resume_skills: set[str],
+        jobs: list[dict],
+        *,
+        resume_sections: dict[str, str] | None = None,
+    ) -> float:
         if not jobs:
             return 0.0
+        market_skills = {
+            str(skill).lower()
+            for job in jobs
+            for skill in (job.get("normalized_data", {}) or {}).get("skills", []) or []
+            if str(skill).strip()
+        }
+        resume_support = resume_skill_support_levels(
+            resume_sections=resume_sections,
+            skills=sorted(market_skills | resume_skills),
+        )
         weighted_scores = []
         weighted_total = 0.0
         for job in jobs:
@@ -141,8 +204,12 @@ class ScoringEngine:
                 continue
             covered_weight = sum(
                 float(weight)
+                * resume_skill_proof_weight(
+                    skill=skill,
+                    resume_skills=resume_skills,
+                    support_levels=resume_support,
+                )
                 for skill, weight in skill_weights.items()
-                if skill in resume_skills
             )
             job_weight = 1.0 if job.get("source") != "role-baseline" else 0.7
             weighted_scores.append((covered_weight / total_weight) * job_weight)
@@ -273,11 +340,25 @@ class ScoringEngine:
             return 12.0
         return 8.0
 
-    def _market_demand_score(self, matched_skills: list[str], demand_map: dict[str, float]) -> float:
+    def _market_demand_score(
+        self,
+        *,
+        demand_map: dict[str, float],
+        resume_skills: set[str],
+        resume_support: dict[str, str],
+    ) -> float:
         if not demand_map:
             return 0.0
         total_possible = sum(demand_map.values())
-        covered = sum(demand_map.get(skill, 0) for skill in matched_skills)
+        covered = sum(
+            demand_map.get(skill, 0.0)
+            * resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            for skill in demand_map.keys()
+        )
         return round((covered / total_possible) * 100, 2) if total_possible else 0.0
 
     def _apply_role_alignment_penalty(

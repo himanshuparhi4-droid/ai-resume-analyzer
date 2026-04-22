@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from app.services.nlp.skill_grounding import SkillGroundingService
-from app.services.nlp.skill_extractor import augment_missing_skills
+from app.services.nlp.skill_extractor import augment_missing_skills, resume_skill_support_levels
 
 
 class UniversalSkillGroundingTest(unittest.TestCase):
@@ -124,6 +124,32 @@ class UniversalSkillGroundingTest(unittest.TestCase):
         pytorch_gap = next((item for item in gaps if item["skill"] == "pytorch"), None)
         self.assertIsNotNone(pytorch_gap)
         self.assertEqual(pytorch_gap["signal_source"], "weak-resume-proof")
+
+    def test_summary_and_skills_only_mentions_stay_weak(self) -> None:
+        support = resume_skill_support_levels(
+            resume_sections={
+                "summary": "Aspiring data scientist with machine learning and Python knowledge.",
+                "skills": "Python, Machine Learning, SQL",
+            },
+            skills=["machine learning", "python", "sql"],
+        )
+
+        self.assertEqual(support["machine learning"], "weak")
+        self.assertEqual(support["python"], "weak")
+        self.assertEqual(support["sql"], "weak")
+
+    def test_project_backed_skill_counts_as_stronger_proof(self) -> None:
+        support = resume_skill_support_levels(
+            resume_sections={
+                "summary": "Aspiring data scientist with SQL and dashboard experience.",
+                "projects": "Built a sales dashboard in SQL and Power BI for churn analysis.",
+                "skills": "SQL, Power BI",
+            },
+            skills=["sql", "power bi"],
+        )
+
+        self.assertEqual(support["sql"], "strong")
+        self.assertEqual(support["power bi"], "strong")
 
 
 if __name__ == "__main__":

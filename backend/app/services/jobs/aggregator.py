@@ -341,38 +341,44 @@ class JobAggregator:
         india_focused_location = self._is_india_focused_location(location)
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
-        normalized_query = role_profile(query).normalized_role
 
         fallback_order: list[str] = []
         if sparse_role:
             primary_order = ["remotive"]
             supplemental_order: list[str] = []
-        elif normalized_query == "frontend developer":
-            primary_order = ["remotive", "jobicy", "greenhouse"]
-            supplemental_order = ["themuse"]
         elif dense_family:
             if india_focused_location:
                 primary_order = ["jooble", "remotive", "greenhouse"]
+                supplemental_order = ["jobicy", "adzuna", "themuse"]
+            elif family_group == "data":
+                primary_order = ["greenhouse", "remotive", "jobicy"]
+                supplemental_order = ["themuse", "jooble", "adzuna"]
+            elif family_group in {"software", "infra", "security"}:
+                primary_order = ["remotive", "jobicy", "greenhouse"]
+                supplemental_order = ["themuse", "jooble", "adzuna"]
             else:
-                primary_order = ["greenhouse", "remotive", "jooble"]
-            supplemental_order = ["jobicy", "adzuna", "themuse"]
+                primary_order = ["greenhouse", "remotive", "jobicy"]
+                supplemental_order = ["themuse", "jooble", "adzuna"]
         elif family_group in {"product", "design"}:
             primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
-            supplemental_order = ["greenhouse", "lever"]
+            supplemental_order = ["greenhouse"]
+            fallback_order = ["lever"]
         elif family_group in {"enterprise", "docs", "leadership"}:
             primary_order = (
                 ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
                 if india_focused_location
                 else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             )
-            supplemental_order = ["greenhouse", "lever"]
+            supplemental_order = ["greenhouse"]
+            fallback_order = ["lever"]
         else:
             primary_order = (
                 ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
                 if india_focused_location
                 else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             )
-            supplemental_order = ["greenhouse", "lever"]
+            supplemental_order = ["greenhouse"]
+            fallback_order = ["lever"]
 
         primary_sources = [source for source in primary_order if source in source_groups]
         supplemental_sources = [source for source in supplemental_order if source in source_groups and source not in primary_sources]

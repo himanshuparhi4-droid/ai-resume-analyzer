@@ -424,7 +424,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
         self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "greenhouse"])
-        self.assertEqual(plan["supplemental_sources"], ["themuse"])
+        self.assertGreaterEqual(len(plan["supplemental_sources"]), 1)
+        self.assertEqual(plan["supplemental_sources"][0], "themuse")
         self.assertEqual(plan["fallback_sources"], [])
 
     def test_selection_debug_tracks_rejection_reasons(self) -> None:

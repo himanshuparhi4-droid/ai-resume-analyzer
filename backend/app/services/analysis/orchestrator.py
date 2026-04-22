@@ -20,9 +20,15 @@ from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints, role_recommendation_skills
 from app.services.nlp.skill_grounding import SkillGroundingService
-from app.services.nlp.skill_extractor import augment_missing_skills, infer_skill_frequency
+from app.services.nlp.skill_extractor import (
+    RESUME_PROOF_LEVEL_WEIGHTS,
+    augment_missing_skills,
+    infer_skill_frequency,
+    resume_skill_proof_weight,
+    resume_skill_support_levels,
+)
 from app.services.parsers.resume_parser import ResumeParser
-from app.utils.text import truncate
+from app.utils.text import normalize_whitespace, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -381,8 +387,11 @@ class AnalysisOrchestrator:
         )
 
     def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict], role_query: str) -> dict:
-        resume_text = resume_data.get("raw_text", "")
-        resume_skills = set(resume_data.get("skills", []))
+        resume_skills = {
+            normalize_whitespace(str(skill)).lower()
+            for skill in resume_data.get("skills", [])
+            if normalize_whitespace(str(skill))
+        }
         baseline_only = bool(jobs) and all(job.get("source") == "role-baseline" for job in jobs)
         baseline_confidences = {
             str(job.get("normalized_data", {}).get("baseline_confidence", "medium"))
@@ -399,11 +408,34 @@ class AnalysisOrchestrator:
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
         market_skills = set(demand_map.keys())
         role_skill_pool = market_skills | role_market_hints(role_query) | role_primary_hints(role_query) | set(role_baseline_skills(role_query, limit=18))
+        resume_support = resume_skill_support_levels(
+            resume_sections=resume_data.get("sections", {}),
+            skills=sorted(market_skills | role_skill_pool | resume_skills),
+        )
 
-        matched_skills = sorted(resume_skills & market_skills)
+        matched_skills = sorted(
+            skill
+            for skill in market_skills
+            if resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            >= RESUME_PROOF_LEVEL_WEIGHTS["medium"]
+        )
         missing_skills = [
-            {"skill": skill, "share": demand_map[skill], "signal_source": "live"}
-            for skill in sorted(market_skills - resume_skills, key=lambda item: demand_map[item], reverse=True)
+            {
+                "skill": skill,
+                "share": demand_map[skill],
+                "signal_source": "weak-resume-proof" if skill in resume_skills else "live",
+            }
+            for skill in sorted(market_skills, key=lambda item: demand_map[item], reverse=True)
+            if resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            < RESUME_PROOF_LEVEL_WEIGHTS["medium"]
         ][:10]
         missing_skills = augment_missing_skills(
             role_query=role_query,
@@ -411,6 +443,7 @@ class AnalysisOrchestrator:
             resume_sections=resume_data.get("sections", {}),
             job_items=scoring_jobs or jobs,
             existing_missing_skills=missing_skills,
+            market_skill_frequency=skill_frequency,
         )
 
         live_jobs = [job for job in scoring_jobs if job.get("source") != "role-baseline"]
@@ -444,7 +477,16 @@ class AnalysisOrchestrator:
             else:
                 market_confidence_factor = 0.0
 
-        skill_match = round((len(matched_skills) / max(len(market_skills), 1)) * 100, 2) if market_skills else 0.0
+        total_possible_skill_weight = max(len(market_skills), 1)
+        covered_skill_weight = sum(
+            resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            for skill in market_skills
+        )
+        skill_match = round((covered_skill_weight / total_possible_skill_weight) * 100, 2) if market_skills else 0.0
         scoring_relevance_scores = self.scoring_engine.semantic_relevance_scores(
             resume_data,
             scoring_jobs,
@@ -463,7 +505,15 @@ class AnalysisOrchestrator:
         else:
             experience_match = 0.0
         total_demand = sum(demand_map.values())
-        covered_demand = sum(demand_map.get(skill, 0) for skill in matched_skills)
+        covered_demand = sum(
+            demand_map.get(skill, 0.0)
+            * resume_skill_proof_weight(
+                skill=skill,
+                resume_skills=resume_skills,
+                support_levels=resume_support,
+            )
+            for skill in market_skills
+        )
         market_demand = round((covered_demand / total_demand) * 100, 2) if total_demand else 0.0
         skill_match = round(skill_match * market_confidence_factor, 2)
         market_demand = round(market_demand * market_confidence_factor, 2)

@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role, role_domain, role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import normalize_role, role_domain, role_family, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -86,6 +86,8 @@ class GreenhouseProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_query = normalize_role(query)
+        family_role = role_family(query)
+        domain = role_domain(query)
         boards = self._boards_for_query(query)
         if not boards:
             return []
@@ -119,25 +121,22 @@ class GreenhouseProvider:
                 return []
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
-            if normalized_query == "frontend developer":
-                # Frontend/web queries benefit from board diversity, but full
-                # hydration on Render free tier is too expensive and tends to
+            if family_role in {"frontend developer", "mobile developer", "embedded engineer"}:
+                # UI/mobile/embedded families benefit from board diversity, but
+                # full hydration on Render free tier is expensive and tends to
                 # time out before the selector sees the ATS-backed candidates.
                 detail_fetch_budget = min(max(limit // 2 + 1, 3), 4)
                 board_budget = 1
-            elif normalized_query in {"software engineer", "full stack developer", "devops engineer"}:
+            elif domain in {"software", "security"} or family_role in {"devops engineer", "qa engineer", "solutions architect"}:
                 detail_fetch_budget = min(max(limit + 2, 10), 14)
                 board_budget = 2
-            elif normalized_query in {
-                "data analyst",
-                "data scientist",
-                "data engineer",
-                "machine learning engineer",
-                "database engineer",
-                "cybersecurity engineer",
+            elif domain == "data" or family_role in {
                 "product manager",
                 "support engineer",
                 "enterprise applications engineer",
+                "technical writer",
+                "ui/ux designer",
+                "engineering leadership",
             }:
                 # On Render free tier, index fetches are usually cheap while
                 # detail hydration is the expensive step. Keep one strong role
@@ -210,6 +209,9 @@ class GreenhouseProvider:
                     str(candidate.get("external_id") or ""),
                     item,
                 )
+                fallback_item = self._index_fallback_job(candidate)
+                if fallback_item:
+                    jobs.append(fallback_item)
                 continue
             if item:
                 jobs.append(item)
@@ -273,7 +275,15 @@ class GreenhouseProvider:
             return cached["jobs"]
 
         endpoint = f"{settings.greenhouse_base_url}/{board}/jobs"
-        response = await client.get(endpoint)
+        response = await client.get(
+            endpoint,
+            timeout=httpx.Timeout(
+                connect=min(2.5, settings.job_request_timeout_seconds),
+                read=min(3.5, settings.job_request_timeout_seconds),
+                write=5.0,
+                pool=3.0,
+            ),
+        )
         response.raise_for_status()
         payload = response.json()
         raw_jobs = payload.get("jobs") or []
@@ -285,6 +295,17 @@ class GreenhouseProvider:
             title = str(item.get("title") or "Unknown Role")
             location = str((item.get("location") or {}).get("name") or "Unknown")
             company = str(item.get("company_name") or self._company_from_board(board))
+            tags = [tag for tag in [company, board, location] if tag]
+            lightweight_description = (
+                f"{title} role at {company}. Greenhouse ATS listing from the {board} board"
+                + (f" in {location}." if location and location != "Unknown" else ".")
+            )
+            requirement_profile = extract_job_requirement_profile(
+                title=title,
+                description=lightweight_description,
+                tags=tags,
+                source="greenhouse-index",
+            )
             jobs.append(
                 {
                     "source": self.source_name,
@@ -294,12 +315,13 @@ class GreenhouseProvider:
                     "location": location,
                     "remote": "remote" in location.lower(),
                     "url": str(item.get("absolute_url") or ""),
-                    "description": "",
-                    "preview": "",
-                    "tags": [tag for tag in [company, board] if tag],
+                    "description": lightweight_description,
+                    "preview": truncate(lightweight_description, 260),
+                    "tags": tags,
                     "normalized_data": {
                         "board_token": board,
                         "index_only": True,
+                        **requirement_profile,
                     },
                     "posted_at": self._parse_datetime(item.get("updated_at") or item.get("updatedAt")),
                 }
@@ -327,7 +349,16 @@ class GreenhouseProvider:
             return cached["job"]
 
         endpoint = f"{settings.greenhouse_base_url}/{board}/jobs/{job_id}"
-        response = await client.get(endpoint, params={"content": "true"})
+        response = await client.get(
+            endpoint,
+            params={"content": "true"},
+            timeout=httpx.Timeout(
+                connect=min(2.0, settings.job_request_timeout_seconds),
+                read=min(2.75, settings.job_request_timeout_seconds),
+                write=5.0,
+                pool=3.0,
+            ),
+        )
         response.raise_for_status()
         item = response.json()
 
@@ -361,6 +392,32 @@ class GreenhouseProvider:
         }
         _GREENHOUSE_JOB_DETAIL_CACHE[cache_key] = {"stored_at": now, "job": job}
         return job
+
+    def _index_fallback_job(self, fallback: dict) -> dict | None:
+        if not fallback:
+            return None
+        normalized = {**(fallback.get("normalized_data") or {})}
+        normalized["index_only"] = True
+        normalized["detail_fetch_failed"] = True
+        fallback_job = {
+            **fallback,
+            "description": str(
+                fallback.get("description")
+                or f"{fallback.get('title', 'Unknown Role')} listing from Greenhouse ATS. Detailed requirements were temporarily unavailable."
+            ),
+            "preview": str(
+                fallback.get("preview")
+                or truncate(
+                    str(
+                        fallback.get("description")
+                        or f"{fallback.get('title', 'Unknown Role')} listing from Greenhouse ATS. Detailed requirements were temporarily unavailable."
+                    ),
+                    260,
+                )
+            ),
+            "normalized_data": normalized,
+        }
+        return fallback_job
 
     def _prune_cache(self, cache: dict[str, dict], *, max_entries: int) -> None:
         if not cache:

@@ -222,6 +222,21 @@ DENSE_ROLE_GAP_FAMILIES = {
 }
 RESUME_HIGH_PROOF_SECTIONS = {"experience", "projects", "research", "teaching"}
 RESUME_MEDIUM_PROOF_SECTIONS = {"summary", "certifications"}
+RESUME_SECTION_SUPPORT_WEIGHTS = {
+    "experience": 1.0,
+    "projects": 1.0,
+    "research": 0.95,
+    "teaching": 0.9,
+    "summary": 0.45,
+    "certifications": 0.5,
+    "skills": 0.32,
+}
+RESUME_PROOF_LEVEL_WEIGHTS = {
+    "strong": 1.0,
+    "medium": 0.72,
+    "weak": 0.38,
+    "none": 0.0,
+}
 SOURCE_TRUST_WEIGHTS = {
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -490,14 +505,14 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
 
 def _missing_gap_target(role_query: str | None) -> int:
     if not role_query:
-        return 3
+        return 4
     family = role_family(role_query)
     domain = role_domain(role_query)
     if family in {"data scientist", "machine learning engineer", "data engineer", "data analyst"}:
-        return 5
+        return 6
     if family in DENSE_ROLE_GAP_FAMILIES or domain in {"data", "software", "security"}:
-        return 4
-    return 3
+        return 5
+    return 4
 
 
 def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]]:
@@ -526,7 +541,7 @@ def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]
     return evidence_items
 
 
-def _resume_recommendation_skill_support(
+def resume_skill_support_levels(
     *,
     resume_sections: dict[str, str] | None,
     skills: list[str],
@@ -548,17 +563,30 @@ def _resume_recommendation_skill_support(
             if extract_skill_evidence(section_text, [normalized_skill], source=f"resume:{section_name}"):
                 matched_sections.append(section_name)
 
+        section_score = sum(RESUME_SECTION_SUPPORT_WEIGHTS.get(section, 0.4) for section in matched_sections)
         if any(section in RESUME_HIGH_PROOF_SECTIONS for section in matched_sections):
             support_levels[normalized_skill] = "strong"
-        elif (
+        elif section_score >= 0.85 or (
             len(matched_sections) >= 2
-            or ("summary" in matched_sections and "skills" in matched_sections)
-            or any(section in RESUME_MEDIUM_PROOF_SECTIONS for section in matched_sections)
+            and any(section not in {"summary", "skills"} for section in matched_sections)
         ):
             support_levels[normalized_skill] = "medium"
         elif matched_sections:
             support_levels[normalized_skill] = "weak"
     return support_levels
+
+
+def resume_skill_proof_weight(
+    *,
+    skill: str,
+    resume_skills: set[str],
+    support_levels: dict[str, str],
+) -> float:
+    normalized_skill = normalize_whitespace(skill).lower()
+    if normalized_skill not in resume_skills:
+        return RESUME_PROOF_LEVEL_WEIGHTS["none"]
+    support_level = support_levels.get(normalized_skill, "weak")
+    return RESUME_PROOF_LEVEL_WEIGHTS.get(support_level, RESUME_PROOF_LEVEL_WEIGHTS["weak"])
 
 
 def augment_missing_skills(
@@ -568,6 +596,7 @@ def augment_missing_skills(
     resume_sections: dict[str, str] | None = None,
     job_items: list[dict],
     existing_missing_skills: list[dict],
+    market_skill_frequency: list[dict] | None = None,
 ) -> list[dict]:
     if not role_query:
         return existing_missing_skills[:10]
@@ -579,10 +608,46 @@ def augment_missing_skills(
     live_jobs = [item for item in job_items if item.get("source") != "role-baseline"]
     live_job_count = max(len(live_jobs), 1)
     recommendation_skills = role_recommendation_skills(role_query, limit=14)
-    resume_support = _resume_recommendation_skill_support(resume_sections=resume_sections, skills=recommendation_skills)
+    live_market_frequency = market_skill_frequency or infer_skill_frequency(job_items, role_query=role_query)
+    live_market_stats = {
+        str(item.get("skill", "")).lower(): item
+        for item in live_market_frequency
+        if str(item.get("skill", "")).strip()
+    }
+    resume_support = resume_skill_support_levels(
+        resume_sections=resume_sections,
+        skills=sorted({*recommendation_skills, *normalized_resume_skills, *live_market_stats.keys()}),
+    )
 
     evidence_backfill: list[dict] = []
+    weak_market_backfill: list[dict] = []
     calibrated_backfill: list[dict] = []
+
+    for skill, skill_stats in sorted(
+        live_market_stats.items(),
+        key=lambda item: float(item[1].get("share", 0.0) or 0.0),
+        reverse=True,
+    ):
+        if skill in existing_names or skill not in normalized_resume_skills:
+            continue
+        if resume_support.get(skill, "weak") != "weak":
+            continue
+        share = float(skill_stats.get("share", 0.0) or 0.0)
+        live_count = int(skill_stats.get("live_count", 0) or 0)
+        company_count = int(skill_stats.get("company_count", 0) or 0)
+        if share < 4.0 and live_count < 2 and company_count < 2:
+            continue
+        live_evidence = _live_gap_evidence(live_jobs, skill)
+        weak_market_backfill.append(
+            {
+                "skill": skill,
+                "share": share,
+                "signal_source": "weak-resume-proof",
+                "primary_source": live_evidence[0]["source"] if live_evidence else "live-market",
+                "job_evidence": live_evidence[:2],
+            }
+        )
+        existing_names.add(skill)
 
     for rank, skill in enumerate(recommendation_skills, start=1):
         normalized_skill = normalize_whitespace(skill).lower()
@@ -596,8 +661,12 @@ def augment_missing_skills(
 
         live_evidence = _live_gap_evidence(live_jobs, normalized_skill)
         if live_evidence:
+            market_share = float((live_market_stats.get(normalized_skill, {}) or {}).get("share", 0.0) or 0.0)
             live_company_count = len({normalize_whitespace(item["company"]).lower() for item in live_evidence})
-            share = round(max(4.5, min(18.0, (live_company_count / live_job_count) * 100)), 1)
+            share = round(
+                market_share or max(4.5, min(18.0, (live_company_count / live_job_count) * 100)),
+                1,
+            )
             evidence_backfill.append(
                 {
                     "skill": normalized_skill,
@@ -625,11 +694,12 @@ def augment_missing_skills(
         )
         existing_names.add(normalized_skill)
 
+    augmented.extend(weak_market_backfill)
     augmented.extend(evidence_backfill)
     if len(augmented) < target_count:
         augmented.extend(calibrated_backfill[: max(0, target_count - len(augmented))])
 
-    priority = {"live": 3, "live-support": 2, "weak-resume-proof": 2, "role-family": 1}
+    priority = {"live": 4, "weak-resume-proof": 3, "live-support": 2, "role-family": 1}
     deduped: list[dict] = []
     seen: set[str] = set()
     for item in sorted(
