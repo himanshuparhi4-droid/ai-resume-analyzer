@@ -15,7 +15,7 @@ type UploadPanelProps = {
 export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
-  const [location, setLocation] = useState("India");
+  const [location, setLocation] = useState("Global");
   const [limit, setLimit] = useState(12);
   const fileLabel = useMemo(() => (file ? file.name : "Upload PDF, DOCX, or TXT"), [file]);
 
@@ -77,11 +77,20 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
             <input
               className="mt-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-ink outline-none transition focus:border-sea dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
               value={location}
+              list="location-suggestions"
               onChange={(event) => setLocation(event.target.value)}
-              placeholder="India"
+              placeholder="Global"
             />
+            <datalist id="location-suggestions">
+              <option value="Global" />
+              <option value="India" />
+              <option value="Remote" />
+              <option value="United States" />
+              <option value="Europe" />
+              <option value="APAC" />
+            </datalist>
             <span className="mt-3 min-h-[3.5rem] text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This is a soft hint, not a strict filter. The review now prioritizes role relevance first, then uses location only as a light ranking preference.
+              This is a soft hint, not a strict filter. `Global` is the default so the review stays broad unless you want to bias it toward one market.
             </span>
           </label>
 

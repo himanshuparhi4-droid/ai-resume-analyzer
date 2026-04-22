@@ -26,5 +26,5 @@ Run the seeded benchmark locally with:
 Run the live-fetch matrix locally with:
 
 ```powershell
-.\.venv\Scripts\python.exe .\evals\run_live_fetch_matrix.py --location India --limit 10
+.\.venv\Scripts\python.exe .\evals\run_live_fetch_matrix.py --location Global --limit 10
 ```

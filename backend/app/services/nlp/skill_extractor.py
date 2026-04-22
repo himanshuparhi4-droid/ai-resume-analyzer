@@ -220,6 +220,8 @@ DENSE_ROLE_GAP_FAMILIES = {
     "solutions architect",
     "enterprise applications engineer",
 }
+RESUME_HIGH_PROOF_SECTIONS = {"experience", "projects", "research", "teaching"}
+RESUME_MEDIUM_PROOF_SECTIONS = {"summary", "certifications"}
 SOURCE_TRUST_WEIGHTS = {
     "jobicy": 1.0,
     "remotive": 0.94,
@@ -524,10 +526,46 @@ def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]
     return evidence_items
 
 
+def _resume_recommendation_skill_support(
+    *,
+    resume_sections: dict[str, str] | None,
+    skills: list[str],
+) -> dict[str, str]:
+    if not resume_sections or not skills:
+        return {}
+
+    support_levels: dict[str, str] = {}
+    normalized_sections = {
+        normalize_whitespace(str(name)).lower(): normalize_whitespace(str(text))
+        for name, text in (resume_sections or {}).items()
+        if normalize_whitespace(str(text))
+    }
+
+    for skill in skills:
+        normalized_skill = normalize_whitespace(skill).lower()
+        matched_sections: list[str] = []
+        for section_name, section_text in normalized_sections.items():
+            if extract_skill_evidence(section_text, [normalized_skill], source=f"resume:{section_name}"):
+                matched_sections.append(section_name)
+
+        if any(section in RESUME_HIGH_PROOF_SECTIONS for section in matched_sections):
+            support_levels[normalized_skill] = "strong"
+        elif (
+            len(matched_sections) >= 2
+            or ("summary" in matched_sections and "skills" in matched_sections)
+            or any(section in RESUME_MEDIUM_PROOF_SECTIONS for section in matched_sections)
+        ):
+            support_levels[normalized_skill] = "medium"
+        elif matched_sections:
+            support_levels[normalized_skill] = "weak"
+    return support_levels
+
+
 def augment_missing_skills(
     *,
     role_query: str | None,
     resume_skills: set[str],
+    resume_sections: dict[str, str] | None = None,
     job_items: list[dict],
     existing_missing_skills: list[dict],
 ) -> list[dict]:
@@ -541,13 +579,19 @@ def augment_missing_skills(
     live_jobs = [item for item in job_items if item.get("source") != "role-baseline"]
     live_job_count = max(len(live_jobs), 1)
     recommendation_skills = role_recommendation_skills(role_query, limit=14)
+    resume_support = _resume_recommendation_skill_support(resume_sections=resume_sections, skills=recommendation_skills)
 
     evidence_backfill: list[dict] = []
     calibrated_backfill: list[dict] = []
 
     for rank, skill in enumerate(recommendation_skills, start=1):
         normalized_skill = normalize_whitespace(skill).lower()
-        if not normalized_skill or normalized_skill in normalized_resume_skills or normalized_skill in existing_names:
+        if not normalized_skill or normalized_skill in existing_names:
+            continue
+        support_level = resume_support.get(normalized_skill, "none")
+        strongly_covered = normalized_skill in normalized_resume_skills and support_level in {"strong", "medium"}
+        weakly_covered = normalized_skill in normalized_resume_skills and support_level == "weak"
+        if strongly_covered:
             continue
 
         live_evidence = _live_gap_evidence(live_jobs, normalized_skill)
@@ -558,12 +602,15 @@ def augment_missing_skills(
                 {
                     "skill": normalized_skill,
                     "share": share,
-                    "signal_source": "live-support",
+                    "signal_source": "weak-resume-proof" if weakly_covered else "live-support",
                     "primary_source": live_evidence[0]["source"],
                     "job_evidence": live_evidence[:2],
                 }
             )
             existing_names.add(normalized_skill)
+            continue
+
+        if weakly_covered:
             continue
 
         calibrated_share = round(max(3.5, 9.5 - ((rank - 1) * 0.8)), 1)
@@ -582,7 +629,7 @@ def augment_missing_skills(
     if len(augmented) < target_count:
         augmented.extend(calibrated_backfill[: max(0, target_count - len(augmented))])
 
-    priority = {"live": 3, "live-support": 2, "role-family": 1}
+    priority = {"live": 3, "live-support": 2, "weak-resume-proof": 2, "role-family": 1}
     deduped: list[dict] = []
     seen: set[str] = set()
     for item in sorted(

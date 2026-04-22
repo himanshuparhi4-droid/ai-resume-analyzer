@@ -55,6 +55,7 @@ export type SkillDetail = {
   skill: string;
   market_share: number;
   primary_source?: string;
+  signal_source?: string;
   resume_evidence?: string[];
   job_evidence?: {
     title: string;

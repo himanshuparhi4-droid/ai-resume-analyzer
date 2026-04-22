@@ -72,7 +72,7 @@ async def run_case(*, query: str, location: str, limit: int) -> dict[str, Any]:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run the production live-fetch matrix against representative role families.")
-    parser.add_argument("--location", default="India", help="Location to send with the fetch requests.")
+    parser.add_argument("--location", default="Global", help="Location to send with the fetch requests.")
     parser.add_argument("--limit", type=int, default=10, help="Requested live listing cap per query.")
     parser.add_argument("--query", action="append", dest="queries", help="Optional role query to run. Repeat for multiple queries.")
     args = parser.parse_args()

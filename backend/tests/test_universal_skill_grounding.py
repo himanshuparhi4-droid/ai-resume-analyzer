@@ -95,6 +95,36 @@ class UniversalSkillGroundingTest(unittest.TestCase):
         self.assertIn("model deployment", gap_names)
         self.assertGreaterEqual(len(gaps), 3)
 
+    def test_weak_skills_section_only_proof_does_not_hide_live_gap(self) -> None:
+        jobs = [
+            {
+                "source": "greenhouse",
+                "company": "Alpha",
+                "title": "Data Scientist",
+                "description": "Requirements: PyTorch, model deployment, and feature engineering.",
+                "normalized_data": {"skills": ["pytorch", "model deployment", "feature engineering"]},
+            },
+            {
+                "source": "remotive",
+                "company": "Beta",
+                "title": "Applied Scientist",
+                "description": "Requirements: PyTorch, feature engineering, and forecasting.",
+                "normalized_data": {"skills": ["pytorch", "feature engineering", "forecasting"]},
+            },
+        ]
+
+        gaps = augment_missing_skills(
+            role_query="Data Scientist",
+            resume_skills={"python", "sql", "pytorch"},
+            resume_sections={"skills": "Python, SQL, PyTorch"},
+            job_items=jobs,
+            existing_missing_skills=[],
+        )
+
+        pytorch_gap = next((item for item in gaps if item["skill"] == "pytorch"), None)
+        self.assertIsNotNone(pytorch_gap)
+        self.assertEqual(pytorch_gap["signal_source"], "weak-resume-proof")
+
 
 if __name__ == "__main__":
     unittest.main()

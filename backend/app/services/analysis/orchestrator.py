@@ -408,6 +408,7 @@ class AnalysisOrchestrator:
         missing_skills = augment_missing_skills(
             role_query=role_query,
             resume_skills=resume_skills,
+            resume_sections=resume_data.get("sections", {}),
             job_items=scoring_jobs or jobs,
             existing_missing_skills=missing_skills,
         )

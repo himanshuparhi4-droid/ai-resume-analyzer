@@ -17,7 +17,7 @@ class AnalysisUploadRequest(BaseModel):
     content_type: str
     file_base64: str
     role_query: str
-    location: str = "India"
+    location: str = "Global"
     limit: int = 12
 
 

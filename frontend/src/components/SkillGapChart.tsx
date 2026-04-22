@@ -26,10 +26,12 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
         skill: detail.skill,
         market_share: detail.share,
         primary_source: "unknown",
+        signal_source: "unknown",
         job_evidence: [],
       })),
   ];
   const liveMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source && detail.primary_source !== "role-baseline" && detail.primary_source !== "unknown");
+  const weakProofMissingDetails = mergedMissingDetails.filter((detail) => detail.signal_source === "weak-resume-proof");
   const calibratedMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source === "role-baseline");
   const unsupportedMissingDetails = mergedMissingDetails.filter((detail) => !detail.primary_source || detail.primary_source === "unknown");
   const matchedDetails = [...matchedSkillDetails].sort((left, right) => {
@@ -65,7 +67,9 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Market Gaps</p>
           <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Missing role-specific tools</h3>
           <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-            {liveMissingDetails.length && calibratedMissingDetails.length
+            {weakProofMissingDetails.length
+              ? "Some tools are being flagged because the resume only mentions them lightly, while live jobs expect stronger proof or repeated evidence."
+              : liveMissingDetails.length && calibratedMissingDetails.length
               ? "The strongest gaps are backed by live job listings, with additional role-family calibration added so narrow live samples do not underreport missing tools."
               : liveMissingDetails.length
               ? "These gaps are backed by live job listings from the current market sample."

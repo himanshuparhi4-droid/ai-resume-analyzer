@@ -35,6 +35,7 @@ class ScoringEngine:
         missing_skills = augment_missing_skills(
             role_query=role_query,
             resume_skills=resume_skills,
+            resume_sections=resume_data.get("sections", {}),
             job_items=jobs,
             existing_missing_skills=missing_skills,
         )
