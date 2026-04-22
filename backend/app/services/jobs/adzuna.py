@@ -24,17 +24,19 @@ class AdzunaProvider:
         if not settings.has_adzuna_credentials:
             return []
 
+        normalized_query = normalize_role(query)
         normalized_location = normalize_role(location)
         location_filter = ""
         if normalized_location not in {"", "india", "remote", "worldwide", "global"}:
             location_filter = location
 
         if settings.environment == "production":
-            results_per_page = min(max(limit * 2, 16), 24)
-            target_candidates = min(max(limit * 3, 24), 36)
+            analyst_style = normalized_query == "data analyst"
+            results_per_page = min(max(limit * 2, 16), 20 if analyst_style else 24)
+            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 3, 24), 36)
             page_count = 1
-            extraction_limit = 1800
-            enrichment_budget = min(max(limit + 2, 6), 8)
+            extraction_limit = 1200 if analyst_style else 1800
+            enrichment_budget = min(max(limit, 4), 5) if analyst_style else min(max(limit + 2, 6), 8)
         else:
             results_per_page = min(max(limit * 4, settings.production_live_candidate_fetch), 50)
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)

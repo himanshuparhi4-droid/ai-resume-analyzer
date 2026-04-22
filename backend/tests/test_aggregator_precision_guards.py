@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from app.core.config import settings
 from app.services.jobs.aggregator import JobAggregator
 from app.services.jobs.taxonomy import provider_query_variations
 
@@ -62,6 +63,22 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             "normalized_data": {"skills": ["sql", "reporting", "analytics", "power bi"]},
         }
         self.assertTrue(self.aggregator._passes_precise_query_guard("Data Analyst", item))
+
+    def test_data_analyst_same_family_recovery_keeps_operations_analyst_with_strong_data_signals(self) -> None:
+        item = {
+            "title": "Operations Analyst",
+            "description": "Own SQL reporting, dashboards, KPI analysis, and business intelligence workflows.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["sql", "excel", "dashboarding", "business intelligence"],
+                "role_fit_score": 5.0,
+                "market_quality_score": 22.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_exact_query_backup_guard("Data Analyst", "Global", item))
+        self.assertTrue(self.aggregator._passes_same_family_recovery_guard("Data Analyst", "Global", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("Data Analyst", item))
 
     def test_data_analyst_rejects_data_entry_operator_live_card(self) -> None:
         item = {
@@ -168,8 +185,29 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble", "remotive"])
+        self.assertEqual(plan["primary_sources"], ["remotive", "greenhouse", "themuse"])
         self.assertEqual(plan["fallback_sources"], [])
+
+    def test_soc_analyst_global_search_caps_slow_primary_fanout(self) -> None:
+        provider = type("Provider", (), {"source_name": "adzuna", "supports_query_variations": True})()
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            queries = self.aggregator._search_queries(provider, "SOC Analyst", "Global")
+        finally:
+            settings.environment = previous_environment
+        self.assertEqual(queries, ["soc analyst"])
+
+    def test_soc_analyst_global_keeps_remotive_multi_query_coverage(self) -> None:
+        provider = type("Provider", (), {"source_name": "remotive", "supports_query_variations": True})()
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            queries = self.aggregator._search_queries(provider, "SOC Analyst", "Global")
+        finally:
+            settings.environment = previous_environment
+        self.assertLessEqual(len(queries), 3)
+        self.assertIn("soc analyst", queries)
 
     def test_web_developer_provider_plan_deprioritizes_slow_global_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -180,6 +218,26 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
         self.assertEqual(plan["primary_sources"], ["remotive", "jobicy", "jooble"])
         self.assertEqual(plan["supplemental_sources"], ["greenhouse", "themuse"])
+
+    def test_data_analyst_provider_plan_deprioritizes_themuse_and_promotes_jooble(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="Data Analyst",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"], ["remotive", "jooble", "greenhouse"])
+        self.assertEqual(plan["supplemental_sources"], ["jobicy", "adzuna"])
+
+    def test_frontend_developer_global_caps_jooble_to_single_query(self) -> None:
+        provider = type("Provider", (), {"source_name": "jooble", "supports_query_variations": True})()
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            queries = self.aggregator._search_queries(provider, "Frontend Developer", "Global")
+        finally:
+            settings.environment = previous_environment
+        self.assertEqual(len(queries), 1)
 
     def test_web_developer_final_guard_keeps_full_stack_react_title(self) -> None:
         item = {

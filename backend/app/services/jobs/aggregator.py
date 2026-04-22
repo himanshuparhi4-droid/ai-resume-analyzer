@@ -337,10 +337,44 @@ class JobAggregator:
             head in {"analyst", "specialist"} for head in profile.head_terms
         )
 
+    def _is_data_analyst_style_query(self, query: str) -> bool:
+        profile = role_profile(query)
+        normalized = profile.family_role or profile.normalized_role
+        return normalized == "data analyst"
+
     def _is_weak_software_live_family(self, query: str) -> bool:
         profile = role_profile(query)
         normalized = profile.family_role or profile.normalized_role
         return normalized in {"frontend developer", "mobile developer", "embedded engineer"}
+
+    def _production_search_query_cap(self, *, source_name: str, query: str, location: str) -> int | None:
+        family_group = self._production_family_group(query)
+        india_focused_location = self._is_india_focused_location(location)
+        security_analyst_style = self._is_security_analyst_style_query(query)
+        data_analyst_style = self._is_data_analyst_style_query(query)
+        weak_software_family = self._is_weak_software_live_family(query)
+
+        if source_name == "themuse" and family_group in {"data", "software", "security"}:
+            return 1
+        if source_name in {"adzuna", "jooble"}:
+            if data_analyst_style:
+                return 1 if not india_focused_location else 2
+            if security_analyst_style or weak_software_family:
+                return 1
+            if family_group in {"software", "security", "infra"} and not india_focused_location:
+                return 1
+            if family_group == "data" and not india_focused_location:
+                return 2
+            return 2 if india_focused_location else 1
+        if source_name == "remotive" and data_analyst_style:
+            return 3
+        if source_name == "jobicy" and security_analyst_style:
+            return 1
+        if source_name == "jobicy" and data_analyst_style:
+            return 1
+        if source_name == "remotive" and security_analyst_style:
+            return 3
+        return None
 
     def _build_production_provider_plan(
         self,
@@ -354,6 +388,7 @@ class JobAggregator:
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         security_analyst_style = self._is_security_analyst_style_query(query)
+        data_analyst_style = self._is_data_analyst_style_query(query)
         weak_software_family = self._is_weak_software_live_family(query)
 
         fallback_order: list[str] = []
@@ -363,8 +398,11 @@ class JobAggregator:
         elif dense_family:
             if india_focused_location:
                 if security_analyst_style:
-                    primary_order = ["jooble", "adzuna", "remotive"]
-                    supplemental_order = ["jobicy", "greenhouse", "themuse"]
+                    primary_order = ["remotive", "greenhouse", "adzuna"]
+                    supplemental_order = ["jobicy", "themuse", "jooble"]
+                elif data_analyst_style:
+                    primary_order = ["remotive", "jooble", "adzuna"]
+                    supplemental_order = ["greenhouse", "jobicy"]
                 elif weak_software_family:
                     primary_order = ["remotive", "jobicy", "jooble"]
                     supplemental_order = ["greenhouse", "themuse", "adzuna"]
@@ -381,11 +419,15 @@ class JobAggregator:
                     primary_order = ["jooble", "remotive", "greenhouse"]
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
-                primary_order = ["greenhouse", "remotive", "jobicy"]
-                supplemental_order = ["themuse", "jooble", "adzuna"]
+                if data_analyst_style:
+                    primary_order = ["remotive", "jooble", "greenhouse"]
+                    supplemental_order = ["jobicy", "adzuna"]
+                else:
+                    primary_order = ["greenhouse", "remotive", "jobicy"]
+                    supplemental_order = ["themuse", "jooble", "adzuna"]
             elif security_analyst_style:
-                primary_order = ["adzuna", "jooble", "remotive"]
-                supplemental_order = ["jobicy", "greenhouse", "themuse"]
+                primary_order = ["remotive", "greenhouse", "themuse"]
+                supplemental_order = ["jobicy", "jooble", "adzuna"]
             elif weak_software_family:
                 primary_order = ["remotive", "jobicy", "jooble"]
                 supplemental_order = ["greenhouse", "themuse"]
@@ -393,8 +435,8 @@ class JobAggregator:
                 primary_order = ["remotive", "jobicy", "greenhouse"]
                 supplemental_order = ["jooble", "themuse", "adzuna"]
             elif family_group == "security":
-                primary_order = ["remotive", "adzuna", "jobicy"]
-                supplemental_order = ["jooble", "greenhouse", "themuse"]
+                primary_order = ["remotive", "greenhouse", "jobicy"]
+                supplemental_order = ["themuse", "jooble", "adzuna"]
             else:
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
@@ -750,7 +792,7 @@ class JobAggregator:
         seen: set[str] = set()
 
         for provider in self.providers:
-            search_queries = self._search_queries(provider, query)
+            search_queries = self._search_queries(provider, query, location)
             search_locations = self._search_locations(provider, location)
             for search_query in search_queries:
                 for search_location in search_locations:
@@ -917,8 +959,17 @@ class JobAggregator:
 
         async def safe_search(provider: object, search_query: str, search_location: str, stage: str) -> list[dict]:
             source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
+            india_focused_location = self._is_india_focused_location(location)
+            security_analyst_style = self._is_security_analyst_style_query(query)
+            data_analyst_style = self._is_data_analyst_style_query(query)
+            weak_software_family = self._is_weak_software_live_family(query)
             if source_name == "jobicy":
-                provider_timeout = 8.0
+                if security_analyst_style:
+                    provider_timeout = 7.0
+                elif data_analyst_style:
+                    provider_timeout = 6.5
+                else:
+                    provider_timeout = 8.0
             elif source_name == "greenhouse":
                 if query_domain == "data":
                     provider_timeout = 10.5
@@ -934,9 +985,21 @@ class JobAggregator:
                 else:
                     provider_timeout = 6.0
             elif source_name == "jooble":
-                provider_timeout = 8.5
+                provider_timeout = 8.0 if india_focused_location else 6.0
+                if data_analyst_style and not india_focused_location:
+                    provider_timeout = min(provider_timeout, 5.25)
+                if security_analyst_style and not india_focused_location:
+                    provider_timeout = 4.75
+                elif weak_software_family and not india_focused_location:
+                    provider_timeout = min(provider_timeout, 5.25)
             elif source_name == "adzuna":
-                provider_timeout = 8.0
+                provider_timeout = 7.0 if india_focused_location else 5.5
+                if data_analyst_style and not india_focused_location:
+                    provider_timeout = min(provider_timeout, 5.0)
+                if security_analyst_style and not india_focused_location:
+                    provider_timeout = 4.75
+                elif weak_software_family and not india_focused_location:
+                    provider_timeout = min(provider_timeout, 5.0)
             elif source_name == "remotive":
                 provider_timeout = 9.0
             elif source_name == "themuse":
@@ -1038,7 +1101,7 @@ class JobAggregator:
         async def run_stage(stage: str, providers: list[object]) -> list[dict]:
             tasks = []
             for provider in providers:
-                search_queries = self._search_queries(provider, query)
+                search_queries = self._search_queries(provider, query, location)
                 search_locations = self._search_locations(provider, location)
                 for search_query in search_queries:
                     for search_location in search_locations[:1]:
@@ -1779,7 +1842,8 @@ class JobAggregator:
             and title_overlap == 0
             and core_title_overlap == 0
         ):
-            return False
+            if not self._data_analyst_recovery_signal(query, item):
+                return False
         if (
             query_domain == "data"
             and self._uses_strict_precision_guard(query)
@@ -1787,7 +1851,8 @@ class JobAggregator:
             and title_precision <= 0
             and title_overlap == 0
         ):
-            return False
+            if not self._data_analyst_recovery_signal(query, item):
+                return False
         # This is the over-strict guard identified in the handoff document.
         # It rejects relevant jobs (like 'BI Analyst' for a 'Data Analyst' query)
         # if their titles don't perfectly match simple heuristics, causing an unrepresentative market sample.
@@ -1845,6 +1910,57 @@ class JobAggregator:
             return family_overlap >= 1 or role_fit >= 2.5
         return False
 
+    def _data_analyst_recovery_signal(self, query: str, item: dict) -> bool:
+        if normalize_role(query) != "data analyst":
+            return False
+        title_text = self._expanded_title_query_text(item)
+        description_text = self._query_signature(item.get("description", ""))
+        tags_text = " ".join(self._query_signature(tag) for tag in item.get("tags", []) if str(tag).strip())
+        skills_text = " ".join(
+            self._query_signature(skill)
+            for skill in (item.get("normalized_data") or {}).get("skills", [])
+            if str(skill).strip()
+        )
+        haystack = " ".join([title_text, description_text, tags_text, skills_text]).strip()
+        if not haystack:
+            return False
+
+        tool_signals = {
+            "sql",
+            "power bi",
+            "tableau",
+            "looker",
+            "excel",
+        }
+        artifact_signals = {
+            "dashboard",
+            "dashboards",
+            "dashboarding",
+            "business intelligence",
+            "data visualization",
+            "kpi",
+            "kpis",
+            "scorecard",
+            "scorecards",
+        }
+        tool_count = sum(1 for signal in tool_signals if self._contains_phrase(haystack, signal))
+        artifact_count = sum(1 for signal in artifact_signals if self._contains_phrase(haystack, signal))
+        if tool_count < 1 or artifact_count < 1:
+            return False
+
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        family_overlap = self._family_token_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        skill_overlap = self._skill_overlap_score(query, item)
+        role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+        return (
+            canonical_alignment >= 2
+            and family_overlap >= 1
+            and domain_score >= 3
+            and skill_overlap >= 2.0
+            and role_fit >= 2.5
+        )
+
     def _passes_exact_query_backup_guard(self, query: str, location: str, item: dict) -> bool:
         query_domain = role_domain(query)
         canonical_alignment = self._canonical_role_alignment(query, item)
@@ -1870,12 +1986,15 @@ class JobAggregator:
             and title_precision <= 0
             and title_overlap == 0
         ):
-            return False
+            if not self._data_analyst_recovery_signal(query, item):
+                return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
         if title_overlap >= 1 or title_precision >= 1:
             return True
         if query_domain == "data":
+            if self._data_analyst_recovery_signal(query, item):
+                return True
             return canonical_alignment >= 0 and core_title_overlap >= 1 and (
                 domain_score >= 2 or skill_overlap >= 1.0 or role_fit >= 3.0
             )
@@ -1914,6 +2033,8 @@ class JobAggregator:
             ):
                 return False
             if title_precision >= 1 or title_overlap >= 1:
+                return True
+            if self._data_analyst_recovery_signal(query, item):
                 return True
             return (
                 canonical_alignment >= 0
@@ -2587,13 +2708,17 @@ class JobAggregator:
             or normalized.get("skill_extraction_mode") not in {"weighted-pattern", "hybrid"}
         )
 
-    def _search_queries(self, provider: object, query: str) -> list[str]:
+    def _search_queries(self, provider: object, query: str, location: str) -> list[str]:
         if not getattr(provider, "supports_query_variations", True):
             normalized = role_family(query) or normalize_role(query)
             return [normalized or query]
         source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
         if settings.environment == "production":
-            return provider_query_variations(query, source_name, production=True)
+            variations = provider_query_variations(query, source_name, production=True)
+            cap = self._production_search_query_cap(source_name=source_name, query=query, location=location)
+            if cap is not None:
+                return variations[: max(1, cap)]
+            return variations
         return provider_query_variations(query, source_name, production=False)
 
     def _search_locations(self, provider: object, location: str) -> list[str]:

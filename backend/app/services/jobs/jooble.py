@@ -28,15 +28,17 @@ class JoobleProvider:
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         if not settings.has_jooble_credentials:
             return []
+        normalized_query = normalize_role(query)
         normalized_location = normalize_role(location)
         location_filter = "" if normalized_location in {"", "remote", "worldwide", "global"} else location
 
         if settings.environment == "production":
-            target_candidates = min(max(limit * 3, 24), 36)
-            page_size = min(max(limit * 2, 20), 30)
+            analyst_style = normalized_query == "data analyst"
+            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 3, 24), 36)
+            page_size = min(max(limit * 2, 16), 24 if analyst_style else 30)
             page_count = 1
-            extraction_limit = 1600
-            enrichment_budget = min(max(limit + 2, 6), 8)
+            extraction_limit = 1200 if analyst_style else 1600
+            enrichment_budget = min(max(limit, 4), 5) if analyst_style else min(max(limit + 2, 6), 8)
         else:
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             page_size = min(max(limit * 4, 30), 100)
