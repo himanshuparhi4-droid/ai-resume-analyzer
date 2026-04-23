@@ -323,7 +323,7 @@ class JobAggregator:
             if stage == "primary":
                 return 8.5
             if stage == "supplemental":
-                return 6.5
+                return 9.0
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
@@ -1024,7 +1024,7 @@ class JobAggregator:
             elif source_name == "jooble":
                 provider_timeout = 8.0 if india_focused_location else 6.0
                 if data_analyst_style and not india_focused_location:
-                    provider_timeout = min(provider_timeout, 5.25)
+                    provider_timeout = 7.5
                 if security_analyst_style and not india_focused_location:
                     provider_timeout = 4.75
                 elif weak_software_family and not india_focused_location:

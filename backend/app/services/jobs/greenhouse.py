@@ -107,15 +107,26 @@ class GreenhouseProvider:
             write=10.0,
             pool=5.0,
         )
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            board_results_raw = await asyncio.gather(
-                *(self._fetch_board_index(board, client=client) for board in boards),
-                return_exceptions=True,
-            )
+        async def fetch_board_batch(client: httpx.AsyncClient, board_batch: list[str]) -> list[object]:
+            board_tasks = [asyncio.create_task(self._fetch_board_index(board, client=client)) for board in board_batch]
+            if settings.environment == "production":
+                done, pending = await asyncio.wait(board_tasks, timeout=3.25)
+                for task in pending:
+                    task.cancel()
+                batch_results: list[object] = []
+                for task in board_tasks:
+                    if task not in done or task.cancelled():
+                        batch_results.append(TimeoutError("greenhouse board index timeout"))
+                        continue
+                    try:
+                        batch_results.append(task.result())
+                    except Exception as exc:
+                        batch_results.append(exc)
+                return batch_results
+            return list(await asyncio.gather(*board_tasks, return_exceptions=True))
 
-            seen_links: set[str] = set()
-            candidates: list[dict] = []
-            for board, items in zip(boards, board_results_raw):
+        def absorb_board_results(board_batch: list[str], board_results: list[object]) -> None:
+            for board, items in zip(board_batch, board_results):
                 if isinstance(items, Exception):
                     logger.warning("Greenhouse board index fetch failed for %s: %s", board, items)
                     continue
@@ -125,6 +136,17 @@ class GreenhouseProvider:
                         continue
                     seen_links.add(link)
                     candidates.append(item)
+
+        seen_links: set[str] = set()
+        candidates: list[dict] = []
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            board_results_raw = await fetch_board_batch(client, boards)
+            absorb_board_results(boards, board_results_raw)
+            if not candidates and settings.environment == "production":
+                alternate_boards = self._fallback_boards_for_query(query, tried=set(boards), limit=2)
+                if alternate_boards:
+                    alternate_results_raw = await fetch_board_batch(client, alternate_boards)
+                    absorb_board_results(alternate_boards, alternate_results_raw)
 
             if not candidates:
                 return []
@@ -332,6 +354,21 @@ class GreenhouseProvider:
                 board_limit = min(board_limit, 2)
             boards = boards[:board_limit]
         return boards
+
+    def _fallback_boards_for_query(self, query: str, *, tried: set[str], limit: int) -> list[str]:
+        normalized = normalize_role(query)
+        domain = role_domain(query) or role_domain(normalized)
+        candidates = [
+            *_ROLE_SPECIFIC_GREENHOUSE_BOARDS.get(normalized, []),
+            *_CURATED_GREENHOUSE_BOARDS.get(domain or "", []),
+        ]
+        if settings.has_greenhouse_boards:
+            candidates.extend(settings.greenhouse_board_tokens)
+        return [
+            board
+            for board in dict.fromkeys(candidates)
+            if board and board not in tried
+        ][:limit]
 
     async def _fetch_board_index(self, board: str, *, client: httpx.AsyncClient) -> list[dict]:
         self._prune_cache(_GREENHOUSE_BOARD_INDEX_CACHE, max_entries=_MAX_GREENHOUSE_BOARD_CACHE_ENTRIES)

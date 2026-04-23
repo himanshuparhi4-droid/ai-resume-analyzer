@@ -153,7 +153,13 @@ class TheMuseProvider:
             reverse=True,
         )
         if settings.environment == "production":
-            enrichment_budget = min(max(limit // 2, 3), 4)
+            dense_data_role = normalized_role in {
+                "data analyst",
+                "data scientist",
+                "data engineer",
+                "machine learning engineer",
+            }
+            enrichment_budget = min(max(limit, 6), 8) if dense_data_role else min(max(limit // 2, 3), 4)
             extraction_limit = 850
         else:
             enrichment_budget = max(limit * 3, 32)

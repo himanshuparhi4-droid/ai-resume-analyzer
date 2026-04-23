@@ -105,6 +105,16 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertGreater(len(job["normalized_data"]["skills"]), 0)
         self.assertTrue(self.aggregator._passes_final_live_guard("Data Analyst", job))
 
+    def test_greenhouse_alternate_boards_keep_untried_role_family_boards_available(self) -> None:
+        provider = GreenhouseProvider()
+        fallback_boards = provider._fallback_boards_for_query(
+            "Data Analyst",
+            tried={"yipitdata", "instacart", "affirm", "robinhood"},
+            limit=2,
+        )
+
+        self.assertEqual(fallback_boards, ["asana", "discord"])
+
     def test_contextual_recovery_guard_rejects_adjacent_business_analyst_noise(self) -> None:
         item = {
             "title": "Senior Business Analyst",
@@ -653,6 +663,15 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             partial_live_floor=4,
         )
         self.assertGreaterEqual(grace_seconds, 0.75)
+
+    def test_data_analyst_supplemental_stage_has_room_for_jooble_completion(self) -> None:
+        timeout_seconds = self.aggregator._production_stage_soft_timeout(
+            stage="supplemental",
+            query="Data Analyst",
+            sparse_role=False,
+        )
+
+        self.assertGreaterEqual(timeout_seconds, 9.0)
 
     def test_dense_underfill_grace_window_stays_off_once_floor_is_met(self) -> None:
         grace_seconds = self.aggregator._production_underfill_grace_seconds(
