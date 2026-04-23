@@ -262,25 +262,25 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["primary_sources"], ["remotive", "jobicy", "jooble"])
         self.assertEqual(plan["supplemental_sources"], ["greenhouse", "themuse"])
 
-    def test_data_analyst_provider_plan_deprioritizes_themuse_and_promotes_jooble(self) -> None:
+    def test_data_analyst_provider_plan_prioritizes_fast_high_yield_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
         plan = self.aggregator._build_production_provider_plan(
             query="Data Analyst",
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "jooble", "greenhouse"])
-        self.assertEqual(plan["supplemental_sources"], ["jobicy", "adzuna"])
+        self.assertEqual(plan["primary_sources"], ["jobicy", "adzuna", "greenhouse", "remotive"])
+        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
 
-    def test_business_analyst_reuses_the_same_analyst_friendly_global_provider_plan(self) -> None:
+    def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
         plan = self.aggregator._build_production_provider_plan(
             query="Business Analyst",
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "jooble", "greenhouse"])
-        self.assertEqual(plan["supplemental_sources"], ["jobicy", "adzuna"])
+        self.assertEqual(plan["primary_sources"], ["jobicy", "adzuna", "greenhouse", "remotive"])
+        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
 
     def test_frontend_developer_global_caps_jooble_to_single_query(self) -> None:
         provider = type("Provider", (), {"source_name": "jooble", "supports_query_variations": True})()

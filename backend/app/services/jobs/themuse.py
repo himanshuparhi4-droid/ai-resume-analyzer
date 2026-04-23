@@ -153,14 +153,16 @@ class TheMuseProvider:
             reverse=True,
         )
         if settings.environment == "production":
-            enrichment_budget = min(max(limit + 2, 8), 12)
+            enrichment_budget = min(max(limit // 2, 3), 4)
+            extraction_limit = 850
         else:
             enrichment_budget = max(limit * 3, 32)
+            extraction_limit = 4000
         enriched_jobs: list[dict] = []
         for item in ranked_seed[:enrichment_budget]:
             requirement_profile = extract_job_requirement_profile(
                 title=str(item.get("title", "")),
-                description=str(item.get("description", "")),
+                description=truncate(str(item.get("description", "")), extraction_limit),
                 tags=item.get("tags") or [],
             )
             normalized = item.get("normalized_data") or {}

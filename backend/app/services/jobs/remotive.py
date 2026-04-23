@@ -17,9 +17,9 @@ class RemotiveProvider:
 
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         if settings.environment == "production":
-            request_limit = min(max(limit * 2, 12), 24)
-            extraction_limit = 1800
-            enrichment_budget = min(max(limit + 2, 6), 8)
+            request_limit = min(max(limit + 6, 12), 18)
+            extraction_limit = 850
+            enrichment_budget = min(max(limit // 2, 3), 4)
         else:
             request_limit = min(max(limit * 3, 18), 36)
             extraction_limit = 4000

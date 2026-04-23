@@ -319,6 +319,11 @@ class JobAggregator:
     def _production_stage_soft_timeout(self, *, stage: str, query: str, sparse_role: bool) -> float:
         if sparse_role:
             return 5.0 if stage == "primary" else 3.5
+        if self._is_data_analyst_style_query(query):
+            if stage == "primary":
+                return 8.5
+            if stage == "supplemental":
+                return 6.5
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
@@ -398,7 +403,7 @@ class JobAggregator:
                 return 2
             return 2 if india_focused_location else 1
         if source_name == "remotive" and data_analyst_style:
-            return 3
+            return 2
         if source_name == "jobicy" and security_analyst_style:
             return 1
         if source_name == "jobicy" and data_analyst_style:
@@ -432,8 +437,8 @@ class JobAggregator:
                     primary_order = ["remotive", "greenhouse", "adzuna"]
                     supplemental_order = ["jobicy", "themuse", "jooble"]
                 elif data_analyst_style:
-                    primary_order = ["remotive", "jooble", "adzuna"]
-                    supplemental_order = ["greenhouse", "jobicy"]
+                    primary_order = ["adzuna", "jobicy", "greenhouse", "remotive"]
+                    supplemental_order = ["jooble", "themuse"]
                 elif weak_software_family:
                     primary_order = ["remotive", "jobicy", "jooble"]
                     supplemental_order = ["greenhouse", "themuse", "adzuna"]
@@ -451,8 +456,8 @@ class JobAggregator:
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
                 if data_analyst_style:
-                    primary_order = ["remotive", "jooble", "greenhouse"]
-                    supplemental_order = ["jobicy", "adzuna"]
+                    primary_order = ["jobicy", "adzuna", "greenhouse", "remotive"]
+                    supplemental_order = ["jooble", "themuse"]
                 else:
                     primary_order = ["greenhouse", "remotive", "jobicy"]
                     supplemental_order = ["themuse", "jooble", "adzuna"]

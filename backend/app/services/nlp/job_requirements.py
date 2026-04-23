@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import copy
 import re
 
 from app.services.nlp.skill_extractor import KNOWN_SKILLS, canonical_skill_label, extract_skill_matches
 from app.utils.text import normalize_whitespace, truncate
 
 JOB_REQUIREMENT_PROFILE_VERSION = 6
+_REQUIREMENT_PROFILE_CACHE: dict[tuple[str, str, tuple[str, ...], str, int], dict] = {}
+_MAX_REQUIREMENT_PROFILE_CACHE_ENTRIES = 2048
 
 REQUIRED_HINTS = (
     "must have",
@@ -736,6 +739,10 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
     full_text = normalize_whitespace(f"{title_text} {description_text}")
     title_lower = title_text.lower()
     normalized_tags = [normalize_whitespace(str(tag)) for tag in (tags or []) if normalize_whitespace(str(tag))]
+    cache_key = (title_text, description_text, tuple(normalized_tags), source, JOB_REQUIREMENT_PROFILE_VERSION)
+    cached = _REQUIREMENT_PROFILE_CACHE.get(cache_key)
+    if cached is not None:
+        return copy.deepcopy(cached)
 
     weighted_scores: dict[str, float] = {}
     grouped_evidence: defaultdict[str, list[dict]] = defaultdict(list)
@@ -913,7 +920,7 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
         1,
     ) if filtered_skills else 0.0
 
-    return {
+    profile = {
         "skills": filtered_skills,
         "skill_weights": {skill: normalized_weights[skill] for skill in filtered_skills},
         "skill_evidence": [item for skill in filtered_skills for item in grouped_evidence.get(skill, [])[:2]],
@@ -921,3 +928,7 @@ def extract_job_requirement_profile(*, title: str, description: str, tags: list[
         "requirement_quality": requirement_quality,
         "normalization_version": JOB_REQUIREMENT_PROFILE_VERSION,
     }
+    if len(_REQUIREMENT_PROFILE_CACHE) >= _MAX_REQUIREMENT_PROFILE_CACHE_ENTRIES:
+        _REQUIREMENT_PROFILE_CACHE.pop(next(iter(_REQUIREMENT_PROFILE_CACHE)), None)
+    _REQUIREMENT_PROFILE_CACHE[cache_key] = copy.deepcopy(profile)
+    return profile

@@ -659,15 +659,50 @@ def _missing_gap_target(role_query: str | None) -> int:
 def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]]:
     evidence_items: list[dict[str, str]] = []
     seen_company_skill: set[str] = set()
+    normalized_skill = canonical_skill_label(skill)
     for item in job_items:
         if item.get("source") == "role-baseline":
             continue
         company = normalize_whitespace(str(item.get("company", ""))).lower() or "unknown"
-        key = f"{company}::{skill}"
+        key = f"{company}::{normalized_skill}"
         if key in seen_company_skill:
             continue
-        job_text = normalize_whitespace(f"{item.get('title', '')} {item.get('description', '')}")
-        evidence = extract_skill_evidence(job_text, [skill], source="job")
+        normalized_data = item.get("normalized_data", {}) or {}
+        stored_evidence = [
+            evidence
+            for evidence in normalized_data.get("skill_evidence", []) or []
+            if canonical_skill_label(str(evidence.get("skill", ""))) == normalized_skill
+        ]
+        evidence = stored_evidence
+        if not evidence and normalized_skill in {
+            canonical_skill_label(str(item_skill))
+            for item_skill in normalized_data.get("skills", []) or []
+            if canonical_skill_label(str(item_skill))
+        }:
+            evidence = [
+                {
+                    "snippet": normalize_whitespace(str(item.get("description") or item.get("title") or ""))[:220],
+                    "source": str(item.get("source", "unknown")),
+                }
+            ]
+        if not evidence:
+            job_text = normalize_whitespace(f"{item.get('title', '')} {item.get('description', '')}")
+            job_text_lower = job_text.lower()
+            skill_tokens = [token for token in re.split(r"[^a-z0-9]+", normalized_skill.lower()) if token]
+            if not skill_tokens or not all(token in job_text_lower for token in skill_tokens):
+                continue
+            pattern = _exact_skill_pattern(normalized_skill)
+            match = pattern.search(job_text)
+            evidence = (
+                [
+                    {
+                        "snippet": _build_snippet(job_text, match.start(), match.end()),
+                        "source": "job",
+                    }
+                ]
+                if match
+                else []
+            )
         if not evidence:
             continue
         seen_company_skill.add(key)
@@ -675,7 +710,7 @@ def _live_gap_evidence(job_items: list[dict], skill: str) -> list[dict[str, str]
             {
                 "title": str(item.get("title", "Unknown Role")),
                 "company": str(item.get("company", "Unknown Company")),
-                "snippet": evidence[0]["snippet"],
+                "snippet": str(evidence[0].get("snippet", "")),
                 "source": str(item.get("source", "unknown")),
             }
         )
@@ -696,6 +731,14 @@ def resume_skill_support_levels(
         for name, text in (resume_sections or {}).items()
         if normalize_whitespace(str(text))
     }
+    section_skill_matches: dict[str, set[str]] = {}
+    section_text_variants: dict[str, list[tuple[str, str]]] = {}
+    for section_name, section_text in normalized_sections.items():
+        section_skill_matches[section_name] = {
+            item["skill"]
+            for item in extract_skill_matches(section_text, source=f"resume:{section_name}")
+        }
+        section_text_variants[section_name] = _skill_matching_text_variants(section_text)
 
     for skill in skills:
         normalized_skill = canonical_skill_label(skill)
@@ -703,7 +746,11 @@ def resume_skill_support_levels(
             continue
         matched_sections: list[str] = []
         for section_name, section_text in normalized_sections.items():
-            if extract_skill_evidence(section_text, [normalized_skill], source=f"resume:{section_name}"):
+            matched = normalized_skill in section_skill_matches.get(section_name, set())
+            if not matched:
+                pattern = _exact_skill_pattern(normalized_skill)
+                matched = any(pattern.search(text_variant) for _, text_variant in section_text_variants.get(section_name, []))
+            if matched:
                 matched_sections.append(section_name)
 
         section_score = sum(RESUME_SECTION_SUPPORT_WEIGHTS.get(section, 0.4) for section in matched_sections)

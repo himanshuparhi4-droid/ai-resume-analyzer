@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import unittest
 
+from app.core.config import settings
 from app.services.jobs.aggregator import JobAggregator
+from app.services.nlp.embeddings import EmbeddingService
 from evals.run_live_fetch_matrix import (
     PRESET_ROLE_MATRICES,
     _aggregate_provider_attempts,
@@ -137,6 +139,24 @@ class AggregatorProviderDiagnosticsTest(unittest.TestCase):
         self.assertEqual(rollup["adzuna"]["raw_returned"], 5)
         self.assertEqual(rollup["adzuna"]["avg_elapsed_ms"], 2100.0)
         self.assertEqual(rollup["adzuna"]["max_elapsed_ms"], 2400.0)
+
+
+class ProductionScoringLatencyGuardTest(unittest.TestCase):
+    def test_production_disables_sentence_transformer_loading_by_default(self) -> None:
+        previous_environment = settings.environment
+        previous_enable_embeddings = settings.enable_embeddings
+        previous_enable_production_embeddings = settings.enable_production_embeddings
+        settings.environment = "production"
+        settings.enable_embeddings = True
+        settings.enable_production_embeddings = False
+        try:
+            service = EmbeddingService()
+        finally:
+            settings.environment = previous_environment
+            settings.enable_embeddings = previous_enable_embeddings
+            settings.enable_production_embeddings = previous_enable_production_embeddings
+
+        self.assertFalse(service._enabled)
 
 
 if __name__ == "__main__":

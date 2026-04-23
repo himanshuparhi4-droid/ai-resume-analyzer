@@ -19,7 +19,9 @@ def _load_sentence_transformer():
 
 class EmbeddingService:
     def __init__(self) -> None:
-        self._enabled = settings.enable_embeddings
+        self._enabled = settings.enable_embeddings and (
+            settings.environment != "production" or settings.enable_production_embeddings
+        )
 
     def _get_model(self):
         if not self._enabled:

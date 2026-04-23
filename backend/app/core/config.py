@@ -106,6 +106,7 @@ class Settings(BaseSettings):
 
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     enable_embeddings: bool = True
+    enable_production_embeddings: bool = False
     spacy_model: str = "en_core_web_sm"
 
     llm_provider: str = "disabled"

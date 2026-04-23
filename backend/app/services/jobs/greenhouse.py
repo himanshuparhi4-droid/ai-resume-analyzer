@@ -8,7 +8,7 @@ import httpx
 
 from app.core.config import settings
 from app.services.jobs.taxonomy import normalize_role, role_domain, role_family, role_fit_score, role_profile, role_title_alignment_score
-from app.services.nlp.job_requirements import extract_job_requirement_profile
+from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
 _GREENHOUSE_BOARD_INDEX_CACHE: dict[str, dict] = {}
@@ -311,12 +311,22 @@ class GreenhouseProvider:
                 f"{title} role at {company}. Greenhouse ATS listing from the {board} board"
                 + (f" in {location}." if location and location != "Unknown" else ".")
             )
-            requirement_profile = extract_job_requirement_profile(
-                title=title,
-                description=lightweight_description,
-                tags=tags,
-                source="greenhouse-index",
-            )
+            if settings.environment == "production":
+                requirement_profile = {
+                    "skills": [],
+                    "skill_weights": {},
+                    "skill_evidence": [],
+                    "skill_extraction_mode": "greenhouse-index-title-only",
+                    "requirement_quality": 0.0,
+                    "normalization_version": JOB_REQUIREMENT_PROFILE_VERSION,
+                }
+            else:
+                requirement_profile = extract_job_requirement_profile(
+                    title=title,
+                    description=lightweight_description,
+                    tags=tags,
+                    source="greenhouse-index",
+                )
             jobs.append(
                 {
                     "source": self.source_name,
@@ -382,7 +392,8 @@ class GreenhouseProvider:
         office_tags = [str(entry.get("name") or "").strip() for entry in (item.get("offices") or []) if entry.get("name")]
         metadata_tags = [str(entry.get("name") or "").strip() for entry in metadata if entry.get("name")]
         tags = [tag for tag in [*department_tags, *office_tags, *metadata_tags, company, board] if tag]
-        requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=tags)
+        extraction_description = truncate(raw_description, 900 if settings.environment == "production" else 4000)
+        requirement_profile = extract_job_requirement_profile(title=title, description=extraction_description, tags=tags)
         description = truncate(raw_description, 4000)
         job = {
             "source": self.source_name,

@@ -25,8 +25,8 @@ class JobicyProvider:
         normalized_role = normalize_role(query)
         if settings.environment == "production":
             request_count = min(max(limit + 4, 12), 16)
-            extraction_limit = 1800
-            enrichment_budget = min(max(limit + 1, 5), 7)
+            extraction_limit = 850
+            enrichment_budget = min(max(limit // 2, 3), 4)
         else:
             request_count = min(max(limit * 2, settings.production_live_candidate_fetch), 50)
             extraction_limit = 4000
