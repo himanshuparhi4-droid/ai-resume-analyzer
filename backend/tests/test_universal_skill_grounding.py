@@ -3,7 +3,13 @@ from __future__ import annotations
 import unittest
 
 from app.services.nlp.skill_grounding import SkillGroundingService
-from app.services.nlp.skill_extractor import augment_missing_skills, resume_skill_support_levels
+from app.services.nlp.skill_extractor import (
+    augment_missing_skills,
+    canonical_skill_label,
+    extract_skill_evidence,
+    extract_skills,
+    resume_skill_support_levels,
+)
 
 
 class UniversalSkillGroundingTest(unittest.TestCase):
@@ -194,6 +200,73 @@ class UniversalSkillGroundingTest(unittest.TestCase):
 
         self.assertEqual(support["sql"], "strong")
         self.assertEqual(support["power bi"], "strong")
+
+    def test_skill_extraction_handles_case_spacing_and_punctuation_variants(self) -> None:
+        text = (
+            "TECHNICAL SKILLS: SQL, PYTHON, PowerBI, Power_BI, Power B.I., "
+            "DataVisualisation, data-visualization, DASH BOARD, dashboards."
+        )
+
+        skills = set(extract_skills(text))
+
+        self.assertIn("sql", skills)
+        self.assertIn("python", skills)
+        self.assertIn("power bi", skills)
+        self.assertIn("data visualization", skills)
+        self.assertIn("dashboarding", skills)
+
+    def test_skill_evidence_finds_canonical_variants_without_role_hardcoding(self) -> None:
+        evidence = extract_skill_evidence(
+            "Built KPI dash-board reports in POWER_BI with DataVisualisation for operations.",
+            ["power bi", "data visualization", "dashboarding"],
+            source="resume:projects",
+        )
+
+        evidence_skills = {item["skill"] for item in evidence}
+        self.assertEqual({"power bi", "data visualization", "dashboarding"}, evidence_skills)
+
+    def test_skill_canonicalization_collapses_common_tool_variants(self) -> None:
+        cases = {
+            "PowerBI": "power bi",
+            "POWER-B.I.": "power bi",
+            "DataVisualisation": "data visualization",
+            "dash_board": "dashboarding",
+            "Structured Query Language": "sql",
+            "CI CD": "ci/cd",
+            "Scikit Learn": "scikit-learn",
+        }
+
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(canonical_skill_label(raw), expected)
+
+    def test_missing_skill_model_does_not_flag_canonical_resume_variants_as_absent(self) -> None:
+        jobs = [
+            {
+                "source": "greenhouse",
+                "company": "Alpha",
+                "title": "Data Analyst",
+                "description": "Requirements: Power BI, SQL dashboards, reporting, and data visualization.",
+                "normalized_data": {
+                    "skills": ["power bi", "sql", "dashboarding", "reporting", "data visualization"],
+                    "skill_weights": {"power bi": 0.9, "sql": 0.86, "dashboarding": 0.8},
+                },
+            }
+        ]
+
+        gaps = augment_missing_skills(
+            role_query="Data Analyst",
+            resume_skills={"POWER-BI", "SQL", "DataVisualisation", "dash_board"},
+            resume_sections={
+                "projects": "Built executive dash-board views using POWER_BI and SQL.",
+                "skills": "SQL, POWER-BI, DataVisualisation, Dashboard",
+            },
+            job_items=jobs,
+            existing_missing_skills=[{"skill": "PowerBI", "share": 32.0, "signal_source": "live"}],
+        )
+
+        gap_names = {item["skill"] for item in gaps}
+        self.assertNotIn("power bi", gap_names)
 
 
 if __name__ == "__main__":

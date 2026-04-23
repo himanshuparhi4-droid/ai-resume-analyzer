@@ -58,8 +58,16 @@ SKILL_PATTERNS = {
         r"\bproductioni[sz]e models?\b",
     ],
     "statsmodels": [r"\bstatsmodels\b"],
-    "data visualization": [r"\bdata visualization\b", r"\bdata visualisation\b", r"\bvisualization\b", r"\bdashboarding\b"],
-    "dashboarding": [r"\bdashboarding\b", r"\bdashboards?\b", r"\breport building\b"],
+    "data visualization": [
+        r"\bdata visualization\b",
+        r"\bdata visualisation\b",
+        r"\bdata\s*visuali[sz]ations?\b",
+        r"\bvisuali[sz]ations?\b",
+        r"\bdata\s*viz\b",
+        r"\bdataviz\b",
+        r"\bdashboarding\b",
+    ],
+    "dashboarding": [r"\bdashboarding\b", r"\bdash\s*boards?\b", r"\bdashboards?\b", r"\breport building\b"],
     "reporting": [r"\breporting\b", r"\breports?\b", r"\bkpi reporting\b"],
     "computer vision": [r"\bcomputer vision\b"],
     "deep learning": [r"\bdeep learning\b"],
@@ -82,7 +90,7 @@ SKILL_PATTERNS = {
     "nlp": [r"\bnatural language processing\b", r"\bnlp\b"],
     "machine learning": [r"\bmachine learning\b", r"\bml\b"],
     "data analysis": [r"\bdata analysis\b", r"\bdata analytics\b", r"\bdata analyst\b", r"\bexploratory data analysis\b", r"\beda\b"],
-    "power bi": [r"\bpower\s*bi\b", r"\bpowerbi\b", r"\bdax\b", r"\bpower query\b", r"\bpower pivot\b", r"\bpowerpivot\b"],
+    "power bi": [r"\bpower\s*bi\b", r"\bpower\s*b\s*i\b", r"\bpowerbi\b", r"\bdax\b", r"\bpower query\b", r"\bpower pivot\b", r"\bpowerpivot\b"],
     "tableau": [r"\btableau\b", r"\btableau desktop\b", r"\btableau prep\b"],
     "looker": [r"\blooker\b", r"\blooker studio\b", r"\bgoogle data studio\b"],
     "excel": [r"\bmicrosoft excel\b", r"\bexcel\b", r"\bpivot tables?\b", r"\bvlookups?\b", r"\bxlookups?\b"],
@@ -196,6 +204,104 @@ COMPILED_SKILL_PATTERNS = {
     for skill, patterns in SKILL_PATTERNS.items()
 }
 KNOWN_SKILLS = set(SKILL_PATTERNS.keys())
+SKILL_LABEL_ALIASES = {
+    "advanced excel": "excel",
+    "amazon web services": "aws",
+    "analytics": "data analysis",
+    "business analytics": "data analysis",
+    "business intelligence tools": "business intelligence",
+    "ci cd": "ci/cd",
+    "cicd": "ci/cd",
+    "customer relationship management": "crm",
+    "dash board": "dashboarding",
+    "dash boards": "dashboarding",
+    "dashboard": "dashboarding",
+    "dashboards": "dashboarding",
+    "data analytics": "data analysis",
+    "data visualisation": "data visualization",
+    "data visualisations": "data visualization",
+    "data visualization": "data visualization",
+    "data visualizations": "data visualization",
+    "data viz": "data visualization",
+    "dataviz": "data visualization",
+    "elastic compute cloud": "ec2",
+    "enterprise resource planning": "erp",
+    "google data studio": "looker",
+    "github": "git",
+    "gitlab": "git",
+    "identity and access management": "iam",
+    "kpi dashboard": "dashboarding",
+    "kpi dashboards": "dashboarding",
+    "kpi report": "reporting",
+    "kpi reporting": "reporting",
+    "kpi reports": "reporting",
+    "looker studio": "looker",
+    "machine learning operations": "mlops",
+    "microsoft excel": "excel",
+    "natural language processing": "nlp",
+    "pl sql": "sql",
+    "plsql": "sql",
+    "power b i": "power bi",
+    "power bi": "power bi",
+    "powerbi": "power bi",
+    "power pivot": "power bi",
+    "power query": "power bi",
+    "powerpivot": "power bi",
+    "report": "reporting",
+    "reports": "reporting",
+    "report building": "dashboarding",
+    "security information and event management": "siem",
+    "structured query language": "sql",
+    "t sql": "sql",
+    "tableau desktop": "tableau",
+    "tableau prep": "tableau",
+    "visualisation": "data visualization",
+    "visualisations": "data visualization",
+    "visualization": "data visualization",
+    "visualizations": "data visualization",
+}
+
+
+def _skill_text_fold(value: str) -> str:
+    text = normalize_whitespace(str(value or ""))
+    if not text:
+        return ""
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", text)
+    text = re.sub(r"(?<![A-Za-z])(?:[A-Za-z]\.){2,}(?![A-Za-z])", lambda match: match.group(0).replace(".", ""), text)
+    text = text.lower().replace("&", " and ")
+    text = re.sub(r"[_/|\u2022\u00b7-]+", " ", text)
+    text = re.sub(r"[^a-z0-9+#.]+", " ", text)
+    text = text.replace(".", " ")
+    return normalize_whitespace(text)
+
+
+def _compact_skill_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9+#]+", "", _skill_text_fold(value))
+
+
+KNOWN_SKILL_COMPACT_MAP = {_compact_skill_key(skill): skill for skill in KNOWN_SKILLS}
+SKILL_ALIAS_COMPACT_MAP = {_compact_skill_key(alias): canonical for alias, canonical in SKILL_LABEL_ALIASES.items()}
+
+
+def canonical_skill_label(value: str) -> str:
+    folded = _skill_text_fold(value)
+    if not folded:
+        return ""
+    aliased = SKILL_LABEL_ALIASES.get(folded)
+    if aliased:
+        return aliased
+    if folded in KNOWN_SKILLS:
+        return folded
+    compact = _compact_skill_key(folded)
+    if compact in SKILL_ALIAS_COMPACT_MAP:
+        return SKILL_ALIAS_COMPACT_MAP[compact]
+    if compact in KNOWN_SKILL_COMPACT_MAP:
+        return KNOWN_SKILL_COMPACT_MAP[compact]
+    singular = folded[:-1] if folded.endswith("s") else folded
+    return SKILL_LABEL_ALIASES.get(singular, singular)
+
+
 ROLE_GENERIC_SECONDARY_SKILLS = {
     "reporting",
     "dashboarding",
@@ -308,33 +414,46 @@ def _build_snippet(text: str, start: int, end: int) -> str:
 
 
 def _exact_skill_pattern(skill: str) -> re.Pattern[str]:
-    return re.compile(rf"(?<![A-Za-z0-9]){re.escape(skill)}(?![A-Za-z0-9])", re.IGNORECASE)
+    tokens = [token for token in _skill_text_fold(skill).split() if token]
+    if not tokens:
+        return re.compile(r"$^")
+    pattern = r"[\s._/\-]*".join(re.escape(token) for token in tokens)
+    return re.compile(rf"(?<![A-Za-z0-9]){pattern}(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def _skill_matching_text_variants(text: str) -> list[tuple[str, str]]:
+    normalized = normalize_whitespace(text)
+    normalized_without_urls = URL_RE.sub(" ", normalized)
+    variants = [("pattern", normalize_whitespace(normalized_without_urls))]
+    folded = _skill_text_fold(normalized_without_urls)
+    if folded and folded != variants[0][1]:
+        variants.append(("pattern-normalized", folded))
+    return [(mode, value) for mode, value in variants if value]
 
 
 def extract_skill_matches(text: str, *, source: str = "document") -> list[dict]:
-    normalized = normalize_whitespace(text)
-    url_spans = [match.span() for match in URL_RE.finditer(normalized)]
     collected: list[dict] = []
 
     for skill, patterns in COMPILED_SKILL_PATTERNS.items():
         seen_snippets: set[str] = set()
-        for pattern in patterns:
-            for match in pattern.finditer(normalized):
-                if any(start <= match.start() < end for start, end in url_spans):
-                    continue
-                snippet = _build_snippet(normalized, match.start(), match.end())
-                if snippet in seen_snippets:
-                    continue
-                seen_snippets.add(snippet)
-                collected.append(
-                    {
-                        "skill": skill,
-                        "matched_text": match.group(0),
-                        "snippet": snippet,
-                        "source": source,
-                        "mode": "pattern",
-                    }
-                )
+        for mode, searchable_text in _skill_matching_text_variants(text):
+            for pattern in patterns:
+                for match in pattern.finditer(searchable_text):
+                    snippet = _build_snippet(searchable_text, match.start(), match.end())
+                    if snippet in seen_snippets:
+                        continue
+                    seen_snippets.add(snippet)
+                    collected.append(
+                        {
+                            "skill": canonical_skill_label(skill),
+                            "matched_text": match.group(0),
+                            "snippet": snippet,
+                            "source": source,
+                            "mode": mode,
+                        }
+                    )
+                    if len(seen_snippets) >= 2:
+                        break
                 if len(seen_snippets) >= 2:
                     break
             if len(seen_snippets) >= 2:
@@ -348,18 +467,25 @@ def extract_skills(text: str) -> list[str]:
 
 
 def extract_skill_evidence(text: str, skills: list[str], *, source: str = "document") -> list[dict]:
-    normalized = normalize_whitespace(text)
-    requested = {normalize_whitespace(skill).lower() for skill in skills if normalize_whitespace(skill).strip()}
-    evidence = [item for item in extract_skill_matches(normalized, source=source) if item["skill"] in requested]
+    requested = {canonical_skill_label(skill) for skill in skills if canonical_skill_label(skill)}
+    evidence = [item for item in extract_skill_matches(text, source=source) if item["skill"] in requested]
     existing = {(item["skill"], item["snippet"]) for item in evidence}
     missing = requested - {item["skill"] for item in evidence}
 
     for skill in sorted(missing):
         pattern = _exact_skill_pattern(skill)
-        match = pattern.search(normalized)
+        match = None
+        searchable_text = ""
+        mode = "literal"
+        for candidate_mode, candidate_text in _skill_matching_text_variants(text):
+            match = pattern.search(candidate_text)
+            if match:
+                searchable_text = candidate_text
+                mode = f"{candidate_mode}-literal"
+                break
         if not match:
             continue
-        snippet = _build_snippet(normalized, match.start(), match.end())
+        snippet = _build_snippet(searchable_text, match.start(), match.end())
         key = (skill, snippet)
         if key in existing:
             continue
@@ -369,7 +495,7 @@ def extract_skill_evidence(text: str, skills: list[str], *, source: str = "docum
                 "matched_text": match.group(0),
                 "snippet": snippet,
                 "source": source,
-                "mode": "literal",
+                "mode": mode,
             }
         )
 
@@ -402,7 +528,13 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
 
     for item in job_items:
         normalized_data = item.get("normalized_data", {}) or {}
-        skills = list(dict.fromkeys(normalized_data.get("skills", [])))
+        skills = list(
+            dict.fromkeys(
+                canonical_skill_label(skill)
+                for skill in normalized_data.get("skills", [])
+                if canonical_skill_label(skill)
+            )
+        )
         if not skills:
             continue
 
@@ -420,11 +552,15 @@ def infer_skill_frequency(job_items: list[dict], *, role_query: str | None = Non
         denominator += job_weight
 
         title_text = normalize_whitespace(str(item.get("title", ""))).lower()
-        skill_weights = normalized_data.get("skill_weights", {}) or {}
+        skill_weights = {
+            canonical_skill_label(skill): weight
+            for skill, weight in (normalized_data.get("skill_weights", {}) or {}).items()
+            if canonical_skill_label(skill)
+        }
         evidence_count = Counter(
-            evidence.get("skill")
+            canonical_skill_label(evidence.get("skill", ""))
             for evidence in normalized_data.get("skill_evidence", [])
-            if evidence.get("skill")
+            if canonical_skill_label(evidence.get("skill", ""))
         )
         company = normalize_whitespace(str(item.get("company", ""))).lower() or f"{source_name}:{title_text[:48]}"
 
@@ -562,7 +698,9 @@ def resume_skill_support_levels(
     }
 
     for skill in skills:
-        normalized_skill = normalize_whitespace(skill).lower()
+        normalized_skill = canonical_skill_label(skill)
+        if not normalized_skill:
+            continue
         matched_sections: list[str] = []
         for section_name, section_text in normalized_sections.items():
             if extract_skill_evidence(section_text, [normalized_skill], source=f"resume:{section_name}"):
@@ -587,8 +725,9 @@ def resume_skill_proof_weight(
     resume_skills: set[str],
     support_levels: dict[str, str],
 ) -> float:
-    normalized_skill = normalize_whitespace(skill).lower()
-    if normalized_skill not in resume_skills:
+    normalized_skill = canonical_skill_label(skill)
+    canonical_resume_skills = {canonical_skill_label(item) for item in resume_skills if canonical_skill_label(item)}
+    if normalized_skill not in canonical_resume_skills:
         return RESUME_PROOF_LEVEL_WEIGHTS["none"]
     support_level = support_levels.get(normalized_skill, "weak")
     return RESUME_PROOF_LEVEL_WEIGHTS.get(support_level, RESUME_PROOF_LEVEL_WEIGHTS["weak"])
@@ -606,7 +745,7 @@ def required_resume_proof_weight(
     if not role_query:
         return threshold
 
-    normalized_skill = normalize_whitespace(skill).lower()
+    normalized_skill = canonical_skill_label(skill)
     stats = market_stats or {}
     share = float(stats.get("share", 0.0) or 0.0)
     live_count = int(stats.get("live_count", 0) or 0)
@@ -641,18 +780,28 @@ def augment_missing_skills(
     if not role_query:
         return existing_missing_skills[:10]
 
-    normalized_resume_skills = {normalize_whitespace(skill).lower() for skill in resume_skills if normalize_whitespace(skill)}
-    augmented: list[dict] = [{**item, "signal_source": str(item.get("signal_source", "live"))} for item in existing_missing_skills]
-    existing_names = {str(item.get("skill", "")).lower() for item in augmented if str(item.get("skill", "")).strip()}
+    normalized_resume_skills = {canonical_skill_label(skill) for skill in resume_skills if canonical_skill_label(skill)}
+    augmented: list[dict] = [
+        {
+            **item,
+            "skill": canonical_skill_label(str(item.get("skill", ""))) or str(item.get("skill", "")).lower(),
+            "signal_source": str(item.get("signal_source", "live")),
+        }
+        for item in existing_missing_skills
+    ]
     target_count = _missing_gap_target(role_query)
     live_jobs = [item for item in job_items if item.get("source") != "role-baseline"]
     live_job_count = max(len(live_jobs), 1)
-    recommendation_skills = role_recommendation_skills(role_query, limit=14)
+    recommendation_skills = [
+        canonical_skill_label(skill)
+        for skill in role_recommendation_skills(role_query, limit=14)
+        if canonical_skill_label(skill)
+    ]
     live_market_frequency = market_skill_frequency or infer_skill_frequency(job_items, role_query=role_query)
     live_market_stats = {
-        str(item.get("skill", "")).lower(): item
+        canonical_skill_label(str(item.get("skill", ""))): {**item, "skill": canonical_skill_label(str(item.get("skill", "")))}
         for item in live_market_frequency
-        if str(item.get("skill", "")).strip()
+        if canonical_skill_label(str(item.get("skill", "")))
     }
     resume_support = resume_skill_support_levels(
         resume_sections=resume_sections,
@@ -674,6 +823,16 @@ def augment_missing_skills(
             experience_years=experience_years,
             live_job_count=live_job_count,
         )
+
+    augmented = [
+        item
+        for item in augmented
+        if not (
+            canonical_skill_label(str(item.get("skill", ""))) in normalized_resume_skills
+            and proof_weight_for(str(item.get("skill", ""))) >= required_weight_for(str(item.get("skill", "")))
+        )
+    ]
+    existing_names = {canonical_skill_label(str(item.get("skill", ""))) for item in augmented if canonical_skill_label(str(item.get("skill", "")))}
 
     evidence_backfill: list[dict] = []
     weak_market_backfill: list[dict] = []
@@ -706,7 +865,7 @@ def augment_missing_skills(
         existing_names.add(skill)
 
     for rank, skill in enumerate(recommendation_skills, start=1):
-        normalized_skill = normalize_whitespace(skill).lower()
+        normalized_skill = canonical_skill_label(skill)
         if not normalized_skill or normalized_skill in existing_names:
             continue
         current_proof_weight = proof_weight_for(normalized_skill)
@@ -767,7 +926,7 @@ def augment_missing_skills(
         ),
         reverse=True,
     ):
-        skill = str(item.get("skill", "")).lower()
+        skill = canonical_skill_label(str(item.get("skill", "")))
         if not skill or skill in seen:
             continue
         seen.add(skill)

@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 import re
 
-from app.services.nlp.skill_extractor import KNOWN_SKILLS, extract_skill_matches
+from app.services.nlp.skill_extractor import KNOWN_SKILLS, canonical_skill_label, extract_skill_matches
 from app.utils.text import normalize_whitespace, truncate
 
-JOB_REQUIREMENT_PROFILE_VERSION = 5
+JOB_REQUIREMENT_PROFILE_VERSION = 6
 
 REQUIRED_HINTS = (
     "must have",
@@ -600,7 +600,7 @@ def _normalize_candidate_skill(label: str) -> str:
     cleaned = re.sub(r"[^a-z0-9+#/& .-]+$", "", cleaned)
     cleaned = normalize_whitespace(cleaned)
     cleaned = CANONICAL_SKILL_ALIASES.get(cleaned, cleaned)
-    return cleaned
+    return canonical_skill_label(cleaned)
 
 
 def _is_valid_candidate_skill(skill: str) -> bool:

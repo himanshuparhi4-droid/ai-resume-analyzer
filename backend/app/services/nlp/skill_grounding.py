@@ -17,7 +17,13 @@ from app.services.jobs.taxonomy import (
     role_recommendation_skills,
 )
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
-from app.services.nlp.skill_extractor import KNOWN_SKILLS, extract_skill_evidence, extract_skill_matches, infer_skill_frequency
+from app.services.nlp.skill_extractor import (
+    KNOWN_SKILLS,
+    canonical_skill_label,
+    extract_skill_evidence,
+    extract_skill_matches,
+    infer_skill_frequency,
+)
 from app.utils.text import normalize_whitespace
 
 try:
@@ -145,8 +151,15 @@ class SkillGroundingService:
 
         audit = None if baseline_only else await self._run_skill_audit(role_query=role_query, resume_data=resume_data, jobs=jobs)
 
-        candidate_resume_skills = sorted(resume_data.get("skills", []))
-        candidate_market_skills = sorted({skill for job in jobs for skill in job.get("normalized_data", {}).get("skills", [])})
+        candidate_resume_skills = sorted({canonical_skill_label(skill) for skill in resume_data.get("skills", []) if canonical_skill_label(skill)})
+        candidate_market_skills = sorted(
+            {
+                canonical_skill_label(skill)
+                for job in jobs
+                for skill in job.get("normalized_data", {}).get("skills", [])
+                if canonical_skill_label(skill)
+            }
+        )
 
         kept_resume_skills = (
             sorted(set(candidate_resume_skills) | set(self._normalize_existing_skills(audit.get("resume_keep", []), candidate_resume_skills)))
@@ -175,7 +188,11 @@ class SkillGroundingService:
         for job in jobs:
             normalized = job.setdefault("normalized_data", {})
             job_text = normalize_whitespace(f"{job.get('title', '')} {job.get('description', '')}")
-            filtered_skills = [skill for skill in normalized.get("skills", []) if skill in final_market_skills]
+            filtered_skills = [
+                canonical_skill_label(skill)
+                for skill in normalized.get("skills", [])
+                if canonical_skill_label(skill) in final_market_skills
+            ]
             dynamic_for_job = [
                 skill
                 for skill in dynamic_market_skills
@@ -183,8 +200,13 @@ class SkillGroundingService:
             ]
             normalized["skills"] = sorted(set(filtered_skills) | set(dynamic_for_job))
             existing_weights = normalized.get("skill_weights", {}) or {}
+            canonical_existing_weights = {
+                canonical_skill_label(skill): weight
+                for skill, weight in existing_weights.items()
+                if canonical_skill_label(skill)
+            }
             normalized["skill_weights"] = {
-                skill: float(existing_weights.get(skill, 0.82 if job.get("source") != "role-baseline" else 0.7))
+                skill: float(canonical_existing_weights.get(skill, 0.82 if job.get("source") != "role-baseline" else 0.7))
                 for skill in normalized["skills"]
             }
             normalized["skill_evidence"] = extract_skill_evidence(job_text, normalized["skills"], source="job")
@@ -698,9 +720,7 @@ class SkillGroundingService:
         return sorted(set(result))
 
     def _normalize_label(self, value: str) -> str:
-        cleaned = normalize_whitespace(value).lower().strip(" .,:;()[]{}")
-        cleaned = re.sub(r"\s+", " ", cleaned)
-        return cleaned
+        return canonical_skill_label(value)
 
     def _is_valid_dynamic_skill(self, value: str) -> bool:
         if not value or len(value) < 2:
@@ -794,11 +814,11 @@ class SkillGroundingService:
         sections = resume_data.get("sections", {})
         raw_text = resume_data.get("raw_text", "")
         parse_signals = resume_data.get("parse_signals", {})
-        targeted = set(selected_skills or [])
+        targeted = {canonical_skill_label(skill) for skill in selected_skills or [] if canonical_skill_label(skill)}
         seeded_skills = {
-            normalize_whitespace(skill).lower()
+            canonical_skill_label(skill)
             for skill in resume_data.get("skills", [])
-            if normalize_whitespace(skill)
+            if canonical_skill_label(skill)
         }
         section_priority = {
             "skills": 4,
