@@ -71,9 +71,11 @@ export type AnalysisResponse = {
   overall_score: number;
   breakdown: ScoreBreakdown;
   matched_skills: string[];
-  missing_skills: { skill: string; share: number }[];
+  missing_skills: { skill: string; share: number; signal_source?: string }[];
+  weak_skill_proofs?: { skill: string; share: number; signal_source?: string }[];
   matched_skill_details?: SkillDetail[];
   missing_skill_details?: SkillDetail[];
+  weak_skill_proof_details?: SkillDetail[];
   market_skill_frequency?: { skill: string; count: number; share: number }[];
   top_job_matches: JobMatch[];
   analysis_context?: {

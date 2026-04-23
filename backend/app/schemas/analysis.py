@@ -28,8 +28,10 @@ class AnalysisResponse(BaseModel):
     breakdown: ScoreBreakdown
     matched_skills: list[str]
     missing_skills: list[dict]
+    weak_skill_proofs: list[dict] = []
     matched_skill_details: list[dict] = []
     missing_skill_details: list[dict] = []
+    weak_skill_proof_details: list[dict] = []
     market_skill_frequency: list[dict] = []
     top_job_matches: list[JobListingOut]
     analysis_context: dict = {}

@@ -9,6 +9,7 @@ from app.services.nlp.skill_extractor import (
     extract_skill_evidence,
     extract_skills,
     resume_skill_support_levels,
+    split_missing_and_weak_skill_proofs,
 )
 
 
@@ -267,6 +268,20 @@ class UniversalSkillGroundingTest(unittest.TestCase):
 
         gap_names = {item["skill"] for item in gaps}
         self.assertNotIn("power bi", gap_names)
+
+    def test_detected_skills_are_split_out_of_missing_gap_payload(self) -> None:
+        missing, weak = split_missing_and_weak_skill_proofs(
+            [
+                {"skill": "SQL", "share": 50.0, "signal_source": "weak-resume-proof"},
+                {"skill": "PowerBI", "share": 45.0, "signal_source": "live"},
+                {"skill": "Excel", "share": 30.0, "signal_source": "live"},
+            ],
+            resume_skills={"sql", "POWER_BI"},
+        )
+
+        self.assertEqual({"excel"}, {item["skill"] for item in missing})
+        self.assertEqual({"sql", "power bi"}, {item["skill"] for item in weak})
+        self.assertTrue(all(item["signal_source"] == "weak-resume-proof" for item in weak))
 
 
 if __name__ == "__main__":

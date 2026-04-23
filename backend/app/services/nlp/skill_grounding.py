@@ -385,16 +385,71 @@ class SkillGroundingService:
         jobs: list[dict],
         matched_skills: list[str],
         missing_skills: list[dict],
+        weak_skill_proofs: list[dict] | None = None,
         resume_skill_evidence: list[dict] | None = None,
     ) -> dict[str, Any]:
         market_skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in market_skill_frequency}
         live_jobs_present = any(job.get("source") != "role-baseline" for job in jobs)
         resume_evidence_map: dict[str, list[str]] = {}
-        resume_evidence_candidates = resume_skill_evidence or extract_skill_evidence(resume_text, matched_skills, source="resume")
+        normalized_missing_skills: list[dict] = []
+        seen_missing_skills: set[str] = set()
+        for item in missing_skills or []:
+            if not isinstance(item, dict):
+                continue
+            skill = canonical_skill_label(str(item.get("skill", "")))
+            if not skill or skill in seen_missing_skills:
+                continue
+            seen_missing_skills.add(skill)
+            normalized_missing_skills.append({**item, "skill": skill})
+        missing_skills = normalized_missing_skills
+        normalized_weak_skill_proofs: list[dict] = []
+        seen_weak_skills: set[str] = set()
+        for item in weak_skill_proofs or []:
+            if not isinstance(item, dict):
+                continue
+            skill = canonical_skill_label(str(item.get("skill", "")))
+            if not skill or skill in seen_weak_skills:
+                continue
+            seen_weak_skills.add(skill)
+            normalized_weak_skill_proofs.append({**item, "skill": skill, "signal_source": item.get("signal_source", "weak-resume-proof")})
+        weak_skill_proofs = normalized_weak_skill_proofs
+        weak_skill_names = [
+            str(item.get("skill", ""))
+            for item in weak_skill_proofs
+            if item.get("skill")
+        ]
+        needed_resume_evidence_skills = sorted(
+            {
+                canonical_skill_label(skill)
+                for skill in [*matched_skills, *weak_skill_names]
+                if canonical_skill_label(skill)
+            }
+        )
+        resume_evidence_candidates = list(resume_skill_evidence or [])
+        existing_resume_evidence_skills = {
+            canonical_skill_label(str(item.get("skill", "")))
+            for item in resume_evidence_candidates
+            if canonical_skill_label(str(item.get("skill", "")))
+        }
+        missing_resume_evidence_skills = [
+            skill
+            for skill in needed_resume_evidence_skills
+            if skill not in existing_resume_evidence_skills
+        ]
+        if not resume_evidence_candidates or missing_resume_evidence_skills:
+            resume_evidence_candidates.extend(
+                extract_skill_evidence(
+                    resume_text,
+                    missing_resume_evidence_skills or needed_resume_evidence_skills,
+                    source="resume",
+                )
+            )
         grouped_resume_evidence: dict[str, list[dict]] = {}
         for item in resume_evidence_candidates:
-            grouped_resume_evidence.setdefault(item["skill"], []).append(item)
+            skill = canonical_skill_label(str(item.get("skill", "")))
+            if skill:
+                grouped_resume_evidence.setdefault(skill, []).append({**item, "skill": skill})
         for skill, items in grouped_resume_evidence.items():
             ranked_items = sorted(items, key=self._resume_evidence_rank, reverse=True)
             resume_evidence_map[skill] = [item["snippet"] for item in ranked_items[:2]]
@@ -431,7 +486,7 @@ class SkillGroundingService:
         missing_skill_details = [
             {
                 "skill": item["skill"],
-                "market_share": item["share"],
+                "market_share": item.get("share", demand_map.get(item["skill"], 0.0)),
                 "job_evidence": self._rank_job_evidence(
                     [*job_evidence_map.get(item["skill"], []), *item.get("job_evidence", [])],
                     prefer_live=live_jobs_present,
@@ -448,10 +503,32 @@ class SkillGroundingService:
             for item in missing_skills
         ]
 
+        weak_skill_proof_details = [
+            {
+                "skill": item["skill"],
+                "market_share": item.get("share", demand_map.get(item["skill"], 0.0)),
+                "resume_evidence": resume_evidence_map.get(item["skill"], [])[:2],
+                "job_evidence": self._rank_job_evidence(
+                    [*job_evidence_map.get(item["skill"], []), *item.get("job_evidence", [])],
+                    prefer_live=live_jobs_present,
+                )[:2],
+                "primary_source": (
+                    item.get("primary_source")
+                    or self._primary_evidence_source(
+                        [*job_evidence_map.get(item["skill"], []), *item.get("job_evidence", [])],
+                        prefer_live=live_jobs_present,
+                    )
+                ),
+                "signal_source": item.get("signal_source", "weak-resume-proof"),
+            }
+            for item in weak_skill_proofs
+        ]
+
         return {
             "market_skill_frequency": market_skill_frequency,
             "matched_skill_details": matched_skill_details,
             "missing_skill_details": missing_skill_details,
+            "weak_skill_proof_details": weak_skill_proof_details,
         }
 
     def _resume_evidence_rank(self, item: dict) -> tuple[int, int, int]:

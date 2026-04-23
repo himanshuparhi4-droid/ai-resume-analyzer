@@ -7,10 +7,12 @@ from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, 
 from app.services.nlp.embeddings import EmbeddingService
 from app.services.nlp.skill_extractor import (
     augment_missing_skills,
+    canonical_skill_label,
     infer_skill_frequency,
     required_resume_proof_weight,
     resume_skill_proof_weight,
     resume_skill_support_levels,
+    split_missing_and_weak_skill_proofs,
 )
 from app.utils.text import normalize_whitespace, truncate
 
@@ -28,9 +30,9 @@ class ScoringEngine:
         blended_market = baseline_job_count > 0 and not baseline_only
         market_confidence = 0.82 if baseline_only else 0.9 if blended_market else 1.0
         resume_skills = {
-            normalize_whitespace(str(skill)).lower()
+            canonical_skill_label(str(skill))
             for skill in resume_data.get("skills", [])
-            if normalize_whitespace(str(skill))
+            if canonical_skill_label(str(skill))
         }
         skill_frequency = infer_skill_frequency(jobs, role_query=role_query)
         demand_map = {item["skill"]: item["share"] for item in skill_frequency}
@@ -85,7 +87,7 @@ class ScoringEngine:
                 live_job_count=live_job_count,
             )
         ]
-        missing_skills = augment_missing_skills(
+        gap_candidates = augment_missing_skills(
             role_query=role_query,
             resume_skills=resume_skills,
             resume_sections=resume_data.get("sections", {}),
@@ -94,6 +96,7 @@ class ScoringEngine:
             market_skill_frequency=skill_frequency,
             experience_years=experience_years,
         )
+        missing_skills, weak_skill_proofs = split_missing_and_weak_skill_proofs(gap_candidates, resume_skills=resume_skills)
 
         skill_match = self._skill_match_score(
             resume_skills,
@@ -181,6 +184,7 @@ class ScoringEngine:
             "breakdown": breakdown.model_dump(),
             "matched_skills": matched_skills,
             "missing_skills": missing_skills[:10],
+            "weak_skill_proofs": weak_skill_proofs[:10],
             "market_skill_frequency": skill_frequency,
             "top_job_matches": top_matches,
         }
@@ -195,10 +199,10 @@ class ScoringEngine:
         if not jobs:
             return 0.0
         market_skills = {
-            str(skill).lower()
+            canonical_skill_label(str(skill))
             for job in jobs
             for skill in (job.get("normalized_data", {}) or {}).get("skills", []) or []
-            if str(skill).strip()
+            if canonical_skill_label(str(skill))
         }
         resume_support = resume_skill_support_levels(
             resume_sections=resume_sections,
@@ -212,8 +216,15 @@ class ScoringEngine:
             if not skill_weights:
                 skills = normalized.get("skills", []) or []
                 skill_weights = {
-                    skill: 0.82 if job.get("source") != "role-baseline" else 0.7
+                    canonical_skill_label(skill): 0.82 if job.get("source") != "role-baseline" else 0.7
                     for skill in skills
+                    if canonical_skill_label(skill)
+                }
+            else:
+                skill_weights = {
+                    canonical_skill_label(str(skill)): float(weight)
+                    for skill, weight in skill_weights.items()
+                    if canonical_skill_label(str(skill))
                 }
             total_weight = sum(float(weight) for weight in skill_weights.values())
             if total_weight <= 0:

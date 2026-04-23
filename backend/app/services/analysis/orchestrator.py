@@ -22,10 +22,12 @@ from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, 
 from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.nlp.skill_extractor import (
     augment_missing_skills,
+    canonical_skill_label,
     infer_skill_frequency,
     required_resume_proof_weight,
     resume_skill_proof_weight,
     resume_skill_support_levels,
+    split_missing_and_weak_skill_proofs,
 )
 from app.services.parsers.resume_parser import ResumeParser
 from app.utils.text import normalize_whitespace, truncate
@@ -160,6 +162,18 @@ class AnalysisOrchestrator:
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
+        score_payload["analysis_context"]["parsed_resume_skills"] = sorted(
+            {
+                canonical_skill_label(str(skill))
+                for skill in resume_data.get("skills", [])
+                if canonical_skill_label(str(skill))
+            }
+        )
+        score_payload["analysis_context"]["weak_skill_proofs"] = [
+            item.get("skill")
+            for item in score_payload.get("weak_skill_proofs", [])
+            if item.get("skill")
+        ]
         logger.info("Analysis step: analysis context built in %sms", round((time.perf_counter() - started) * 1000, 2))
         fetch_diagnostics = getattr(self.job_aggregator, "last_fetch_diagnostics", None)
         if fetch_diagnostics:
@@ -198,7 +212,7 @@ class AnalysisOrchestrator:
             matched_skills=self._json_safe(score_payload["matched_skills"]),
             missing_skills=self._json_safe(score_payload["missing_skills"]),
             recommendations=self._json_safe([item.model_dump() for item in recommendations]),
-            ai_summary=self._json_safe(ai_summary),
+            ai_summary=self._json_safe({**ai_summary, "_weak_skill_proofs": score_payload.get("weak_skill_proofs", [])}),
             share_token=secrets.token_urlsafe(12),
         )
         self.db.add(analysis_record)
@@ -259,6 +273,7 @@ class AnalysisOrchestrator:
                 jobs=score_payload.get("top_job_matches", []),
                 matched_skills=score_payload.get("matched_skills", []),
                 missing_skills=score_payload.get("missing_skills", []),
+                weak_skill_proofs=score_payload.get("weak_skill_proofs", []),
                 resume_skill_evidence=resume_data.get("skill_evidence"),
             )
         except Exception:
@@ -266,6 +281,7 @@ class AnalysisOrchestrator:
             skill_report = {
                 "matched_skill_details": [],
                 "missing_skill_details": [],
+                "weak_skill_proof_details": [],
                 "market_skill_frequency": [],
             }
         analysis_context = score_payload.get("analysis_context", self.skill_grounding.build_analysis_context(score_payload.get("top_job_matches", [])))
@@ -296,8 +312,10 @@ class AnalysisOrchestrator:
             breakdown=score_payload["breakdown"],
             matched_skills=score_payload["matched_skills"],
             missing_skills=score_payload["missing_skills"],
+            weak_skill_proofs=score_payload.get("weak_skill_proofs", []),
             matched_skill_details=skill_report["matched_skill_details"],
             missing_skill_details=skill_report["missing_skill_details"],
+            weak_skill_proof_details=skill_report.get("weak_skill_proof_details", []),
             market_skill_frequency=skill_report["market_skill_frequency"],
             top_job_matches=score_payload["top_job_matches"],
             analysis_context=analysis_context,
@@ -337,13 +355,35 @@ class AnalysisOrchestrator:
         resume_data = resume_data or {}
         sections = resume_data.get("sections", {})
         raw_text = resume_data.get("raw_text", "")
+        public_ai_summary = analysis.ai_summary if isinstance(analysis.ai_summary, dict) else {}
+        resume_skills = {
+            canonical_skill_label(str(skill))
+            for skill in resume_data.get("skills", [])
+            if canonical_skill_label(str(skill))
+        }
+        persisted_weak_skill_proofs = public_ai_summary.get("_weak_skill_proofs", [])
+        legacy_missing_skills, legacy_weak_skill_proofs = split_missing_and_weak_skill_proofs(
+            analysis.missing_skills or [],
+            resume_skills=resume_skills,
+        )
+        weak_skill_proofs: list[dict] = []
+        seen_weak_skills: set[str] = set()
+        for item in [*persisted_weak_skill_proofs, *legacy_weak_skill_proofs]:
+            if not isinstance(item, dict):
+                continue
+            skill = canonical_skill_label(str(item.get("skill", "")))
+            if not skill or skill in seen_weak_skills:
+                continue
+            seen_weak_skills.add(skill)
+            weak_skill_proofs.append({**item, "skill": skill, "signal_source": "weak-resume-proof"})
         try:
             skill_report = self.skill_grounding.build_skill_report(
                 role_query=analysis.role_query,
                 resume_text=raw_text,
                 jobs=analysis.top_job_matches,
                 matched_skills=analysis.matched_skills,
-                missing_skills=analysis.missing_skills,
+                missing_skills=legacy_missing_skills,
+                weak_skill_proofs=weak_skill_proofs,
                 resume_skill_evidence=resume_data.get("skill_evidence"),
             )
         except Exception:
@@ -351,9 +391,16 @@ class AnalysisOrchestrator:
             skill_report = {
                 "matched_skill_details": [],
                 "missing_skill_details": [],
+                "weak_skill_proof_details": [],
                 "market_skill_frequency": [],
             }
         analysis_context = self.skill_grounding.build_analysis_context(analysis.top_job_matches)
+        analysis_context["parsed_resume_skills"] = sorted(resume_skills)
+        analysis_context["weak_skill_proofs"] = [
+            item.get("skill")
+            for item in weak_skill_proofs
+            if isinstance(item, dict) and item.get("skill")
+        ]
         try:
             component_feedback = self._build_component_feedback(
                 breakdown=analysis.component_scores,
@@ -370,16 +417,18 @@ class AnalysisOrchestrator:
             overall_score=analysis.overall_score,
             breakdown=analysis.component_scores,
             matched_skills=analysis.matched_skills,
-            missing_skills=analysis.missing_skills,
+            missing_skills=legacy_missing_skills,
+            weak_skill_proofs=weak_skill_proofs,
             matched_skill_details=skill_report["matched_skill_details"],
             missing_skill_details=skill_report["missing_skill_details"],
+            weak_skill_proof_details=skill_report.get("weak_skill_proof_details", []),
             market_skill_frequency=skill_report["market_skill_frequency"],
             top_job_matches=analysis.top_job_matches,
             analysis_context=analysis_context,
             resume_archetype=resume_data.get("resume_archetype", {}),
             component_feedback=component_feedback,
             recommendations=[RecommendationItem(**item) for item in analysis.recommendations],
-            ai_summary=analysis.ai_summary,
+            ai_summary={key: value for key, value in public_ai_summary.items() if key != "_weak_skill_proofs"},
             resume_sections=sections,
             resume_preview=truncate(raw_text, 400),
             share_token=analysis.share_token,
@@ -388,9 +437,9 @@ class AnalysisOrchestrator:
 
     def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict], role_query: str) -> dict:
         resume_skills = {
-            normalize_whitespace(str(skill)).lower()
+            canonical_skill_label(str(skill))
             for skill in resume_data.get("skills", [])
-            if normalize_whitespace(str(skill))
+            if canonical_skill_label(str(skill))
         }
         baseline_only = bool(jobs) and all(job.get("source") == "role-baseline" for job in jobs)
         baseline_confidences = {
@@ -452,7 +501,7 @@ class AnalysisOrchestrator:
                 live_job_count=live_job_count,
             )
         ][:10]
-        missing_skills = augment_missing_skills(
+        gap_candidates = augment_missing_skills(
             role_query=role_query,
             resume_skills=resume_skills,
             resume_sections=resume_data.get("sections", {}),
@@ -461,6 +510,7 @@ class AnalysisOrchestrator:
             market_skill_frequency=skill_frequency,
             experience_years=experience_years,
         )
+        missing_skills, weak_skill_proofs = split_missing_and_weak_skill_proofs(gap_candidates, resume_skills=resume_skills)
 
         live_jobs = [job for job in scoring_jobs if job.get("source") != "role-baseline"]
         live_company_count = len(
@@ -657,6 +707,7 @@ class AnalysisOrchestrator:
             },
             "matched_skills": matched_skills,
             "missing_skills": missing_skills,
+            "weak_skill_proofs": weak_skill_proofs,
             "market_skill_frequency": skill_frequency,
             "top_job_matches": stored_matches,
         }
@@ -745,7 +796,7 @@ class AnalysisOrchestrator:
         parse_signals = resume_data.get("parse_signals", {})
         breakdown = score_payload.get("breakdown", {})
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
-        resume_skills = {str(skill).lower() for skill in resume_data.get("skills", [])}
+        resume_skills = {canonical_skill_label(str(skill)) for skill in resume_data.get("skills", []) if canonical_skill_label(str(skill))}
         synthetic_skills_section = bool(parse_signals.get("synthetic_skills_section"))
         hard_parse_noise = (
             parse_signals.get("suspicious_token_count", 0) >= 3
@@ -765,10 +816,14 @@ class AnalysisOrchestrator:
         modeled_role_gaps = [
             skill
             for skill in role_recommendation_skills(role_query, limit=8)
-            if skill not in resume_skills
+            if canonical_skill_label(skill) not in resume_skills
         ]
 
-        for item in score_payload.get("missing_skills", [])[:2]:
+        prioritized_skill_actions = [
+            *score_payload.get("weak_skill_proofs", []),
+            *score_payload.get("missing_skills", []),
+        ]
+        for item in prioritized_skill_actions[:2]:
             source = str(item.get("signal_source", "live"))
             share = float(item.get("share", 0.0) or 0.0)
             skill_name = str(item.get("skill", "")).strip()

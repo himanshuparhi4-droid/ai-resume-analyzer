@@ -3,14 +3,27 @@ import { cleanDisplayText } from "../lib/text";
 import type { SkillDetail } from "../lib/types";
 
 type SkillGapChartProps = {
-  missingSkills: { skill: string; share: number }[];
+  missingSkills: { skill: string; share: number; signal_source?: string }[];
+  weakSkillProofs: { skill: string; share: number; signal_source?: string }[];
   matchedSkills: string[];
   matchedSkillDetails: SkillDetail[];
   missingSkillDetails: SkillDetail[];
+  weakSkillProofDetails: SkillDetail[];
 };
 
-export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetails, missingSkillDetails }: SkillGapChartProps) {
-  const rankedMissingDetails = [...missingSkillDetails].sort((left, right) => {
+export function SkillGapChart({
+  missingSkills,
+  weakSkillProofs,
+  matchedSkills,
+  matchedSkillDetails,
+  missingSkillDetails,
+  weakSkillProofDetails,
+}: SkillGapChartProps) {
+  const legacyWeakMissingSkills = missingSkills.filter((detail) => detail.signal_source === "weak-resume-proof");
+  const trueMissingSkills = missingSkills.filter((detail) => detail.signal_source !== "weak-resume-proof");
+  const legacyWeakMissingDetails = missingSkillDetails.filter((detail) => detail.signal_source === "weak-resume-proof");
+  const trueMissingSkillDetails = missingSkillDetails.filter((detail) => detail.signal_source !== "weak-resume-proof");
+  const rankedMissingDetails = [...trueMissingSkillDetails].sort((left, right) => {
     const leftSource = left.primary_source === "role-baseline" ? 0 : left.primary_source && left.primary_source !== "unknown" ? 2 : 1;
     const rightSource = right.primary_source === "role-baseline" ? 0 : right.primary_source && right.primary_source !== "unknown" ? 2 : 1;
     if (leftSource !== rightSource) {
@@ -21,7 +34,7 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
   const missingDetailMap = new Map(rankedMissingDetails.map((detail) => [detail.skill, detail]));
   const mergedMissingDetails = [
     ...rankedMissingDetails,
-    ...missingSkills
+    ...trueMissingSkills
       .filter((detail) => !missingDetailMap.has(detail.skill))
       .map((detail) => ({
         skill: detail.skill,
@@ -31,8 +44,36 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
         job_evidence: [],
       })),
   ];
+  const weakProofDetailMap = new Map(weakSkillProofDetails.map((detail) => [detail.skill, detail]));
+  const mergedWeakProofDetailCandidates = [
+    ...weakSkillProofDetails,
+    ...legacyWeakMissingDetails.filter((detail) => !weakProofDetailMap.has(detail.skill)),
+    ...weakSkillProofs
+      .filter((detail) => !weakProofDetailMap.has(detail.skill))
+      .map((detail) => ({
+        skill: detail.skill,
+        market_share: detail.share,
+        primary_source: "resume",
+        signal_source: detail.signal_source ?? "weak-resume-proof",
+        resume_evidence: [],
+        job_evidence: [],
+      })),
+    ...legacyWeakMissingSkills
+      .filter((detail) => !weakProofDetailMap.has(detail.skill))
+      .map((detail) => ({
+        skill: detail.skill,
+        market_share: detail.share,
+        primary_source: "resume",
+        signal_source: "weak-resume-proof",
+        resume_evidence: [],
+        job_evidence: [],
+      })),
+  ];
+  const mergedWeakProofDetails = mergedWeakProofDetailCandidates.filter((detail, index, items) => {
+    const normalizedSkill = detail.skill.trim().toLowerCase();
+    return items.findIndex((item) => item.skill.trim().toLowerCase() === normalizedSkill) === index;
+  });
   const liveMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source && detail.primary_source !== "role-baseline" && detail.primary_source !== "unknown");
-  const weakProofMissingDetails = mergedMissingDetails.filter((detail) => detail.signal_source === "weak-resume-proof");
   const calibratedMissingDetails = mergedMissingDetails.filter((detail) => detail.primary_source === "role-baseline");
   const unsupportedMissingDetails = mergedMissingDetails.filter((detail) => !detail.primary_source || detail.primary_source === "unknown");
   const matchedDetails = [...matchedSkillDetails].sort((left, right) => {
@@ -43,7 +84,7 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
     }
     return right.market_share - left.market_share;
   });
-  const chartData = (mergedMissingDetails.length ? mergedMissingDetails : missingSkills)
+  const chartData = (mergedMissingDetails.length ? mergedMissingDetails : trueMissingSkills)
     .slice(0, 8)
     .map((detail) => ({
       skill: detail.skill,
@@ -66,11 +107,11 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
       <div className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
         <div className="mb-5">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Market Gaps</p>
-          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Missing role-specific tools</h3>
+          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">
+            {hasMissingSkills ? "Missing role-specific tools" : "No major missing tools found"}
+          </h3>
           <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-            {weakProofMissingDetails.length
-              ? "Some tools are being flagged because the resume only mentions them lightly, while live jobs expect stronger proof or repeated evidence."
-              : liveMissingDetails.length && calibratedMissingDetails.length
+            {liveMissingDetails.length && calibratedMissingDetails.length
               ? "The strongest gaps are backed by live job listings, with additional role-family calibration added so narrow live samples do not underreport missing tools."
               : liveMissingDetails.length
               ? "These gaps are backed by live job listings from the current market sample."
@@ -78,7 +119,9 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
                 ? "Live listings were too thin for a reliable skills map, so calibrated role baselines widened the missing-skill view."
                 : unsupportedMissingDetails.length
                   ? "Some gaps were detected from the broader market sample even when the strongest evidence snippet was not preserved for every skill."
-                : "The current market sample did not expose a strong missing-skill cluster."}
+                : mergedWeakProofDetails.length
+                  ? "The parser found the core tools on the resume. The cards below focus on where the resume needs stronger proof, not missing keywords."
+                  : "The current market sample did not expose a strong missing-skill cluster."}
           </p>
         </div>
         {hasMissingSkills ? (
@@ -107,11 +150,42 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
             <div className="max-w-md">
               <p className="font-semibold text-ink dark:text-slate-50">No major high-demand gaps were found in the sampled market set.</p>
               <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-200">
-                That does not mean the resume is perfect. It means the current job sample did not surface a clear missing-tool cluster for this role.
+                Detected resume skills are not treated as missing. If a detected skill needs stronger evidence, it appears in the proof section below.
               </p>
             </div>
           </div>
         )}
+        {mergedWeakProofDetails.length ? (
+          <div className="mt-5 grid gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate dark:text-slate-300">Needs stronger proof</p>
+            {mergedWeakProofDetails.slice(0, 4).map((detail) => (
+              <article
+                key={`weak-proof-${detail.skill}`}
+                className="rounded-[1.25rem] border border-sea/30 bg-sea/10 p-4 transition-colors duration-300 dark:border-sea/25 dark:bg-sea/10"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="font-semibold text-ink dark:text-slate-50">{detail.skill}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-sea/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink dark:text-slate-100">
+                      Found in resume
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate dark:text-slate-300">
+                      {Math.round(detail.market_share)}% demand
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                  <span className="font-semibold text-ink dark:text-slate-100">Resume proof:</span>{" "}
+                  {cleanDisplayText(detail.resume_evidence?.[0]) || "This skill is listed, but stronger project or experience evidence would help."}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                  <span className="font-semibold text-ink dark:text-slate-100">Market expectation:</span>{" "}
+                  {cleanDisplayText(detail.job_evidence?.[0]?.snippet) || "Live or calibrated role signals expect practical evidence for this skill."}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : null}
         {liveMissingDetails.length ? (
           <div className="mt-5 grid gap-3">
             {liveMissingDetails.slice(0, 3).map((detail) => (

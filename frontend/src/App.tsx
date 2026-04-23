@@ -230,6 +230,8 @@ function App() {
               matchedSkills={result.matched_skills}
               matchedSkillDetails={result.matched_skill_details ?? []}
               missingSkillDetails={result.missing_skill_details ?? []}
+              weakSkillProofs={result.weak_skill_proofs ?? []}
+              weakSkillProofDetails={result.weak_skill_proof_details ?? []}
             />
             <SuggestionsPanel recommendations={result.recommendations} aiSummary={result.ai_summary} resumePreview={result.resume_preview} />
             <JobMatchesTable jobs={result.top_job_matches} analysisContext={result.analysis_context} />

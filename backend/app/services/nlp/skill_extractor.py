@@ -767,6 +767,42 @@ def required_resume_proof_weight(
     return threshold
 
 
+def split_missing_and_weak_skill_proofs(
+    gaps: list[dict],
+    *,
+    resume_skills: set[str],
+) -> tuple[list[dict], list[dict]]:
+    canonical_resume_skills = {canonical_skill_label(skill) for skill in resume_skills if canonical_skill_label(skill)}
+    missing: list[dict] = []
+    weak: list[dict] = []
+
+    for item in gaps:
+        skill = canonical_skill_label(str(item.get("skill", "")))
+        if not skill:
+            continue
+        normalized_item = {**item, "skill": skill}
+        if skill in canonical_resume_skills:
+            normalized_item["signal_source"] = "weak-resume-proof"
+            weak.append(normalized_item)
+        else:
+            if normalized_item.get("signal_source") == "weak-resume-proof":
+                normalized_item["signal_source"] = "live"
+            missing.append(normalized_item)
+
+    def dedupe(items: list[dict]) -> list[dict]:
+        deduped: list[dict] = []
+        seen: set[str] = set()
+        for item in items:
+            skill = canonical_skill_label(str(item.get("skill", "")))
+            if not skill or skill in seen:
+                continue
+            seen.add(skill)
+            deduped.append({**item, "skill": skill})
+        return deduped
+
+    return dedupe(missing), dedupe(weak)
+
+
 def augment_missing_skills(
     *,
     role_query: str | None,

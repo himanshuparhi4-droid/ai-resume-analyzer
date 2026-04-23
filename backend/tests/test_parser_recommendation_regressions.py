@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 import unittest
 
 from PyPDF2 import PdfWriter
@@ -94,6 +95,81 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
 
         self.assertIn("Build stronger proof for power bi", titles)
         self.assertNotIn("Add or learn power bi", titles)
+
+    def test_new_weak_skill_proof_field_uses_proof_language(self) -> None:
+        resume_data = {
+            "skills": ["SQL", "PowerBI"],
+            "sections": {"summary": "Data analyst", "skills": "SQL, PowerBI"},
+            "parse_signals": {
+                "contact_link_count": 2,
+                "synthetic_skills_section": True,
+                "section_count": 4,
+                "skills_section_word_count": 12,
+                "merged_header_count": 1,
+                "section_leakage_count": 0,
+                "suspicious_token_count": 0,
+                "suspicious_url_count": 0,
+                "date_range_count": 3,
+                "quantified_line_count": 3,
+                "multi_column_detected": False,
+            },
+            "resume_archetype": {"type": "general_resume"},
+        }
+        payload = {
+            "breakdown": {"ats_compliance": 74.0, "resume_quality": 74.0, "experience_match": 62.0},
+            "missing_skills": [],
+            "weak_skill_proofs": [{"skill": "power bi", "share": 12.0, "signal_source": "weak-resume-proof"}],
+        }
+
+        recommendations = self.orchestrator._build_recommendations(payload, resume_data, role_query="Data Analyst")
+        titles = [item.title for item in recommendations]
+
+        self.assertIn("Build stronger proof for power bi", titles)
+        self.assertNotIn("Add or learn power bi", titles)
+
+    def test_uploaded_pdf_detected_skills_do_not_remain_missing(self) -> None:
+        pdf_path = Path(r"C:\Users\KIIT\Downloads\himanshu_resume_hyperlinks_forced.pdf")
+        if not pdf_path.exists():
+            self.skipTest("local user PDF fixture is not available")
+
+        resume_data = self.parser.parse(pdf_path.name, "application/pdf", pdf_path.read_bytes())
+        detected_skills = set(resume_data.get("skills", []))
+
+        for skill in ["sql", "python", "power bi", "data visualization", "dashboarding"]:
+            with self.subTest(skill=skill):
+                self.assertIn(skill, detected_skills)
+
+        jobs = [
+            {
+                "source": "test",
+                "title": "Data Analyst",
+                "company": "Example",
+                "description": "Requires SQL, Python, Power BI, Excel, reporting, data visualization, and dashboards.",
+                "normalized_data": {
+                    "skills": ["sql", "python", "power bi", "excel", "reporting", "data visualization", "dashboarding"],
+                    "skill_weights": {
+                        "sql": 0.9,
+                        "python": 0.86,
+                        "power bi": 0.88,
+                        "excel": 0.78,
+                        "reporting": 0.76,
+                        "data visualization": 0.74,
+                        "dashboarding": 0.72,
+                    },
+                },
+            }
+        ]
+
+        payload = self.orchestrator._build_lightweight_score_payload(
+            resume_data=resume_data,
+            jobs=jobs,
+            role_query="Data Analyst",
+        )
+        missing_names = {item["skill"] for item in payload["missing_skills"]}
+        weak_names = {item["skill"] for item in payload["weak_skill_proofs"]}
+
+        self.assertFalse({"sql", "python", "power bi", "data visualization", "dashboarding"} & missing_names)
+        self.assertTrue({"sql", "python", "power bi"} <= weak_names)
 
     def test_low_noise_recovered_structure_does_not_emit_generic_ats_cleanup_recommendations(self) -> None:
         resume_data = {
