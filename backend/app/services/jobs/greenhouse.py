@@ -7,7 +7,15 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role, role_domain, role_family, role_fit_score, role_profile, role_title_alignment_score
+from app.services.jobs.taxonomy import (
+    normalize_role,
+    role_baseline_skills,
+    role_domain,
+    role_family,
+    role_fit_score,
+    role_profile,
+    role_title_alignment_score,
+)
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -155,6 +163,12 @@ class GreenhouseProvider:
             else:
                 detail_fetch_budget = min(max(limit * 2, 18), 24)
                 board_budget = 4
+            if settings.environment == "production":
+                # Production now returns selected index-backed jobs without
+                # detail hydration, so widening this budget improves coverage
+                # without adding the old slow detail-fetch tail.
+                detail_fetch_budget = min(max(detail_fetch_budget, min(limit, 10)), target_candidates)
+                board_budget = max(board_budget, 2)
             positively_aligned = [
                 item
                 for item in candidates
@@ -194,6 +208,48 @@ class GreenhouseProvider:
                 board_counts[board] = board_counts.get(board, 0) + 1
                 if len(selected_candidates) >= detail_fetch_budget:
                     break
+
+            if settings.environment == "production":
+                # The board index is already a live ATS source. Returning the
+                # selected index candidates immediately prevents slow detail
+                # hydration from causing the whole provider result to be
+                # cancelled by the aggregator soft timeout.
+                jobs = [
+                    job
+                    for item in selected_candidates
+                    if (job := self._index_fallback_job(item, detail_hydration_skipped=True))
+                ]
+                positively_aligned_index_jobs = [
+                    item
+                    for item in jobs
+                    if role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    )
+                    > 0
+                ]
+                ranked_pool = (
+                    positively_aligned_index_jobs
+                    if len(positively_aligned_index_jobs) >= max(limit * 2, 12)
+                    else jobs
+                )
+                ranked = sorted(
+                    ranked_pool,
+                    key=lambda item: (
+                        role_title_alignment_score(
+                            query,
+                            str(item.get("title", "")),
+                            description=str(item.get("description", "")),
+                            tags=item.get("tags") or [],
+                        ),
+                        role_fit_score(query, item),
+                        1 if item.get("remote") else 0,
+                    ),
+                    reverse=True,
+                )
+                return ranked[:target_candidates]
 
             hydrated_raw = await asyncio.gather(
                 *(
@@ -415,25 +471,58 @@ class GreenhouseProvider:
         _GREENHOUSE_JOB_DETAIL_CACHE[cache_key] = {"stored_at": now, "job": job}
         return job
 
-    def _index_fallback_job(self, fallback: dict) -> dict | None:
+    def _index_fallback_job(self, fallback: dict, *, detail_hydration_skipped: bool = False) -> dict | None:
         if not fallback:
             return None
         normalized = {**(fallback.get("normalized_data") or {})}
+        description = str(
+            fallback.get("description")
+            or f"{fallback.get('title', 'Unknown Role')} listing from Greenhouse ATS. Detailed requirements were temporarily unavailable."
+        )
+        if not normalized.get("skills"):
+            requirement_profile = extract_job_requirement_profile(
+                title=str(fallback.get("title") or "Unknown Role"),
+                description=description,
+                tags=fallback.get("tags") or [],
+                source="greenhouse-index",
+            )
+            normalized.update(requirement_profile)
+        if not normalized.get("skills"):
+            title = str(fallback.get("title") or "Unknown Role")
+            title_profile = role_profile(title)
+            recognized_title_variant = title_profile.normalized_role != title_profile.cleaned_query or bool(title_profile.domain)
+            if recognized_title_variant:
+                inferred_skills = role_baseline_skills(title, limit=5)
+                if inferred_skills:
+                    normalized["skills"] = inferred_skills
+                    normalized["skill_weights"] = {
+                        **(normalized.get("skill_weights") or {}),
+                        **{skill: 0.36 for skill in inferred_skills},
+                    }
+                    normalized["skill_evidence"] = [
+                        *(normalized.get("skill_evidence") or []),
+                        *[
+                            {
+                                "skill": skill,
+                                "matched_text": title,
+                                "snippet": title,
+                                "source": "greenhouse-index",
+                                "mode": "title-variant-inferred",
+                            }
+                            for skill in inferred_skills
+                        ],
+                    ]
+                    normalized["requirement_quality"] = max(float(normalized.get("requirement_quality", 0.0)), 0.36)
         normalized["index_only"] = True
-        normalized["detail_fetch_failed"] = True
+        normalized["detail_hydration_skipped"] = detail_hydration_skipped
+        normalized["detail_fetch_failed"] = not detail_hydration_skipped
         fallback_job = {
             **fallback,
-            "description": str(
-                fallback.get("description")
-                or f"{fallback.get('title', 'Unknown Role')} listing from Greenhouse ATS. Detailed requirements were temporarily unavailable."
-            ),
+            "description": description,
             "preview": str(
                 fallback.get("preview")
                 or truncate(
-                    str(
-                        fallback.get("description")
-                        or f"{fallback.get('title', 'Unknown Role')} listing from Greenhouse ATS. Detailed requirements were temporarily unavailable."
-                    ),
+                    description,
                     260,
                 )
             ),

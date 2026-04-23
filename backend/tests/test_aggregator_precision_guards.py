@@ -4,6 +4,7 @@ import unittest
 
 from app.core.config import settings
 from app.services.jobs.aggregator import JobAggregator
+from app.services.jobs.greenhouse import GreenhouseProvider
 from app.services.jobs.taxonomy import provider_query_variations
 
 
@@ -79,6 +80,30 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertTrue(self.aggregator._passes_exact_query_backup_guard("Data Analyst", "Global", item))
         self.assertTrue(self.aggregator._passes_same_family_recovery_guard("Data Analyst", "Global", item))
         self.assertTrue(self.aggregator._passes_final_live_guard("Data Analyst", item))
+
+    def test_greenhouse_index_fallback_builds_usable_data_analyst_signal(self) -> None:
+        provider = GreenhouseProvider()
+        fallback = {
+            "source": "greenhouse",
+            "external_id": "123",
+            "title": "Data Operations Analyst",
+            "company": "Example ATS",
+            "location": "Global",
+            "remote": True,
+            "url": "https://boards.greenhouse.io/example/jobs/123",
+            "description": "Data Operations Analyst role at Example ATS. Greenhouse ATS listing.",
+            "preview": "Data Operations Analyst role at Example ATS.",
+            "tags": ["Example ATS", "data analyst"],
+            "normalized_data": {"board_token": "example", "index_only": True, "skills": []},
+        }
+
+        job = provider._index_fallback_job(fallback, detail_hydration_skipped=True)
+
+        self.assertIsNotNone(job)
+        self.assertTrue(job["normalized_data"]["detail_hydration_skipped"])
+        self.assertFalse(job["normalized_data"]["detail_fetch_failed"])
+        self.assertGreater(len(job["normalized_data"]["skills"]), 0)
+        self.assertTrue(self.aggregator._passes_final_live_guard("Data Analyst", job))
 
     def test_contextual_recovery_guard_rejects_adjacent_business_analyst_noise(self) -> None:
         item = {
@@ -849,6 +874,51 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertGreaterEqual(len(selected), 6)
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertGreaterEqual(debug["upstream_family_safe_count"], 6)
+
+    def test_dense_role_uses_exact_backup_matches_to_fill_target_count(self) -> None:
+        jobs = []
+        titles = [
+            ("Data Analyst", "Alpha", "remotive"),
+            ("Senior Data Analyst", "Beta", "jobicy"),
+            ("Lead Data Analyst", "Gamma", "greenhouse"),
+            ("Online Data Analyst United States", "Delta", "remotive"),
+            ("Reporting Analyst", "Epsilon", "jobicy"),
+            ("Analytics Analyst", "Zeta", "greenhouse"),
+            ("BI Analyst", "Eta", "themuse"),
+            ("Operations Analyst", "Theta", "greenhouse"),
+            ("Operations Analyst", "Iota", "jobicy"),
+            ("Operations Analyst", "Kappa", "themuse"),
+        ]
+        for index, (title, company, source) in enumerate(titles, start=1):
+            jobs.append(
+                {
+                    "title": title,
+                    "company": company,
+                    "source": source,
+                    "external_id": f"job-{index}",
+                    "url": f"https://example.test/jobs/{index}",
+                    "description": "Own SQL reporting, dashboards, KPI analysis, and business intelligence workflows.",
+                    "location": "India",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "excel", "analytics", "power bi", "reporting", "dashboarding"],
+                        "title_alignment_score": 22.0 - index,
+                        "role_fit_score": 16.0 - (index * 0.25),
+                        "market_quality_score": 24.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=10,
+        )
+
+        self.assertEqual(len(selected), 10)
+        selected_companies = {item["company"] for item in selected}
+        self.assertTrue({"Theta", "Iota", "Kappa"}.issubset(selected_companies))
 
     def test_sparse_live_state_stays_honest_when_upstream_supply_is_below_six(self) -> None:
         jobs = [

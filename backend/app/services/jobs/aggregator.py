@@ -1099,6 +1099,8 @@ class JobAggregator:
         sparse_role = is_sparse_live_market_role(query)
         live_floor = self._production_display_floor(query=query, limit=limit)
         partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
+        target_live_count = self._production_live_target(query=query, limit=limit)
+        dense_role = self._is_dense_production_family(query)
 
         def absorb_results(provider_results: list[list[dict]]) -> None:
             for items in provider_results:
@@ -1216,19 +1218,24 @@ class JobAggregator:
                 if provider_results:
                     absorb_results(provider_results)
                 preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
-                if len(preferred_live) >= live_floor:
+                stage_completion_floor = target_live_count if stage == "supplemental" and dense_role else live_floor
+                if len(preferred_live) >= stage_completion_floor:
                     if pending:
                         await _cancel_pending_tasks(
                             pending,
                             stage=stage,
                             soft_timeout=soft_timeout,
-                            reason="floor_reached",
+                            reason="target_reached" if stage_completion_floor == target_live_count else "floor_reached",
                         )
                     return preferred_live
                 if (
                     stage == "supplemental"
                     and query_domain in {"data", "software", "security"}
                     and len(preferred_live) >= max(partial_live_floor + 2, 5)
+                    and (
+                        len(preferred_live) >= target_live_count
+                        or _remaining_runtime_budget(reserve_seconds=1.0) <= 1.5
+                    )
                 ):
                     if pending:
                         await _cancel_pending_tasks(
@@ -1286,7 +1293,14 @@ class JobAggregator:
             len(collected),
             len(preferred_live),
         )
-        if len(preferred_live) >= live_floor:
+        should_continue_after_primary = (
+            dense_role
+            and not sparse_role
+            and len(preferred_live) < target_live_count
+            and bool(supplemental_sources or fallback_sources)
+            and _remaining_runtime_budget(reserve_seconds=2.0) > 1.5
+        )
+        if len(preferred_live) >= live_floor and not should_continue_after_primary:
             self.last_fetch_diagnostics["stage_results"] = stage_results
             self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
             self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
@@ -1533,7 +1547,11 @@ class JobAggregator:
                 if item not in precision_guarded and self._passes_exact_query_backup_guard(query, location, item)
             ]
             if len(precision_guarded) >= max(2, display_floor):
-                ranked = precision_guarded
+                ranked = (
+                    precision_guarded
+                    if len(precision_guarded) >= target_live_count
+                    else precision_guarded + exact_backup_candidates
+                )
             else:
                 excluded_candidates = [*precision_guarded, *exact_backup_candidates]
                 same_family_recovery_candidates = [
