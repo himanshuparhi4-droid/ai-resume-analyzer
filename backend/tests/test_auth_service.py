@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from fastapi import HTTPException
 from passlib.hash import bcrypt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -65,6 +66,27 @@ class AuthServiceTest(unittest.TestCase):
         self.assertEqual(response.user.email, "reset@example.com")
         login_response = self.service.login("reset@example.com", "UpdatedPass456")
         self.assertEqual(login_response.user.full_name, "Himanshu Parhi")
+
+    def test_register_rejects_duplicate_normalized_email_with_friendly_error(self) -> None:
+        self.service.register(
+            UserCreate(
+                email="duplicate@example.com",
+                full_name="Duplicate User",
+                password="OriginalPass123",
+            )
+        )
+
+        with self.assertRaises(HTTPException) as context:
+            self.service.register(
+                UserCreate(
+                    email="  DUPLICATE@example.com  ",
+                    full_name="Duplicate User",
+                    password="AnotherPass123",
+                )
+            )
+
+        self.assertEqual(context.exception.status_code, 400)
+        self.assertEqual(context.exception.detail, "Email already registered")
 
 
 if __name__ == "__main__":

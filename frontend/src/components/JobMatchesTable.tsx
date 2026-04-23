@@ -1,4 +1,5 @@
 import type { AnalysisResponse, JobMatch } from "../lib/types";
+import { cleanDisplayText } from "../lib/text";
 
 type JobMatchesTableProps = {
   jobs: JobMatch[];
@@ -133,7 +134,7 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
               key={`${job.source}-${job.external_id ?? job.title}-reason-${index}`}
               className="text-sm leading-6 text-slate-700 dark:text-slate-200"
             >
-              {reason}
+              {cleanDisplayText(reason)}
             </p>
           ))}
         </div>
@@ -143,6 +144,7 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
 
   function renderJob(job: JobMatch) {
     const matchStrength = job.normalized_data.match_strength_label;
+    const description = cleanDisplayText(job.preview ?? job.description) || "Description preview was not available for this listing.";
 
     return (
       <article
@@ -183,7 +185,7 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
 
         {renderFitMetrics(job)}
 
-        <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-200">{job.preview ?? job.description}</p>
+        <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-200">{description}</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {(job.normalized_data.skills ?? []).slice(0, 8).map((skill) => (
@@ -205,7 +207,7 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
                 key={`${job.source}-${job.external_id ?? job.title}-${item.skill}-${index}`}
                 className="text-xs leading-5 text-slate-600 dark:text-slate-300"
               >
-                <span className="font-semibold text-ink dark:text-slate-100">{item.skill}:</span> {item.snippet}
+                <span className="font-semibold text-ink dark:text-slate-100">{item.skill}:</span> {cleanDisplayText(item.snippet)}
               </p>
             ))}
           </div>

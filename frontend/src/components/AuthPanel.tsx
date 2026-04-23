@@ -8,16 +8,47 @@ type AuthPanelProps = {
   onResetPassword: (payload: { email: string; fullName: string; newPassword: string }) => Promise<void>;
   onLogout: () => void;
   busy?: boolean;
+  error?: string | null;
+  onClearError?: () => void;
 };
 
-export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout, busy = false }: AuthPanelProps) {
+export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout, busy = false, error, onClearError }: AuthPanelProps) {
   const [mode, setMode] = useState<"login" | "register" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const visibleError = localError ?? error ?? null;
+
+  function switchMode(nextMode: "login" | "register" | "reset") {
+    setMode(nextMode);
+    setPassword("");
+    setLocalError(null);
+    onClearError?.();
+  }
+
+  function validateForm() {
+    if (!email.trim()) {
+      return "Enter your email before continuing.";
+    }
+    if ((mode === "register" || mode === "reset") && fullName.trim().length < 2) {
+      return mode === "reset" ? "Enter the full name used when you registered." : "Enter your full name.";
+    }
+    if (password.length < 8) {
+      return mode === "reset" ? "Choose a new password with at least 8 characters." : "Password must be at least 8 characters.";
+    }
+    return null;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateForm();
+    if (validationError) {
+      setLocalError(validationError);
+      onClearError?.();
+      return;
+    }
+    setLocalError(null);
     if (mode === "register") {
       await onRegister({ email, fullName, password });
     } else if (mode === "reset") {
@@ -62,7 +93,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
         {mode === "reset" ? (
           <button
             className="rounded-full border border-ink/10 px-4 py-2 text-sm font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-100 dark:hover:border-sea dark:hover:bg-[#17303d]"
-            onClick={() => setMode("login")}
+            onClick={() => switchMode("login")}
             type="button"
           >
             Back to login
@@ -73,7 +104,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
               className={`rounded-full px-4 py-2 transition ${
                 mode === "login" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"
               }`}
-              onClick={() => setMode("login")}
+              onClick={() => switchMode("login")}
               type="button"
             >
               Login
@@ -82,7 +113,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
               className={`rounded-full px-4 py-2 transition ${
                 mode === "register" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"
               }`}
-              onClick={() => setMode("register")}
+              onClick={() => switchMode("register")}
               type="button"
             >
               Register
@@ -97,6 +128,8 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
             placeholder={mode === "reset" ? "Full name used at registration" : "Full name"}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            required
+            minLength={2}
           />
         ) : null}
         <input
@@ -105,6 +138,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <input
           className="rounded-2xl border border-ink/10 bg-mist px-4 py-3 text-ink transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
@@ -112,6 +146,8 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={8}
         />
         <button
           className="rounded-full bg-ink px-5 py-3 font-semibold text-white transition disabled:opacity-60 dark:bg-sea dark:text-ink dark:hover:bg-[#81ddd3]"
@@ -121,6 +157,15 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
           {busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Login"}
         </button>
       </form>
+      {visibleError ? (
+        <div
+          className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700 transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
+          role="alert"
+          aria-live="assertive"
+        >
+          {visibleError}
+        </div>
+      ) : null}
       {mode === "reset" ? (
         <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">
           This deployment does not send email reset links yet. Recovery checks your email and full name on this deployment,
@@ -130,7 +175,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
         <div className="mt-4 flex justify-end">
           <button
             className="text-sm font-semibold text-sea transition hover:text-ink dark:hover:text-slate-50"
-            onClick={() => setMode("reset")}
+            onClick={() => switchMode("reset")}
             type="button"
           >
             Forgot password?

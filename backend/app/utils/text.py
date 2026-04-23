@@ -6,8 +6,10 @@ SPACE_RE = re.compile(r"\s+")
 
 
 def strip_html(value: str) -> str:
-    cleaned = TAG_RE.sub(" ", value or "")
-    cleaned = unescape(cleaned)
+    cleaned = unescape(value or "")
+    cleaned = re.sub(r"<script[\s\S]*?</script>", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<style[\s\S]*?</style>", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = TAG_RE.sub(" ", cleaned)
     return SPACE_RE.sub(" ", cleaned).strip()
 
 

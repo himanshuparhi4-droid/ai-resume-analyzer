@@ -8,6 +8,7 @@ import { ScoreGrid } from "./components/ScoreGrid";
 import { SkillGapChart } from "./components/SkillGapChart";
 import { SuggestionsPanel } from "./components/SuggestionsPanel";
 import { UploadPanel, type UploadInput } from "./components/UploadPanel";
+import { formatApiErrorDetail } from "./lib/text";
 import type { AnalysisResponse, ComparisonResponse, HistoryItem, User } from "./lib/types";
 
 const TOKEN_KEY = "resume-analyzer-token";
@@ -17,9 +18,12 @@ const THEME_KEY = "resume-analyzer-theme";
 type ThemeMode = "light" | "dark";
 
 function getBackendErrorMessage(err: any, fallback: string): string {
-  const backendDetail = err?.response?.data?.detail;
+  const backendDetail = formatApiErrorDetail(err?.response?.data?.detail);
   if (backendDetail) {
     return backendDetail;
+  }
+  if (err?.message === "BACKEND_WAKE_TIMEOUT") {
+    return "The backend is still waking up. Wait about 30 to 60 seconds, then try again.";
   }
   if (err?.code === "ECONNABORTED") {
     return "The backend took too long to respond. If Render is waking the service up, wait about 30 to 60 seconds and try again.";
@@ -34,7 +38,8 @@ function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
@@ -84,7 +89,7 @@ function App() {
     const requestId = ++analyzeRequestId.current;
     try {
       setLoading(true);
-      setError(null);
+      setAnalysisError(null);
       setComparison(null);
       setResult(null);
       const data = await analyzeResume(payload);
@@ -99,7 +104,7 @@ function App() {
       if (requestId !== analyzeRequestId.current) {
         return;
       }
-      setError(getBackendErrorMessage(err, "Analysis failed before the app received a usable response. Retry once after the backend is fully up."));
+      setAnalysisError(getBackendErrorMessage(err, "Analysis failed before the app received a usable response. Retry once after the backend is fully up."));
     } finally {
       if (requestId === analyzeRequestId.current) {
         setLoading(false);
@@ -110,14 +115,15 @@ function App() {
   async function handleRegister(payload: { email: string; fullName: string; password: string }) {
     try {
       setAuthLoading(true);
-      setError(null);
+      setAuthError(null);
       const data = await register(payload);
       setAuthToken(data.access_token);
       localStorage.setItem(TOKEN_KEY, data.access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setAuthError(null);
       setUser(data.user);
     } catch (err: any) {
-      setError(getBackendErrorMessage(err, "Registration failed. Try again with a fresh email."));
+      setAuthError(getBackendErrorMessage(err, "Registration failed. Try again with a fresh email."));
     } finally {
       setAuthLoading(false);
     }
@@ -126,14 +132,15 @@ function App() {
   async function handleLogin(payload: { email: string; password: string }) {
     try {
       setAuthLoading(true);
-      setError(null);
+      setAuthError(null);
       const data = await login(payload);
       setAuthToken(data.access_token);
       localStorage.setItem(TOKEN_KEY, data.access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setAuthError(null);
       setUser(data.user);
     } catch (err: any) {
-      setError(
+      setAuthError(
         getBackendErrorMessage(
           err,
           "Login failed. Check your email and password. If this deployment says the email already exists, use Forgot password to reset it here."
@@ -147,14 +154,15 @@ function App() {
   async function handleResetPassword(payload: { email: string; fullName: string; newPassword: string }) {
     try {
       setAuthLoading(true);
-      setError(null);
+      setAuthError(null);
       const data = await resetPassword(payload);
       setAuthToken(data.access_token);
       localStorage.setItem(TOKEN_KEY, data.access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      setAuthError(null);
       setUser(data.user);
     } catch (err: any) {
-      setError(
+      setAuthError(
         getBackendErrorMessage(
           err,
           "Password reset failed. Double-check the email and full name used when you registered on this deployment."
@@ -172,13 +180,14 @@ function App() {
     setUser(null);
     setHistory([]);
     setComparison(null);
+    setAuthError(null);
   }
 
   async function handleCompare(currentId: string) {
     try {
       setComparison(await compareAnalyses(currentId));
     } catch {
-      setError("Could not compare analyses yet. Run at least two saved analyses for the same role.");
+      setAnalysisError("Could not compare analyses yet. Run at least two saved analyses for the same role.");
     }
   }
 
@@ -193,11 +202,13 @@ function App() {
           onResetPassword={handleResetPassword}
           onLogout={handleLogout}
           busy={authLoading}
+          error={authError}
+          onClearError={() => setAuthError(null)}
         />
         <UploadPanel loading={loading} onSubmit={handleAnalyze} />
-        {error ? (
+        {analysisError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
-            {error}
+            {analysisError}
           </div>
         ) : null}
         {result ? (

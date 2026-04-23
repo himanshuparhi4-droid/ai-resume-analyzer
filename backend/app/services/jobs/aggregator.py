@@ -43,7 +43,7 @@ from app.services.jobs.taxonomy import (
 )
 from app.services.jobs.usajobs import USAJobsProvider
 from app.services.nlp.job_requirements import JOB_REQUIREMENT_PROFILE_VERSION, extract_job_requirement_profile
-from app.utils.text import truncate
+from app.utils.text import strip_html, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +240,15 @@ class JobAggregator:
         normalized["domain_alignment_score"] = self._role_domain_match_score(query, item)
         normalized["skill_overlap_score"] = self._skill_overlap_score(query, item)
         normalized["cache_query_bucket"] = self._cache_query_bucket(query, item)
+
+    def _prepare_listing_text(self, item: dict) -> None:
+        description = strip_html(str(item.get("description", "") or ""))
+        if description:
+            item["description"] = truncate(description, 4000)
+        preview_source = item.get("preview") or description
+        preview = strip_html(str(preview_source or ""))
+        if preview:
+            item["preview"] = truncate(preview, 260)
 
     def _provider_is_selected_by_source(self, source_name: str) -> bool:
         source = (settings.default_job_source or "auto").strip().lower()
@@ -834,6 +843,7 @@ class JobAggregator:
                         if key in seen:
                             continue
                         seen.add(key)
+                        self._prepare_listing_text(item)
                         item.setdefault("normalized_data", {})
                         item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                         self._annotate_item_scores(query=query, location=location, item=item)
@@ -1096,6 +1106,7 @@ class JobAggregator:
                         continue
                     seen.add(key)
                     near_seen.add(similarity_signature)
+                    self._prepare_listing_text(item)
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                     self._annotate_item_scores(query=query, location=location, item=item)

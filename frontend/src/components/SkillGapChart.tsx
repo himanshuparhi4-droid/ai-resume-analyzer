@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { cleanDisplayText } from "../lib/text";
 import type { SkillDetail } from "../lib/types";
 
 type SkillGapChartProps = {
@@ -127,7 +128,7 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
                   </div>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-                  {detail.job_evidence?.[0]?.snippet ?? "This skill appeared repeatedly in the market sample for the chosen role."}
+                  {cleanDisplayText(detail.job_evidence?.[0]?.snippet) || "This skill appeared repeatedly in the market sample for the chosen role."}
                 </p>
               </article>
             ))}
@@ -153,7 +154,7 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
                   </div>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-                  {detail.job_evidence?.[0]?.snippet ?? "This gap was inferred from the calibration baseline for this role."}
+                  {cleanDisplayText(detail.job_evidence?.[0]?.snippet) || "This gap was inferred from the calibration baseline for this role."}
                 </p>
               </article>
             ))}
@@ -217,11 +218,11 @@ export function SkillGapChart({ missingSkills, matchedSkills, matchedSkillDetail
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
                   <span className="font-semibold text-ink dark:text-slate-100">Resume proof:</span>{" "}
-                  {detail.resume_evidence?.[0] ?? "Direct resume evidence was limited."}
+                  {cleanDisplayText(detail.resume_evidence?.[0]) || "Direct resume evidence was limited."}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
                   <span className="font-semibold text-ink dark:text-slate-100">Market evidence:</span>{" "}
-                  {detail.job_evidence?.[0]?.snippet ?? "Sampled jobs also mentioned this skill."}
+                  {cleanDisplayText(detail.job_evidence?.[0]?.snippet) || "Sampled jobs also mentioned this skill."}
                 </p>
               </article>
             ))}
