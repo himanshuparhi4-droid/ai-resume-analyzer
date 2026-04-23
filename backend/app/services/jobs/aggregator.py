@@ -467,6 +467,7 @@ class JobAggregator:
             elif weak_software_family:
                 primary_order = ["remotive", "jobicy", "jooble"]
                 supplemental_order = ["greenhouse", "themuse"]
+                fallback_order = ["lever"]
             elif family_group in {"software", "infra"}:
                 primary_order = ["remotive", "jobicy", "greenhouse"]
                 supplemental_order = ["jooble", "themuse", "adzuna"]
@@ -509,7 +510,10 @@ class JobAggregator:
         if family_group not in {"software", "security", "infra"}:
             fallback_sources = [source for source in fallback_sources if source != "remoteok"]
         if dense_family:
-            fallback_sources = [source for source in fallback_sources if source not in {"lever", "remoteok", "themuse"}]
+            blocked_dense_sources = {"remoteok", "themuse"}
+            if not weak_software_family:
+                blocked_dense_sources.add("lever")
+            fallback_sources = [source for source in fallback_sources if source not in blocked_dense_sources]
         elif (
             role_profile(query).normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
             or any(head in {"admin", "administrator", "consultant", "manager", "designer", "writer"} for head in role_profile(query).head_terms)
@@ -972,8 +976,12 @@ class JobAggregator:
     ) -> list[dict]:
         query_domain = role_domain(query)
         query_profile = role_profile(query)
+        weak_software_family = self._is_weak_software_live_family(query)
         fetch_started_at = time.perf_counter()
         self.last_live_job_snapshot = []
+        self.last_fetch_diagnostics = dict(self.last_fetch_diagnostics or {})
+        self.last_fetch_diagnostics.setdefault("providers", [])
+        self.last_fetch_diagnostics.setdefault("stage_short_circuits", [])
 
         def _remaining_runtime_budget(*, reserve_seconds: float = 0.0) -> float:
             return max(
@@ -1101,6 +1109,8 @@ class JobAggregator:
         partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
         target_live_count = self._production_live_target(query=query, limit=limit)
         dense_role = self._is_dense_production_family(query)
+        best_live: list[dict] = []
+        best_live_stage = ""
 
         def absorb_results(provider_results: list[list[dict]]) -> None:
             for items in provider_results:
@@ -1118,6 +1128,70 @@ class JobAggregator:
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
                     self._annotate_item_scores(query=query, location=location, item=item)
                     collected.append(item)
+
+        def _selected_live_sources(selected_live: list[dict]) -> dict[str, int]:
+            return {
+                source: len([item for item in selected_live if item.get("source") == source])
+                for source in sorted({item.get("source", "unknown") for item in selected_live})
+            }
+
+        def _live_result_strength(selected_live: list[dict]) -> tuple[int, int, float]:
+            if not selected_live:
+                return (0, 0, 0.0)
+            source_count = len({item.get("source", "unknown") for item in selected_live})
+            combined_signal = 0.0
+            for item in selected_live:
+                normalized = item.get("normalized_data") or {}
+                combined_signal += float(normalized.get("role_fit_score") or 0.0)
+                combined_signal += float(normalized.get("market_quality_score") or 0.0)
+                combined_signal += float(normalized.get("title_alignment_score") or 0.0)
+            return (len(selected_live), source_count, round(combined_signal, 4))
+
+        def _remember_best_live(stage: str, selected_live: list[dict]) -> None:
+            nonlocal best_live, best_live_stage
+            if _live_result_strength(selected_live) > _live_result_strength(best_live):
+                best_live = list(selected_live)
+                best_live_stage = stage
+
+        def _preserve_best_live(stage: str, selected_live: list[dict]) -> list[dict]:
+            _remember_best_live(stage, selected_live)
+            if _live_result_strength(best_live) > _live_result_strength(selected_live):
+                logger.info(
+                    "Production live selection preserved stronger %s result with %s jobs over %s result with %s jobs for query=%s",
+                    best_live_stage,
+                    len(best_live),
+                    stage,
+                    len(selected_live),
+                    query,
+                )
+                self.last_fetch_diagnostics["best_live_preserved_after_stage"] = {
+                    "stage": stage,
+                    "stage_selected_live": len(selected_live),
+                    "preserved_stage": best_live_stage,
+                    "preserved_selected_live": len(best_live),
+                }
+                return list(best_live)
+            return selected_live
+
+        def _store_selected_live(
+            selected_live: list[dict],
+            *,
+            partial_live_return: dict[str, object] | None = None,
+        ) -> None:
+            self.last_fetch_diagnostics["stage_results"] = stage_results
+            self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
+            self.last_fetch_diagnostics["selected_live_count"] = len(selected_live)
+            self.last_fetch_diagnostics["selected_live_sources"] = _selected_live_sources(selected_live)
+            if partial_live_return is None:
+                self.last_fetch_diagnostics.pop("partial_live_return", None)
+            else:
+                self.last_fetch_diagnostics["partial_live_return"] = partial_live_return
+            if best_live:
+                self.last_fetch_diagnostics["best_live_result"] = {
+                    "stage": best_live_stage,
+                    "selected_live": len(best_live),
+                    "selected_live_sources": _selected_live_sources(best_live),
+                }
 
         async def _cancel_pending_tasks(pending: set[asyncio.Task], *, stage: str, soft_timeout: float, reason: str) -> None:
             if not pending:
@@ -1293,6 +1367,7 @@ class JobAggregator:
             len(collected),
             len(preferred_live),
         )
+        _remember_best_live("primary", preferred_live)
         should_continue_after_primary = (
             dense_role
             and not sparse_role
@@ -1301,13 +1376,7 @@ class JobAggregator:
             and _remaining_runtime_budget(reserve_seconds=2.0) > 1.5
         )
         if len(preferred_live) >= live_floor and not should_continue_after_primary:
-            self.last_fetch_diagnostics["stage_results"] = stage_results
-            self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-            self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-            self.last_fetch_diagnostics["selected_live_sources"] = {
-                source: len([item for item in preferred_live if item.get("source") == source])
-                for source in sorted({item.get("source", "unknown") for item in preferred_live})
-            }
+            _store_selected_live(preferred_live)
             logger.info(
                 "Production live selection reached floor with %s jobs from %s collected candidates for query=%s",
                 len(preferred_live),
@@ -1316,13 +1385,7 @@ class JobAggregator:
             )
             return preferred_live
         if sparse_role:
-            self.last_fetch_diagnostics["stage_results"] = stage_results
-            self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-            self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-            self.last_fetch_diagnostics["selected_live_sources"] = {
-                source: len([item for item in preferred_live if item.get("source") == source])
-                for source in sorted({item.get("source", "unknown") for item in preferred_live})
-            }
+            _store_selected_live(preferred_live)
             if preferred_live:
                 return preferred_live
             return []
@@ -1348,14 +1411,9 @@ class JobAggregator:
                 len(collected),
                 len(preferred_live),
             )
+            preferred_live = _preserve_best_live("supplemental", preferred_live)
             if len(preferred_live) >= live_floor:
-                self.last_fetch_diagnostics["stage_results"] = stage_results
-                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-                self.last_fetch_diagnostics["selected_live_sources"] = {
-                    source: len([item for item in preferred_live if item.get("source") == source])
-                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
-                }
+                _store_selected_live(preferred_live)
                 logger.info(
                     "Production live selection reached floor after supplemental fetch with %s jobs from %s candidates for query=%s",
                     len(preferred_live),
@@ -1364,21 +1422,23 @@ class JobAggregator:
                 )
                 return preferred_live
             elapsed_after_supplemental = time.perf_counter() - fetch_started_at
+            allow_weak_software_fallback = (
+                weak_software_family
+                and bool(fallback_sources)
+                and len(preferred_live) < live_floor
+                and _remaining_runtime_budget(reserve_seconds=1.0) > 2.5
+            )
             if len(preferred_live) >= partial_live_floor:
-                self.last_fetch_diagnostics["stage_results"] = stage_results
-                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-                self.last_fetch_diagnostics["selected_live_sources"] = {
-                    source: len([item for item in preferred_live if item.get("source") == source])
-                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
-                }
-                self.last_fetch_diagnostics["partial_live_return"] = {
+                _store_selected_live(
+                    preferred_live,
+                    partial_live_return={
                     "stage": "supplemental",
                     "selected_live": len(preferred_live),
                     "partial_live_floor": partial_live_floor,
                     "elapsed_seconds": round(elapsed_after_supplemental, 2),
                     "reason": "acceptable_partial_live_set",
-                }
+                    },
+                )
                 logger.info(
                     "Production live selection accepted partial result after supplemental fetch with %s jobs in %ss for query=%s",
                     len(preferred_live),
@@ -1386,21 +1446,22 @@ class JobAggregator:
                     query,
                 )
                 return preferred_live
-            if preferred_live and query_domain in {"data", "software", "security"} and len(preferred_live) >= 2:
-                self.last_fetch_diagnostics["stage_results"] = stage_results
-                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-                self.last_fetch_diagnostics["selected_live_sources"] = {
-                    source: len([item for item in preferred_live if item.get("source") == source])
-                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
-                }
-                self.last_fetch_diagnostics["partial_live_return"] = {
+            if (
+                preferred_live
+                and query_domain in {"data", "software", "security"}
+                and len(preferred_live) >= 2
+                and not allow_weak_software_fallback
+            ):
+                _store_selected_live(
+                    preferred_live,
+                    partial_live_return={
                     "stage": "supplemental",
                     "selected_live": len(preferred_live),
                     "partial_live_floor": partial_live_floor,
                     "elapsed_seconds": round(elapsed_after_supplemental, 2),
                     "reason": "dense_domain_preserve_live_after_supplemental",
-                }
+                    },
+                )
                 logger.info(
                     "Production live selection preserved %s dense-domain jobs after supplemental fetch in %ss for query=%s",
                     len(preferred_live),
@@ -1412,22 +1473,18 @@ class JobAggregator:
                 (len(preferred_live) == primary_selected_count and query_domain != "data")
                 or (elapsed_after_supplemental >= 18.0 and query_domain not in {"data", "software", "security"})
                 or query_domain in {"product", "design"}
-            ):
-                self.last_fetch_diagnostics["stage_results"] = stage_results
-                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-                self.last_fetch_diagnostics["selected_live_sources"] = {
-                    source: len([item for item in preferred_live if item.get("source") == source])
-                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
-                }
-                self.last_fetch_diagnostics["partial_live_return"] = {
+            ) and not allow_weak_software_fallback:
+                _store_selected_live(
+                    preferred_live,
+                    partial_live_return={
                     "stage": "supplemental",
                     "selected_live": len(preferred_live),
                     "primary_selected_live": primary_selected_count,
                     "partial_live_floor": partial_live_floor,
                     "elapsed_seconds": round(elapsed_after_supplemental, 2),
                     "reason": "preserve_response_after_supplemental",
-                }
+                    },
+                )
                 logger.info(
                     "Production live selection returned early after supplemental fetch with %s jobs in %ss for query=%s",
                     len(preferred_live),
@@ -1445,26 +1502,27 @@ class JobAggregator:
                 and len(preferred_live) >= min(limit, 2)
                 and (remaining_budget <= 9.0 or elapsed_before_fallback >= 24.0)
             )
+            allow_weak_software_fallback = (
+                weak_software_family
+                and len(preferred_live) < live_floor
+                and remaining_budget > 1.5
+            )
             if preferred_live and (
                 len(preferred_live) >= partial_live_floor
                 or dense_role_live_guard
                 or (remaining_budget <= 6.0 and query_domain not in {"data", "software", "security"})
-            ):
-                self.last_fetch_diagnostics["stage_results"] = stage_results
-                self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-                self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-                self.last_fetch_diagnostics["selected_live_sources"] = {
-                    source: len([item for item in preferred_live if item.get("source") == source])
-                    for source in sorted({item.get("source", "unknown") for item in preferred_live})
-                }
-                self.last_fetch_diagnostics["partial_live_return"] = {
+            ) and not allow_weak_software_fallback:
+                _store_selected_live(
+                    preferred_live,
+                    partial_live_return={
                     "stage": "pre-fallback",
                     "selected_live": len(preferred_live),
                     "partial_live_floor": partial_live_floor,
                     "elapsed_seconds": round(elapsed_before_fallback, 2),
                     "remaining_budget_seconds": round(remaining_budget, 2),
                     "reason": "dense_role_budget_guard" if dense_role_live_guard else "preserve_response_budget",
-                }
+                    },
+                )
                 logger.info(
                     "Skipping fallback stage and returning %s live jobs with %ss remaining budget for query=%s",
                     len(preferred_live),
@@ -1491,14 +1549,10 @@ class JobAggregator:
                 len(collected),
                 len(preferred_live),
             )
+            preferred_live = _preserve_best_live("fallback", preferred_live)
 
-        self.last_fetch_diagnostics["stage_results"] = stage_results
-        self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
-        self.last_fetch_diagnostics["selected_live_count"] = len(preferred_live)
-        self.last_fetch_diagnostics["selected_live_sources"] = {
-            source: len([item for item in preferred_live if item.get("source") == source])
-            for source in sorted({item.get("source", "unknown") for item in preferred_live})
-        }
+        preferred_live = _preserve_best_live("final", preferred_live)
+        _store_selected_live(preferred_live)
         if preferred_live:
             logger.info(
                 "Production live selection kept %s jobs from %s collected candidates for query=%s",
@@ -1921,7 +1975,16 @@ class JobAggregator:
             ):
                 return False
         if query_domain in {"software", "security"} and title_precision <= 0 and title_overlap == 0 and family_overlap == 0:
-            return False
+            weak_software_recovery = (
+                query_domain == "software"
+                and self._is_weak_software_live_family(query)
+                and canonical_alignment >= 1
+                and specialty_overlap >= 1
+                and role_fit >= 3.0
+                and self._passes_contextual_family_recovery_guard(query, item)
+            )
+            if not weak_software_recovery:
+                return False
         if (
             self._uses_strict_precision_guard(query)
             and title_precision <= 0

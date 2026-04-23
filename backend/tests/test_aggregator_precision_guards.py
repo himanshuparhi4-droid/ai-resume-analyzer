@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
 
 from app.core.config import settings
@@ -355,6 +356,21 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         }
         self.assertTrue(self.aggregator._is_family_live_candidate("Web Developer", "Global", item))
 
+    def test_web_developer_keeps_full_stack_software_engineer_with_strong_frontend_signals(self) -> None:
+        item = {
+            "title": "Senior Software Engineer, Full-Stack",
+            "description": "Build modern web applications with React, TypeScript, frontend systems, and full-stack product delivery.",
+            "tags": [],
+            "normalized_data": {
+                "skills": ["react", "typescript", "javascript", "frontend", "css"],
+                "role_fit_score": 10.0,
+                "market_quality_score": 20.0,
+                "title_alignment_score": 8.0,
+            },
+        }
+        self.assertTrue(self.aggregator._passes_contextual_family_recovery_guard("Web Developer", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("Web Developer", item))
+
     def test_devops_engineer_rejects_generic_cloud_developer_title(self) -> None:
         item = {
             "title": "Sr Applications Developer_Atlassian Cloud",
@@ -653,6 +669,24 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
         self.assertEqual(plan["fallback_sources"], [])
 
+    def test_web_developer_uses_lever_as_late_recovery_source_when_available(self) -> None:
+        source_groups = {
+            "greenhouse": [object()],
+            "jobicy": [object()],
+            "jooble": [object()],
+            "lever": [object()],
+            "remotive": [object()],
+            "themuse": [object()],
+        }
+        plan = self.aggregator._build_production_provider_plan(
+            query="Web Developer",
+            location="Global",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
+        self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
+        self.assertEqual(plan["fallback_sources"], ["lever"])
+
     def test_dense_underfill_grace_window_extends_underfilled_primary_stage(self) -> None:
         grace_seconds = self.aggregator._production_underfill_grace_seconds(
             stage="primary",
@@ -672,6 +706,94 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
 
         self.assertGreaterEqual(timeout_seconds, 9.0)
+
+    def test_production_fetch_preserves_stronger_primary_live_set_when_later_stage_is_weaker(self) -> None:
+        class FakeProvider:
+            supports_query_variations = False
+            supports_location_variations = False
+
+            def __init__(self, source_name: str, jobs: list[dict]) -> None:
+                self.source_name = source_name
+                self._jobs = jobs
+
+            async def search(self, query: str, location: str, limit: int) -> list[dict]:
+                return list(self._jobs)
+
+        class ScriptedAggregator(JobAggregator):
+            def __init__(self, scripted_live_results: list[list[dict]], providers: list[object]) -> None:
+                super().__init__(None)
+                self.providers = providers
+                self._scripted_live_results = scripted_live_results
+                self._selection_call_index = 0
+
+            def _build_production_provider_plan(self, *, query: str, location: str, source_groups: dict[str, list[object]]) -> dict[str, object]:
+                return {
+                    "family_group": "data",
+                    "dense_family": True,
+                    "primary_sources": ["jobicy"],
+                    "supplemental_sources": ["themuse"],
+                    "fallback_sources": [],
+                    "active_sources": ["jobicy", "themuse"],
+                }
+
+            def _select_production_live_jobs(self, *, query: str, location: str, jobs: list[dict], limit: int) -> list[dict]:
+                index = min(self._selection_call_index, len(self._scripted_live_results) - 1)
+                self._selection_call_index += 1
+                self.last_fetch_diagnostics["selection_debug"] = {
+                    "precision_guarded_candidates": len(self._scripted_live_results[index]),
+                    "upstream_family_safe_count": len(self._scripted_live_results[index]),
+                    "underfill": {"reason": "scripted_test"},
+                }
+                return list(self._scripted_live_results[index])
+
+        def make_live_jobs(count: int, source_name: str) -> list[dict]:
+            return [
+                {
+                    "title": f"Data Analyst {idx}",
+                    "company": f"Company {idx}",
+                    "source": source_name,
+                    "description": "Own SQL dashboards, reporting, and analytics workflows.",
+                    "url": f"https://example.com/{source_name}/{idx}",
+                    "normalized_data": {
+                        "skills": ["sql", "analytics"],
+                        "role_fit_score": 10.0,
+                        "market_quality_score": 20.0,
+                        "title_alignment_score": 15.0,
+                    },
+                }
+                for idx in range(count)
+            ]
+
+        primary_live = make_live_jobs(7, "jobicy")
+        weaker_supplemental_live = make_live_jobs(4, "themuse")
+        providers = [
+            FakeProvider("jobicy", make_live_jobs(2, "jobicy")),
+            FakeProvider("themuse", make_live_jobs(2, "themuse")),
+        ]
+        aggregator = ScriptedAggregator(
+            scripted_live_results=[primary_live, weaker_supplemental_live, weaker_supplemental_live],
+            providers=providers,
+        )
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            selected = asyncio.run(
+                aggregator._fetch_production_jobs(
+                    query="Data Analyst",
+                    location="Global",
+                    limit=10,
+                )
+            )
+        finally:
+            settings.environment = previous_environment
+
+        self.assertEqual(len(selected), 7)
+        self.assertEqual(aggregator.last_fetch_diagnostics["selected_live_count"], 7)
+        self.assertEqual(aggregator.last_fetch_diagnostics["best_live_result"]["stage"], "primary")
+        self.assertEqual(
+            aggregator.last_fetch_diagnostics["best_live_preserved_after_stage"]["preserved_selected_live"],
+            7,
+        )
 
     def test_dense_underfill_grace_window_stays_off_once_floor_is_met(self) -> None:
         grace_seconds = self.aggregator._production_underfill_grace_seconds(

@@ -79,9 +79,9 @@ class LeverProvider:
         if settings.environment == "production":
             query_domain = role_domain(query)
             if query_domain == "data":
-                companies = companies[:2]
-            elif query_domain in {"software", "security"}:
                 companies = companies[:3]
+            elif query_domain in {"software", "security"}:
+                companies = companies[:5]
 
         jobs: list[dict] = []
         seen_links: set[str] = set()
@@ -92,12 +92,39 @@ class LeverProvider:
             pool=5.0,
         )
         async with httpx.AsyncClient(timeout=timeout) as client:
-            company_results_raw = await asyncio.gather(
-                *(self._fetch_company_jobs(company, client=client) for company in companies),
-                return_exceptions=True,
-            )
+            if settings.environment == "production":
+                domain = role_domain(query)
+                if domain in {"software", "security"}:
+                    batch_timeout = 4.25
+                elif domain == "data":
+                    batch_timeout = 4.75
+                else:
+                    batch_timeout = 5.0
+                async def fetch_company_with_timeout(company: str) -> tuple[str, list[dict] | Exception]:
+                    try:
+                        jobs = await asyncio.wait_for(
+                            self._fetch_company_jobs(company, client=client),
+                            timeout=batch_timeout,
+                        )
+                        return company, jobs
+                    except Exception as exc:
+                        return company, exc
+
+                company_results_raw = await asyncio.gather(
+                    *(fetch_company_with_timeout(company) for company in companies)
+                )
+            else:
+                company_results_raw = list(
+                    zip(
+                        companies,
+                        await asyncio.gather(
+                            *(self._fetch_company_jobs(company, client=client) for company in companies),
+                            return_exceptions=True,
+                        ),
+                    )
+                )
         company_results: list[list[dict]] = []
-        for company, company_jobs in zip(companies, company_results_raw):
+        for company, company_jobs in company_results_raw:
             if isinstance(company_jobs, Exception):
                 logger.warning("Lever company fetch failed for %s: %s", company, company_jobs)
                 continue
