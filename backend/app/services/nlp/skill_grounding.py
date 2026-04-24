@@ -97,6 +97,30 @@ SPARSE_LIVE_MARKET_ROLES = {"teacher", "carpenter", "painter"}
 
 
 class SkillGroundingService:
+    def prepare_resume_skill_inventory(self, resume_data: dict) -> dict:
+        """Normalize resume skills once so every scoring path sees the same facts."""
+        raw_text = resume_data.get("raw_text", "")
+        seeded_skills = {
+            canonical_skill_label(str(skill))
+            for skill in resume_data.get("skills", [])
+            if canonical_skill_label(str(skill))
+        }
+        raw_text_skills = {
+            item["skill"]
+            for item in extract_skill_matches(raw_text, source="resume")
+            if item.get("skill")
+        }
+        normalized_skills = sorted(seeded_skills | raw_text_skills)
+        resume_data["skills"] = normalized_skills
+        resume_data["skill_evidence"] = self._extract_resume_skill_evidence(
+            resume_data,
+            selected_skills=normalized_skills,
+        )
+        parse_signals = resume_data.setdefault("parse_signals", {})
+        parse_signals["detected_skill_count"] = len(normalized_skills)
+        parse_signals["skill_evidence_count"] = len(resume_data["skill_evidence"])
+        return resume_data
+
     async def ensure_market_coverage(
         self,
         *,
@@ -126,9 +150,14 @@ class SkillGroundingService:
 
     async def ground(self, *, role_query: str, resume_data: dict, jobs: list[dict]) -> tuple[dict, list[dict], dict[str, Any]]:
         resume_text = resume_data.get("raw_text", "")
+        seeded_resume_skills = {
+            canonical_skill_label(str(skill))
+            for skill in resume_data.get("skills", [])
+            if canonical_skill_label(str(skill))
+        }
         anchored_resume_evidence = self._extract_resume_skill_evidence(resume_data)
         resume_data["skill_evidence"] = anchored_resume_evidence
-        resume_data["skills"] = sorted({item["skill"] for item in anchored_resume_evidence})
+        resume_data["skills"] = sorted(seeded_resume_skills | {item["skill"] for item in anchored_resume_evidence})
         baseline_only = bool(jobs) and all(job.get("source") == "role-baseline" for job in jobs)
         blended_market = any(job.get("source") == "role-baseline" for job in jobs) and any(job.get("source") != "role-baseline" for job in jobs)
 
@@ -179,7 +208,7 @@ class SkillGroundingService:
             "\n".join(normalize_whitespace(f"{job.get('title', '')} {job.get('description', '')}") for job in jobs),
         ) if audit else []
 
-        final_resume_skills = sorted(set(kept_resume_skills) | set(dynamic_resume_skills))
+        final_resume_skills = sorted(set(kept_resume_skills) | set(dynamic_resume_skills) | seeded_resume_skills)
         final_market_skills = sorted(set(kept_market_skills) | set(dynamic_market_skills))
 
         resume_data["skills"] = final_resume_skills
@@ -922,12 +951,18 @@ class SkillGroundingService:
                 if item["snippet"] not in {existing["snippet"] for existing in evidence_map[skill]}:
                     evidence_map[skill].append(item)
 
-        if not evidence_map and raw_text:
+        raw_fallback_skills = targeted or seeded_skills
+        missing_raw_fallback_skills = raw_fallback_skills - set(evidence_map)
+        if raw_text and (not evidence_map or missing_raw_fallback_skills):
             fallback = extract_skill_matches(raw_text, source="resume")
-            if targeted:
-                fallback = [item for item in fallback if item["skill"] in targeted]
+            if raw_fallback_skills:
+                fallback = [item for item in fallback if item["skill"] in raw_fallback_skills]
             for item in fallback:
-                evidence_map.setdefault(item["skill"], []).append(item)
+                if evidence_map and item["skill"] not in missing_raw_fallback_skills:
+                    continue
+                evidence_map.setdefault(item["skill"], [])
+                if item["snippet"] not in {existing["snippet"] for existing in evidence_map[item["skill"]]}:
+                    evidence_map[item["skill"]].append(item)
                 section_hits.setdefault(item["skill"], set()).add("raw_text")
 
         kept: list[dict] = []

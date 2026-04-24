@@ -57,6 +57,7 @@ class AnalysisOrchestrator:
     ) -> AnalysisResponse:
         started = time.perf_counter()
         resume_data = self.resume_parser.parse(filename, content_type, file_bytes)
+        resume_data = self.skill_grounding.prepare_resume_skill_inventory(resume_data)
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         jobs: list[dict]
         if settings.environment == "production":
@@ -439,6 +440,8 @@ class AnalysisOrchestrator:
         )
 
     def _build_lightweight_score_payload(self, *, resume_data: dict, jobs: list[dict], role_query: str) -> dict:
+        if not resume_data.get("skill_evidence"):
+            resume_data = self.skill_grounding.prepare_resume_skill_inventory(resume_data)
         resume_skills = {
             canonical_skill_label(str(skill))
             for skill in resume_data.get("skills", [])

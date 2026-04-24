@@ -188,9 +188,11 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
         )
         missing_names = {item["skill"] for item in payload["missing_skills"]}
         weak_names = {item["skill"] for item in payload["weak_skill_proofs"]}
+        evidence_names = {item["skill"] for item in resume_data.get("skill_evidence", [])}
 
         self.assertFalse({"sql", "python", "power bi", "data visualization", "dashboarding"} & missing_names)
         self.assertTrue({"sql", "python", "power bi"} <= weak_names)
+        self.assertTrue({"sql", "python", "power bi", "data visualization", "dashboarding"} <= evidence_names)
 
     def test_uploaded_pdf_keeps_education_separate_from_experience(self) -> None:
         pdf_path = Path(r"C:\Users\KIIT\Downloads\himanshu_resume_hyperlinks_forced.pdf")

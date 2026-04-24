@@ -9,6 +9,7 @@ type SkillGapChartProps = {
   matchedSkillDetails: SkillDetail[];
   missingSkillDetails: SkillDetail[];
   weakSkillProofDetails: SkillDetail[];
+  detectedSkills?: string[];
 };
 
 export function SkillGapChart({
@@ -18,6 +19,7 @@ export function SkillGapChart({
   matchedSkillDetails,
   missingSkillDetails,
   weakSkillProofDetails,
+  detectedSkills = [],
 }: SkillGapChartProps) {
   const legacyWeakMissingSkills = missingSkills.filter((detail) => detail.signal_source === "weak-resume-proof");
   const trueMissingSkills = missingSkills.filter((detail) => detail.signal_source !== "weak-resume-proof");
@@ -84,6 +86,7 @@ export function SkillGapChart({
     }
     return right.market_share - left.market_share;
   });
+  const detectedSkillList = Array.from(new Set(detectedSkills.map((skill) => skill.trim().toLowerCase()).filter(Boolean))).sort();
   const chartData = (mergedMissingDetails.length ? mergedMissingDetails : trueMissingSkills)
     .slice(0, 8)
     .map((detail) => ({
@@ -300,6 +303,21 @@ export function SkillGapChart({
                 </p>
               </article>
             ))}
+          </div>
+        ) : null}
+        {detectedSkillList.length ? (
+          <div className="mt-6 rounded-[1.5rem] border border-sea/25 bg-sea/10 p-4 transition-colors duration-300 dark:border-sea/20 dark:bg-sea/10">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate dark:text-slate-300">Detected in resume</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+              These canonical skills were found in the parsed resume. If one appears under proof, it means "show stronger usage," not "you do not have it."
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {detectedSkillList.slice(0, 18).map((skill) => (
+                <span key={`detected-${skill}`} className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-ink shadow-sm transition-colors duration-300 dark:bg-white/[0.08] dark:text-slate-100">
+                  {skill}
+                </span>
+              ))}
+            </div>
           </div>
         ) : null}
       </div>

@@ -107,6 +107,8 @@ export type AnalysisResponse = {
     baseline_support_tier?: string;
     market_confidence?: MarketConfidence;
     parser_confidence?: ParserConfidence;
+    parsed_resume_skills?: string[];
+    weak_skill_proofs?: string[];
     build_tag?: string;
     fetch_diagnostics?: Record<string, unknown>;
     message?: string;

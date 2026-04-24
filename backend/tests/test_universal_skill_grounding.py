@@ -205,7 +205,7 @@ class UniversalSkillGroundingTest(unittest.TestCase):
     def test_skill_extraction_handles_case_spacing_and_punctuation_variants(self) -> None:
         text = (
             "TECHNICAL SKILLS: SQL, PYTHON, PowerBI, Power_BI, Power B.I., "
-            "DataVisualisation, data-visualization, DASH BOARD, dashboards."
+            "MS Power-B.I., PBIX, DataVisualisation, data-visualization, DASH BOARD, dashboards."
         )
 
         skills = set(extract_skills(text))
@@ -230,6 +230,8 @@ class UniversalSkillGroundingTest(unittest.TestCase):
         cases = {
             "PowerBI": "power bi",
             "POWER-B.I.": "power bi",
+            "MS Power B.I.": "power bi",
+            "PBIX": "power bi",
             "DataVisualisation": "data visualization",
             "dash_board": "dashboarding",
             "Structured Query Language": "sql",
@@ -282,6 +284,30 @@ class UniversalSkillGroundingTest(unittest.TestCase):
         self.assertEqual({"excel"}, {item["skill"] for item in missing})
         self.assertEqual({"sql", "power bi"}, {item["skill"] for item in weak})
         self.assertTrue(all(item["signal_source"] == "weak-resume-proof" for item in weak))
+
+    def test_resume_inventory_backfills_seeded_skills_skipped_by_section_guard(self) -> None:
+        resume_data = {
+            "raw_text": (
+                "SUMMARY Data analyst with SQL reporting experience. "
+                "SKILLS SQL, MS Power-B.I., PBIX, DataVisualisation, DASH BOARD"
+            ),
+            "sections": {
+                "summary": "Data analyst with SQL reporting experience.",
+                "skills": "SQL, MS Power-B.I., PBIX, DataVisualisation, DASH BOARD",
+            },
+            "skills": ["SQL", "MS Power-B.I.", "DataVisualisation", "DASH BOARD"],
+            "parse_signals": {"synthetic_skills_section": True},
+        }
+
+        prepared = self.service.prepare_resume_skill_inventory(resume_data)
+        detected_skills = set(prepared["skills"])
+        evidence_skills = {item["skill"] for item in prepared["skill_evidence"]}
+
+        self.assertIn("sql", detected_skills)
+        self.assertIn("power bi", detected_skills)
+        self.assertIn("data visualization", detected_skills)
+        self.assertIn("dashboarding", detected_skills)
+        self.assertTrue({"sql", "power bi", "data visualization", "dashboarding"} <= evidence_skills)
 
 
 if __name__ == "__main__":
