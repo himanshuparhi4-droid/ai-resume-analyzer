@@ -65,8 +65,8 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
         <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-end">
           <div>
             <div className="inline-flex rounded-full border border-ink/10 bg-white/55 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-ink backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
-              <span className="rounded-full bg-sea px-3 py-1 text-ink">Evidence first</span>
-              <span className="px-3 py-1">No blind ATS score</span>
+              <span className="rounded-full bg-gradient-to-r from-gold via-ember to-sea px-3 py-1 text-ink shadow-[0_10px_28px_rgba(255,88,63,0.22)]">Evidence first</span>
+              <span className="px-3 py-1">15-20 listing target</span>
             </div>
             <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.7rem,7vw,6.6rem)] font-extrabold leading-[0.88] tracking-[-0.065em] text-ink dark:text-slate-50">
               Turn a resume into a hiring signal map.
@@ -109,9 +109,9 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-[1.2rem] bg-sea/95 p-4 text-ink">
+              <div className="mt-5 rounded-[1.2rem] bg-gradient-to-br from-gold via-ember to-sea p-4 text-ink shadow-[0_18px_46px_rgba(255,88,63,0.26)]">
                 <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Confidence-aware by design</p>
-                <p className="mt-1 text-sm font-semibold leading-6 opacity-80">If Render returns only 3-4 jobs, the UI now says the market sample is limited instead of overclaiming certainty.</p>
+                <p className="mt-1 text-sm font-semibold leading-6 opacity-85">Dense searches now aim for a richer 15-20 listing market view, while still labeling limited provider runs honestly.</p>
               </div>
             </div>
           </div>

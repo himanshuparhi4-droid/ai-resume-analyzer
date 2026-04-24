@@ -161,7 +161,7 @@ class TheMuseProvider:
                 "data engineer",
                 "machine learning engineer",
             }
-            enrichment_budget = min(max(limit, 6), 8) if dense_data_role else min(max(limit // 2, 3), 4)
+            enrichment_budget = min(max(limit, 6), 12) if dense_data_role else min(max(limit // 2 + 1, 5), 8)
             extraction_limit = 850
         else:
             enrichment_budget = max(limit * 3, 32)

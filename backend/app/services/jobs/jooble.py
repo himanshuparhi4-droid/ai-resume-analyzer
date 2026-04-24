@@ -38,7 +38,7 @@ class JoobleProvider:
             page_size = min(max(limit * 2, 16), 24 if analyst_style else 30)
             page_count = 1
             extraction_limit = 750 if analyst_style else 900
-            enrichment_budget = min(max(limit // 2, 3), 4) if analyst_style else min(max(limit // 2 + 1, 4), 5)
+            enrichment_budget = min(max(limit // 2 + 2, 6), 10) if analyst_style else min(max(limit // 2 + 2, 6), 9)
         else:
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             page_size = min(max(limit * 4, 30), 100)

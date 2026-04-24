@@ -18,7 +18,7 @@ class AnalysisUploadRequest(BaseModel):
     file_base64: str
     role_query: str
     location: str = "Global"
-    limit: int = 12
+    limit: int = 18
 
 
 class AnalysisResponse(BaseModel):

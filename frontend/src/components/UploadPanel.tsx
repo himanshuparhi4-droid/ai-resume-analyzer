@@ -19,7 +19,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
   const [location, setLocation] = useState("India");
-  const [limit, setLimit] = useState(12);
+  const [limit, setLimit] = useState(18);
   const fileLabel = useMemo(() => (file ? file.name : "Drop a resume export here"), [file]);
   const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, DOCX, or TXT";
 
@@ -98,8 +98,8 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
 
             <label className="soft-card rounded-[1.5rem] p-4">
               <span className="text-sm font-extrabold text-ink dark:text-slate-100">Sample size</span>
-              <input className="field-control mt-3" type="number" min={5} max={15} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 12)} />
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Higher targets help dense roles; hosted runs cap at 15 to protect response time.</p>
+              <input className="field-control mt-3" type="number" min={5} max={20} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 18)} />
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Dense roles now aim for 15-20 listings; Render may still return fewer when providers are slow.</p>
             </label>
           </div>
 

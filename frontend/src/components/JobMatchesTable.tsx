@@ -113,8 +113,8 @@ function sourcePillClass(source?: string) {
 export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps) {
   const liveJobs = jobs.filter((job) => job.source !== "role-baseline");
   const baselineJobs = jobs.filter((job) => job.source === "role-baseline");
-  const displayedLiveJobs = liveJobs.slice(0, 8);
-  const displayedBaselineJobs = baselineJobs.slice(0, liveJobs.length >= 8 ? 2 : 3);
+  const displayedLiveJobs = liveJobs.slice(0, 20);
+  const displayedBaselineJobs = baselineJobs.slice(0, liveJobs.length >= 12 ? 1 : 3);
   const liveSourceCounts = Object.entries(analysisContext?.live_source_counts ?? {}).sort((left, right) => right[1] - left[1]);
   const marketConfidenceDetail = getMarketConfidenceDetail(analysisContext?.market_confidence);
   const liveJobCount =

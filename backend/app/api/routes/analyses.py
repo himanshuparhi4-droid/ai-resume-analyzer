@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/resume", response_model=AnalysisResponse)
-async def analyze_resume(resume: UploadFile = File(...), role_query: str = Form(...), location: str = Form("India"), limit: int = Form(12), db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)) -> AnalysisResponse:
+async def analyze_resume(resume: UploadFile = File(...), role_query: str = Form(...), location: str = Form("India"), limit: int = Form(18), db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)) -> AnalysisResponse:
     file_bytes = await resume.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")

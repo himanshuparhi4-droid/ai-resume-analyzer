@@ -354,9 +354,9 @@ class JobAggregator:
             return 5.0 if stage == "primary" else 3.5
         if self._is_data_analyst_style_query(query):
             if stage == "primary":
-                return 10.75
+                return 13.0
             if stage == "supplemental":
-                return 10.25
+                return 11.5
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
@@ -1116,9 +1116,9 @@ class JobAggregator:
                     provider_timeout = 8.0
             elif source_name == "greenhouse":
                 if query_domain == "data":
-                    provider_timeout = 10.5
+                    provider_timeout = 12.0 if india_focused_location else 10.5
                 elif query_domain in {"software", "security"}:
-                    provider_timeout = 10.0
+                    provider_timeout = 11.5 if india_focused_location else 10.0
                 else:
                     provider_timeout = 7.5
             elif source_name == "lever":
@@ -1129,7 +1129,7 @@ class JobAggregator:
                 else:
                     provider_timeout = 6.0
             elif source_name == "jooble":
-                provider_timeout = 8.0 if india_focused_location else 6.0
+                provider_timeout = 10.0 if india_focused_location else 6.0
                 if data_analyst_style and not india_focused_location:
                     provider_timeout = 8.5
                 if security_analyst_style and not india_focused_location:
@@ -1137,9 +1137,9 @@ class JobAggregator:
                 elif weak_software_family and not india_focused_location:
                     provider_timeout = min(provider_timeout, 5.25)
             elif source_name == "adzuna":
-                provider_timeout = 7.0 if india_focused_location else 5.5
+                provider_timeout = 10.5 if india_focused_location else 5.5
                 if data_analyst_style:
-                    provider_timeout = 8.0 if india_focused_location else 8.5
+                    provider_timeout = 12.0 if india_focused_location else 8.5
                 if security_analyst_style and not india_focused_location:
                     provider_timeout = 4.75
                 elif weak_software_family and not india_focused_location:
@@ -1827,6 +1827,19 @@ class JobAggregator:
                     and len(selected) < display_floor
                 ):
                     company_title_limit = 3
+                elif (
+                    india_focused_selection
+                    and has_distinct_listing_id
+                    and len(selected) >= display_floor
+                    and len(selected) < target_live_count
+                    and self._canonical_role_alignment(query, item) >= 2
+                    and self._title_precision_score(query, item) >= 2
+                ):
+                    # Once India has a clean floor, allow one extra same-title
+                    # listing from the same company if the posting has its own
+                    # URL/id. This helps reach 15-20 without letting duplicates
+                    # dominate the first page.
+                    company_title_limit = 2
                 elif (
                     not india_focused_selection
                     and has_distinct_listing_id

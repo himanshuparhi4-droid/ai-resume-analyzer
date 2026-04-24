@@ -24,9 +24,9 @@ class JobicyProvider:
     async def search(self, query: str, location: str, limit: int) -> list[dict]:
         normalized_role = normalize_role(query)
         if settings.environment == "production":
-            request_count = min(max(limit + 4, 12), 16)
+            request_count = min(max(limit + 4, 12), 24)
             extraction_limit = 850
-            enrichment_budget = min(max(limit // 2, 3), 4)
+            enrichment_budget = min(max(limit // 2 + 1, 5), 8)
         else:
             request_count = min(max(limit * 2, settings.production_live_candidate_fetch), 50)
             extraction_limit = 4000

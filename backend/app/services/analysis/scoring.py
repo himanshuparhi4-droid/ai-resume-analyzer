@@ -246,7 +246,7 @@ class ScoringEngine:
             ),
             reverse=True,
         )
-        top_matches = ranked_jobs[:5]
+        top_matches = ranked_jobs[:20]
         if blended_market and not any(item.get("source") == "role-baseline" for item in top_matches):
             baseline_candidate = next((item for item in ranked_jobs if item.get("source") == "role-baseline"), None)
             if baseline_candidate:

@@ -695,7 +695,7 @@ class AnalysisOrchestrator:
             reverse=True,
         )
         live_top_matches = [item for item in ranked_jobs if item.get("source") != "role-baseline"]
-        display_limit = 10 if live_top_matches else 5
+        display_limit = 20 if live_top_matches else 5
         stored_matches = ranked_jobs[: max(display_limit, min(len(ranked_jobs), 24))]
         if (
             len(live_top_matches) < display_limit

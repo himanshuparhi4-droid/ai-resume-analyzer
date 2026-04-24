@@ -8,10 +8,10 @@ export default {
     extend: {
       colors: {
         ink: "#06131c",
-        mist: "#f3f7f4",
-        sea: "#5ec2b7",
-        ember: "#ff8a5b",
-        gold: "#f4c95d",
+        mist: "#fff7e6",
+        sea: "#00c7b8",
+        ember: "#ff583f",
+        gold: "#ffd343",
         slate: {
           ...colors.slate,
           DEFAULT: "#7c8b95",
