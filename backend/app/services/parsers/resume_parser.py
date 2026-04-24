@@ -25,6 +25,7 @@ SECTION_HEADERS = {
     "teaching": ["teaching", "teaching experience"],
     "awards": ["awards", "honors", "achievements"],
     "languages": ["languages", "language skills"],
+    "interests": ["interests", "hobbies"],
 }
 HEADER_ALIASES = {
     alias: key
@@ -238,6 +239,13 @@ class ResumeParser:
         sections: dict[str, list[str]] = {key: [] for key in SECTION_HEADERS}
         current = "summary"
         for line in lines:
+            inline_segments = self._inline_section_segments(line)
+            if inline_segments:
+                for section, content in inline_segments:
+                    current = section
+                    if content and content.lower() not in HEADER_ALIASES:
+                        sections.setdefault(current, []).append(content)
+                continue
             lowered = line.lower().strip(":")
             matched = next((key for key, headers in SECTION_HEADERS.items() if lowered in headers), None)
             if matched:
@@ -257,6 +265,51 @@ class ResumeParser:
                 continue
             sections.setdefault(current, []).append(line)
         return {key: value for key, value in sections.items() if value}
+
+    def _inline_section_segments(self, line: str) -> list[tuple[str, str]]:
+        matches = self._inline_section_header_matches(line)
+        if not matches:
+            return []
+        if len(matches) == 1 and matches[0][0] == 0:
+            return []
+        segments: list[tuple[str, str]] = []
+        for index, (start, end, section, _alias) in enumerate(matches):
+            next_start = matches[index + 1][0] if index + 1 < len(matches) else len(line)
+            content = line[end:next_start].strip(" :-")
+            segments.append((section, content))
+        return segments
+
+    def _inline_section_header_matches(self, line: str) -> list[tuple[int, int, str, str]]:
+        matches: list[tuple[int, int, str, str]] = []
+        occupied: list[tuple[int, int]] = []
+        for alias, section in sorted(HEADER_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
+            pattern = re.compile(rf"(?<![A-Za-z]){re.escape(alias)}(?![A-Za-z])", re.IGNORECASE)
+            for match in pattern.finditer(line):
+                start, end = match.span()
+                if any(start < used_end and end > used_start for used_start, used_end in occupied):
+                    continue
+                marker = line[start:end]
+                if not self._looks_like_inline_header_marker(line, start, end, marker):
+                    continue
+                occupied.append((start, end))
+                matches.append((start, end, section, alias))
+        matches.sort(key=lambda item: item[0])
+        return matches
+
+    def _looks_like_inline_header_marker(self, line: str, start: int, end: int, marker: str) -> bool:
+        if start == 0:
+            return True
+        letters = [char for char in marker if char.isalpha()]
+        uppercase_ratio = (
+            sum(1 for char in letters if char.isupper()) / max(len(letters), 1)
+            if letters
+            else 0.0
+        )
+        if uppercase_ratio >= 0.8:
+            return True
+        previous = line[max(0, start - 3):start]
+        following = line[end:min(len(line), end + 2)]
+        return bool(re.search(r"[\n:|•-]\s*$", previous) or re.match(r"^\s*[:|-]", following))
 
     def _split_sections(self, text: str) -> dict[str, str]:
         return {
@@ -300,6 +353,10 @@ class ResumeParser:
 
         for line in lines:
             lowered = line.lower().strip(":")
+            inline_marker_matches = self._inline_section_header_matches(line)
+            if len(inline_marker_matches) >= 2:
+                explicit_headers += len(inline_marker_matches)
+                inline_headers += len(inline_marker_matches)
             header_hits = [alias for alias in HEADER_ALIASES if lowered == alias or lowered.startswith(f"{alias} ")]
             if header_hits:
                 if any(lowered == alias for alias in header_hits):

@@ -1,4 +1,4 @@
-import type { ScoreBreakdown } from "../lib/types";
+import type { ParserConfidence, ScoreBreakdown } from "../lib/types";
 
 const LABELS: Record<keyof ScoreBreakdown, string> = {
   skill_match: "Skill Match",
@@ -19,6 +19,7 @@ type ScoreGridProps = {
     confidence?: number;
     reasons?: string[];
   };
+  parserConfidence?: ParserConfidence;
   componentFeedback?: Partial<Record<keyof ScoreBreakdown, string[]>>;
 };
 
@@ -58,8 +59,25 @@ function buildVerdict(overallScore: number, breakdown: ScoreBreakdown, roleQuery
   };
 }
 
-export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype, componentFeedback = {} }: ScoreGridProps) {
+function parserConfidenceLabel(parserConfidence?: ParserConfidence) {
+  if (!parserConfidence) {
+    return null;
+  }
+  const label = parserConfidence.label ? `${parserConfidence.label[0].toUpperCase()}${parserConfidence.label.slice(1)}` : "Measured";
+  const score = typeof parserConfidence.score === "number" ? ` (${Math.round(parserConfidence.score)}%)` : "";
+  return `${label}${score}`;
+}
+
+export function ScoreGrid({
+  overallScore,
+  breakdown,
+  roleQuery,
+  resumeArchetype,
+  parserConfidence,
+  componentFeedback = {},
+}: ScoreGridProps) {
   const verdict = buildVerdict(overallScore, breakdown, roleQuery);
+  const parserLabel = parserConfidenceLabel(parserConfidence);
 
   return (
     <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
@@ -78,6 +96,21 @@ export function ScoreGrid({ overallScore, breakdown, roleQuery, resumeArchetype,
             <p className="mt-2 font-semibold text-white">{resumeArchetype.label}</p>
             {resumeArchetype.reasons?.[0] ? (
               <p className="mt-2 text-sm leading-6 text-white/85">{resumeArchetype.reasons[0]}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {parserLabel ? (
+          <div className="mt-5 rounded-[1rem] border border-white/10 bg-white/5 px-4 py-3 dark:border-[#294250] dark:bg-white/[0.06]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/75">Parser Confidence</p>
+            <p className="mt-2 font-semibold text-white">{parserLabel}</p>
+            {parserConfidence?.strong_recovered_structure ? (
+              <p className="mt-2 text-sm leading-6 text-white/85">
+                Layout risk was softened because the parser recovered dates, bullets, and sections.
+              </p>
+            ) : parserConfidence?.risk_reasons?.length ? (
+              <p className="mt-2 text-sm leading-6 text-white/85">
+                Review risk: {parserConfidence.risk_reasons.slice(0, 2).join(", ")}
+              </p>
             ) : null}
           </div>
         ) : null}

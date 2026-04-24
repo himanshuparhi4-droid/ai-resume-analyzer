@@ -65,6 +65,25 @@ export type SkillDetail = {
   }[];
 };
 
+export type ParserConfidence = {
+  score?: number;
+  label?: string;
+  strong_recovered_structure?: boolean;
+  risk_reasons?: string[];
+  signals?: Record<string, unknown>;
+};
+
+export type MarketConfidence =
+  | string
+  | {
+      factor?: number;
+      live_job_count?: number;
+      live_company_count?: number;
+      baseline_only?: boolean;
+      blended_market?: boolean;
+      baseline_confidence?: string;
+    };
+
 export type AnalysisResponse = {
   analysis_id: string;
   role_query: string;
@@ -86,7 +105,8 @@ export type AnalysisResponse = {
     used_role_baseline?: boolean;
     baseline_confidence?: string;
     baseline_support_tier?: string;
-    market_confidence?: string;
+    market_confidence?: MarketConfidence;
+    parser_confidence?: ParserConfidence;
     build_tag?: string;
     fetch_diagnostics?: Record<string, unknown>;
     message?: string;

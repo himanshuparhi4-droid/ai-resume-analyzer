@@ -52,6 +52,25 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
         self.assertEqual(signals["portfolio_link_count"], 1)
         self.assertFalse(signals["synthetic_skills_section"])
 
+    def test_merged_inline_headers_keep_education_out_of_experience(self) -> None:
+        text = (
+            "SUMMARY Data analyst with SQL and Power BI. "
+            "EXPERIENCE Data Analyst Intern Example Labs 06/2025 - 07/2025 "
+            "Built dashboards and reporting pipelines. "
+            "EDUCATION B.Tech in Computer Science Silicon University 08/2023 - 08/2027 CGPA 8.2 "
+            "SKILLS SQL Python Power BI Excel"
+        )
+
+        grouped = self.parser._group_section_lines(text)
+        sections = self.parser._split_sections(text)
+
+        self.assertIn("experience", grouped)
+        self.assertIn("education", grouped)
+        self.assertIn("skills", grouped)
+        self.assertNotIn("Silicon University", sections["experience"])
+        self.assertIn("Silicon University", sections["education"])
+        self.assertIn("Power BI", sections["skills"])
+
     def test_seeded_resume_skills_are_kept_when_raw_text_support_exists(self) -> None:
         resume_data = {
             "raw_text": "Microsoft Power BI dashboards and SQL reporting for sales analysis.",
@@ -172,6 +191,19 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
 
         self.assertFalse({"sql", "python", "power bi", "data visualization", "dashboarding"} & missing_names)
         self.assertTrue({"sql", "python", "power bi"} <= weak_names)
+
+    def test_uploaded_pdf_keeps_education_separate_from_experience(self) -> None:
+        pdf_path = Path(r"C:\Users\KIIT\Downloads\himanshu_resume_hyperlinks_forced.pdf")
+        if not pdf_path.exists():
+            self.skipTest("local user PDF fixture is not available")
+
+        resume_data = self.parser.parse(pdf_path.name, "application/pdf", pdf_path.read_bytes())
+        sections = resume_data.get("sections", {})
+
+        self.assertIn("education", sections)
+        self.assertIn("Silicon University", sections["education"])
+        self.assertNotIn("Silicon University", sections.get("experience", ""))
+        self.assertFalse(resume_data["parse_signals"]["inferred_skills_section"])
 
     def test_low_noise_recovered_structure_does_not_emit_generic_ats_cleanup_recommendations(self) -> None:
         resume_data = {

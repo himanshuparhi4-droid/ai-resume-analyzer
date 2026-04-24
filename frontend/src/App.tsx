@@ -223,6 +223,7 @@ function App() {
               breakdown={result.breakdown}
               roleQuery={result.role_query}
               resumeArchetype={result.resume_archetype}
+              parserConfidence={result.analysis_context?.parser_confidence}
               componentFeedback={result.component_feedback ?? {}}
             />
             <SkillGapChart

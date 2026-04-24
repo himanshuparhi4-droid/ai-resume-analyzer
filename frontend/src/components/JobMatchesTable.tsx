@@ -1,4 +1,4 @@
-import type { AnalysisResponse, JobMatch } from "../lib/types";
+import type { AnalysisResponse, JobMatch, MarketConfidence } from "../lib/types";
 import { cleanDisplayText } from "../lib/text";
 
 type JobMatchesTableProps = {
@@ -56,7 +56,27 @@ function describeJobSource(source?: string) {
   return source ?? "Live listing";
 }
 
-function describeMarketConfidence(confidence?: string) {
+function describeMarketConfidence(confidence?: MarketConfidence) {
+  if (typeof confidence === "object" && confidence) {
+    if (confidence.baseline_only) {
+      return "Baseline-only market view";
+    }
+    if (confidence.blended_market) {
+      return "Live sample widened by calibration";
+    }
+    if (typeof confidence.factor === "number") {
+      if (confidence.factor >= 0.96) {
+        return "High-confidence live sample";
+      }
+      if (confidence.factor >= 0.88) {
+        return "Medium-confidence live sample";
+      }
+      if (confidence.factor >= 0.76) {
+        return "Limited live market sample";
+      }
+      return "Low-confidence market view";
+    }
+  }
   if (confidence === "high") {
     return "High-confidence live sample";
   }
@@ -70,6 +90,10 @@ function describeMarketConfidence(confidence?: string) {
     return "Low-confidence market view";
   }
   return "Market sample";
+}
+
+function getMarketConfidenceDetail(confidence?: MarketConfidence) {
+  return typeof confidence === "object" && confidence ? confidence : undefined;
 }
 
 function metricLabel(label: string, value?: number) {
@@ -92,6 +116,16 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
   const displayedLiveJobs = liveJobs.slice(0, 8);
   const displayedBaselineJobs = baselineJobs.slice(0, liveJobs.length >= 8 ? 2 : 3);
   const liveSourceCounts = Object.entries(analysisContext?.live_source_counts ?? {}).sort((left, right) => right[1] - left[1]);
+  const marketConfidenceDetail = getMarketConfidenceDetail(analysisContext?.market_confidence);
+  const liveJobCount =
+    typeof analysisContext?.live_job_count === "number" ? analysisContext.live_job_count : marketConfidenceDetail?.live_job_count;
+  const liveCompanyCount =
+    typeof analysisContext?.live_company_count === "number" ? analysisContext.live_company_count : marketConfidenceDetail?.live_company_count;
+  const baselineConfidence = analysisContext?.baseline_confidence ?? marketConfidenceDetail?.baseline_confidence;
+  const baselineAssisted =
+    Boolean(analysisContext?.used_role_baseline) ||
+    Boolean(marketConfidenceDetail?.baseline_only) ||
+    Boolean(marketConfidenceDetail?.blended_market);
 
   function renderFitMetrics(job: JobMatch) {
     const metrics = job.normalized_data.fit_metrics;
@@ -249,24 +283,29 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
               {describeMarketConfidence(analysisContext.market_confidence)}
             </span>
-            {typeof analysisContext.live_job_count === "number" ? (
+            {typeof liveJobCount === "number" ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
-                {analysisContext.live_job_count} live jobs
+                {liveJobCount} live jobs
               </span>
             ) : null}
-            {typeof analysisContext.live_company_count === "number" ? (
+            {typeof liveCompanyCount === "number" ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
-                {analysisContext.live_company_count} companies
+                {liveCompanyCount} companies
               </span>
             ) : null}
-            {analysisContext.used_role_baseline ? (
+            {typeof marketConfidenceDetail?.factor === "number" ? (
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
+                Market confidence {Math.round(marketConfidenceDetail.factor * 100)}%
+              </span>
+            ) : null}
+            {baselineAssisted ? (
               <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-ink dark:bg-amber-300/30 dark:text-amber-50">
                 Baseline assisted
               </span>
             ) : null}
-            {analysisContext.baseline_confidence ? (
+            {baselineConfidence ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
-                Baseline confidence {analysisContext.baseline_confidence}
+                Baseline confidence {baselineConfidence}
               </span>
             ) : null}
           </div>
