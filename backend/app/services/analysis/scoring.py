@@ -24,6 +24,72 @@ class ScoringEngine:
     def __init__(self) -> None:
         self.embedding_service = EmbeddingService()
 
+    def parser_confidence_profile(self, resume_data: dict) -> dict:
+        parse_signals = resume_data.get("parse_signals", {}) or {}
+        sections = resume_data.get("sections", {}) or {}
+        structural_evidence = self._has_strong_recovered_structure(parse_signals)
+        risk_reasons: list[str] = []
+        if parse_signals.get("multi_column_detected"):
+            risk_reasons.append("multi-column layout")
+        if parse_signals.get("inferred_skills_section"):
+            risk_reasons.append("skills section recovered from surrounding text")
+        if parse_signals.get("merged_header_count", 0) >= 1:
+            risk_reasons.append("merged or compact section headers")
+        if parse_signals.get("inline_header_count", 0) >= 1:
+            risk_reasons.append("inline section headers")
+        if parse_signals.get("section_leakage_count", 0) >= 1:
+            risk_reasons.append("section leakage")
+        if parse_signals.get("suspicious_token_count", 0) >= 2 or parse_signals.get("suspicious_url_count", 0) >= 1:
+            risk_reasons.append("OCR or URL noise")
+
+        confidence = 92.0
+        confidence -= min(16.0, float(parse_signals.get("merged_header_count", 0) or 0) * 5.0)
+        confidence -= min(10.0, float(parse_signals.get("inline_header_count", 0) or 0) * 2.0)
+        confidence -= min(16.0, float(parse_signals.get("section_leakage_count", 0) or 0) * 7.0)
+        confidence -= 8.0 if parse_signals.get("inferred_skills_section") else 0.0
+        confidence -= 7.0 if parse_signals.get("multi_column_detected") else 0.0
+        confidence -= min(18.0, float(parse_signals.get("suspicious_token_count", 0) or 0) * 4.0)
+        confidence -= min(12.0, float(parse_signals.get("suspicious_url_count", 0) or 0) * 5.0)
+        if structural_evidence:
+            confidence += 12.0
+        if len(sections) >= 4:
+            confidence += 4.0
+        confidence = round(max(18.0, min(98.0, confidence)), 2)
+
+        if confidence >= 78:
+            label = "high"
+        elif confidence >= 58:
+            label = "medium"
+        else:
+            label = "low"
+        return {
+            "score": confidence,
+            "label": label,
+            "strong_recovered_structure": structural_evidence,
+            "risk_reasons": risk_reasons[:6],
+            "signals": {
+                "multi_column_detected": bool(parse_signals.get("multi_column_detected")),
+                "explicit_header_count": int(parse_signals.get("explicit_header_count", 0) or 0),
+                "merged_header_count": int(parse_signals.get("merged_header_count", 0) or 0),
+                "inline_header_count": int(parse_signals.get("inline_header_count", 0) or 0),
+                "date_range_count": int(parse_signals.get("date_range_count", 0) or 0),
+                "bullet_like_line_count": int(parse_signals.get("bullet_like_line_count", 0) or 0),
+                "chronology_signal_count": int(parse_signals.get("chronology_signal_count", 0) or 0),
+                "inferred_skills_section": bool(parse_signals.get("inferred_skills_section")),
+            },
+        }
+
+    def _has_strong_recovered_structure(self, parse_signals: dict) -> bool:
+        return (
+            bool(parse_signals.get("multi_column_detected"))
+            and int(parse_signals.get("date_range_count", 0) or 0) >= 3
+            and int(parse_signals.get("bullet_like_line_count", 0) or 0) >= 4
+            and int(parse_signals.get("chronology_signal_count", 0) or 0) >= 3
+            and int(parse_signals.get("section_leakage_count", 0) or 0) == 0
+            and int(parse_signals.get("suspicious_token_count", 0) or 0) < 2
+            and int(parse_signals.get("suspicious_url_count", 0) or 0) == 0
+        )
+
     def score(self, resume_data: dict, jobs: list[dict], *, role_query: str | None = None) -> dict:
         baseline_job_count = sum(1 for job in jobs if job.get("source") == "role-baseline")
         baseline_only = bool(jobs) and baseline_job_count == len(jobs)
@@ -39,6 +105,13 @@ class ScoringEngine:
         skill_stats_map = {item["skill"]: item for item in skill_frequency}
         market_skills = set(demand_map.keys())
         live_job_count = sum(1 for job in jobs if job.get("source") != "role-baseline")
+        live_company_count = len(
+            {
+                str(job.get("company", "")).strip().lower()
+                for job in jobs
+                if job.get("source") != "role-baseline" and str(job.get("company", "")).strip()
+            }
+        )
         experience_years = float(resume_data.get("experience_years", 0) or 0)
         resume_support = resume_skill_support_levels(
             resume_sections=resume_data.get("sections", {}),
@@ -187,6 +260,13 @@ class ScoringEngine:
             "weak_skill_proofs": weak_skill_proofs[:10],
             "market_skill_frequency": skill_frequency,
             "top_job_matches": top_matches,
+            "market_confidence": {
+                "factor": market_confidence,
+                "live_job_count": live_job_count,
+                "live_company_count": live_company_count,
+                "baseline_only": baseline_only,
+                "blended_market": blended_market,
+            },
         }
 
     def _skill_match_score(
@@ -634,8 +714,9 @@ class ScoringEngine:
             score += 4
         if parse_signals.get("section_balance_score", 0) >= 70:
             score += 2
+        strong_recovered_structure = self._has_strong_recovered_structure(parse_signals)
         if parse_signals.get("multi_column_detected"):
-            score -= 12
+            score -= 6 if strong_recovered_structure else 12
             if parse_signals.get("explicit_header_count", 0) >= 4:
                 score += 2
         if archetype == "europass_cv":
@@ -645,15 +726,26 @@ class ScoringEngine:
         if not parse_signals.get("suspicious_url_count", 0) and not parse_signals.get("suspicious_token_count", 0):
             score += 3
 
+        merged_header_penalty = min(16, parse_signals.get("merged_header_count", 0) * 5)
+        inline_header_penalty = min(12, parse_signals.get("inline_header_count", 0) * 2.5)
+        inferred_skills_penalty = 10 if parse_signals.get("inferred_skills_section") else 0
+        weak_header_penalty = 4 if sections.get("experience") and parse_signals.get("explicit_header_count", 0) < 2 else 0
+        if strong_recovered_structure:
+            merged_header_penalty = min(8, parse_signals.get("merged_header_count", 0) * 2)
+            inline_header_penalty = min(6, parse_signals.get("inline_header_count", 0) * 1)
+            if parse_signals.get("inferred_skills_section") and parse_signals.get("skills_count", 0) >= 5:
+                inferred_skills_penalty = 4
+            weak_header_penalty = 0
+
         penalties = (
-            min(16, parse_signals.get("merged_header_count", 0) * 5)
-            + min(12, parse_signals.get("inline_header_count", 0) * 2.5)
+            merged_header_penalty
+            + inline_header_penalty
             + min(12, parse_signals.get("section_leakage_count", 0) * 5)
             + min(10, parse_signals.get("suspicious_token_count", 0) * 2)
             + min(12, parse_signals.get("suspicious_url_count", 0) * 4)
-            + (10 if parse_signals.get("inferred_skills_section") else 0)
+            + inferred_skills_penalty
             + (8 if sections.get("experience") and parse_signals.get("date_range_count", 0) == 0 else 0)
-            + (4 if sections.get("experience") and parse_signals.get("explicit_header_count", 0) < 2 else 0)
+            + weak_header_penalty
             + (4 if parse_signals.get("portfolio_link_count", 0) == 0 and archetype in {"creative_portfolio_resume", "technical_portfolio_resume"} else 0)
             + min(8, parse_signals.get("dense_paragraph_line_count", 0) * 1.5)
             + min(5, parse_signals.get("objective_marker_count", 0) * 2)

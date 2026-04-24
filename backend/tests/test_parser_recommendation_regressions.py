@@ -5,6 +5,7 @@ import unittest
 from PyPDF2 import PdfWriter
 
 from app.services.analysis.orchestrator import AnalysisOrchestrator
+from app.services.analysis.scoring import ScoringEngine
 from app.services.nlp.skill_grounding import SkillGroundingService
 from app.services.parsers.resume_parser import ResumeParser
 
@@ -13,6 +14,7 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = ResumeParser()
         self.grounding = SkillGroundingService()
+        self.scoring = ScoringEngine()
         self.orchestrator = AnalysisOrchestrator(db=None)
 
     def test_pdf_annotation_links_are_extracted_from_hidden_hyperlinks(self) -> None:
@@ -207,6 +209,67 @@ class ParserRecommendationRegressionTest(unittest.TestCase):
         self.assertNotIn("Make ATS parsing easier", titles)
         self.assertNotIn("Separate Skills, Experience, and Projects into clean blocks", titles)
         self.assertNotIn("Add clean portfolio or profile links in the header", titles)
+
+    def test_multi_column_with_strong_recovered_structure_keeps_ats_above_failure_band(self) -> None:
+        raw_text = "\n".join(
+            [
+                "Summary Data analyst focused on SQL, Python, Power BI, dashboards, and reporting.",
+                "Experience",
+                "Jun 2025 - Jul 2025 Built SQL dashboards and automated reporting for weekly KPI reviews.",
+                "May 2025 - Jun 2025 Created Power BI visuals and Python analysis notebooks for sales trends.",
+                "Mar 2025 - Apr 2025 Improved dashboard refresh workflows and documented analytics outputs.",
+                "Education B.Tech Computer Science 2026",
+                "Skills SQL Python Power BI Excel data visualization dashboarding reporting statistics",
+            ]
+            * 4
+        )
+        resume_data = {
+            "raw_text": raw_text,
+            "content_type": "application/pdf",
+            "contact": {"email": "candidate@example.com", "phone": "9999999999"},
+            "sections": {
+                "summary": "Data analyst focused on dashboards and reporting.",
+                "experience": "Built SQL dashboards. Created Power BI visuals. Improved reporting workflows.",
+                "education": "B.Tech Computer Science 2026",
+                "skills": "SQL Python Power BI Excel data visualization dashboarding reporting statistics",
+            },
+            "parse_signals": {
+                "multi_column_detected": True,
+                "explicit_header_count": 0,
+                "merged_header_count": 1,
+                "inline_header_count": 3,
+                "section_leakage_count": 0,
+                "inferred_skills_section": True,
+                "skills_count": 8,
+                "date_range_count": 7,
+                "bullet_like_line_count": 6,
+                "chronology_signal_count": 7,
+                "section_balance_score": 70,
+                "contact_link_count": 1,
+                "suspicious_token_count": 0,
+                "suspicious_url_count": 0,
+            },
+            "resume_archetype": {"type": "reverse_chronological"},
+        }
+
+        ats_score = self.scoring._ats_score(resume_data)
+        parser_confidence = self.scoring.parser_confidence_profile(resume_data)
+
+        self.assertGreaterEqual(ats_score, 60.0)
+        self.assertTrue(parser_confidence["strong_recovered_structure"])
+        self.assertIn(parser_confidence["label"], {"medium", "high"})
+
+    def test_uploaded_pdf_strong_structure_is_not_punished_as_layout_failure(self) -> None:
+        pdf_path = Path(r"C:\Users\KIIT\Downloads\himanshu_resume_hyperlinks_forced.pdf")
+        if not pdf_path.exists():
+            self.skipTest("local user PDF fixture is not available")
+
+        resume_data = self.parser.parse(pdf_path.name, "application/pdf", pdf_path.read_bytes())
+        ats_score = self.scoring._ats_score(resume_data)
+        parser_confidence = self.scoring.parser_confidence_profile(resume_data)
+
+        self.assertGreaterEqual(ats_score, 60.0)
+        self.assertTrue(parser_confidence["strong_recovered_structure"])
 
 
 if __name__ == "__main__":

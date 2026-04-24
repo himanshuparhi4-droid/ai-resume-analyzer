@@ -162,6 +162,9 @@ class AnalysisOrchestrator:
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
+        score_payload["analysis_context"]["parser_confidence"] = self.scoring_engine.parser_confidence_profile(resume_data)
+        if score_payload.get("market_confidence"):
+            score_payload["analysis_context"]["market_confidence"] = score_payload["market_confidence"]
         score_payload["analysis_context"]["parsed_resume_skills"] = sorted(
             {
                 canonical_skill_label(str(skill))
@@ -710,6 +713,13 @@ class AnalysisOrchestrator:
             "weak_skill_proofs": weak_skill_proofs,
             "market_skill_frequency": skill_frequency,
             "top_job_matches": stored_matches,
+            "market_confidence": {
+                "factor": market_confidence_factor,
+                "live_job_count": len(live_jobs),
+                "live_company_count": live_company_count,
+                "baseline_only": baseline_only,
+                "baseline_confidence": baseline_confidence,
+            },
         }
 
     def _token_overlap(self, left: str, right: str) -> float:
