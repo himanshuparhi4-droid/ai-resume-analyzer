@@ -31,57 +31,88 @@ function ThemeGlyph({ theme }: { theme: "light" | "dark" }) {
   );
 }
 
+const REVIEW_STAGES = [
+  { label: "Parse", value: "layout + sections" },
+  { label: "Fetch", value: "live role market" },
+  { label: "Judge", value: "evidence + confidence" },
+];
+
 export function Header({ theme, onToggleTheme }: HeaderProps) {
   return (
-    <header className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-soft backdrop-blur md:p-10 dark:border-[#223543] dark:bg-[#10202b]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(94,194,183,0.24),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(255,138,91,0.18),_transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(94,194,183,0.14),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(255,138,91,0.1),_transparent_24%)]" />
-      <div className="relative">
+    <header className="glass-panel relative overflow-hidden rounded-[2.25rem] p-5 sm:p-7 lg:p-10">
+      <div className="absolute inset-0 opacity-80">
+        <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-sea/25 blur-3xl" />
+        <div className="absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-ember/20 blur-3xl" />
+      </div>
+
+      <div className="relative z-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Resume Intelligence Studio</p>
-          <button
-            className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-white/75 px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:border-sea hover:text-ink dark:border-[#294250] dark:bg-[#132531] dark:text-slate-100 dark:hover:border-sea dark:hover:bg-[#17303d]"
-            onClick={onToggleTheme}
-            type="button"
-          >
-            <ThemeGlyph theme={theme} />
-            <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-          </button>
-        </div>
-        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] lg:items-end">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <h1 className="max-w-4xl font-display text-4xl leading-tight text-ink md:text-6xl dark:text-slate-50">
-                Evaluate resume fit against live hiring signals, not just static keyword checks.
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-slate-700 md:text-lg dark:text-slate-200">
-                Upload a resume, compare it against live job requirements for a target role, and get evidence-backed feedback on missing tools,
-                ATS readability, and experience strength.
-              </p>
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-sm font-black text-white shadow-soft dark:bg-sea dark:text-ink">
+              AI
             </div>
-            <div className="flex flex-wrap gap-3">
-              <span className="rounded-full border border-ink/10 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-                Live market sample first
-              </span>
-              <span className="rounded-full border border-ink/10 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-                Location-aware role targeting
-              </span>
-              <span className="rounded-full border border-ink/10 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-                Evidence-backed recommendations
-              </span>
+            <div>
+              <p className="eyebrow">Resume Signal Studio</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Live market fit, parser confidence, recruiter clarity</p>
             </div>
           </div>
-          <div className="grid gap-4 rounded-[1.75rem] bg-ink p-5 text-white dark:border dark:border-[#2a4150] dark:bg-[#0b1821]">
-            <div className="flex items-center justify-between gap-4">
-              <p className="font-mono text-xs uppercase tracking-[0.3em] text-white/75">What this review covers</p>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90">
-                Review stack
-              </span>
+          <button className="ghost-button" onClick={onToggleTheme} type="button">
+            <ThemeGlyph theme={theme} />
+            <span className="ml-2">{theme === "dark" ? "Light" : "Dark"} Mode</span>
+          </button>
+        </div>
+
+        <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-end">
+          <div>
+            <div className="inline-flex rounded-full border border-ink/10 bg-white/55 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-ink backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
+              <span className="rounded-full bg-sea px-3 py-1 text-ink">Evidence first</span>
+              <span className="px-3 py-1">No blind ATS score</span>
             </div>
-            <div className="grid gap-3 text-sm leading-6 text-white/90">
-              <span>Live job-market sampling and requirement extraction</span>
-              <span>Role fit across skills, semantics, experience, and demand</span>
-              <span>ATS parseability and document-quality feedback</span>
-              <span>Evidence snippets showing why a skill was matched or flagged</span>
+            <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.7rem,7vw,6.6rem)] font-extrabold leading-[0.88] tracking-[-0.065em] text-ink dark:text-slate-50">
+              Turn a resume into a hiring signal map.
+            </h1>
+            <p className="mt-6 max-w-3xl text-base leading-8 text-slate-700 sm:text-lg dark:text-slate-200">
+              Upload once and see the role fit story the way a serious reviewer would: what parsed cleanly, what the market asked for, what is truly missing, and what simply needs stronger proof.
+            </p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-3">
+              {REVIEW_STAGES.map((stage, index) => (
+                <div key={stage.label} className="soft-card rounded-[1.35rem] p-4">
+                  <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">0{index + 1}</p>
+                  <p className="mt-3 font-display text-xl font-bold text-ink dark:text-slate-50">{stage.label}</p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{stage.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="ink-panel relative overflow-hidden rounded-[2rem] p-5 sm:p-6">
+            <div className="absolute right-6 top-6 h-24 w-24 rounded-full border border-white/10" />
+            <div className="absolute right-12 top-12 h-12 w-12 rounded-full border border-white/10" />
+            <div className="relative">
+              <div className="flex items-center justify-between gap-4">
+                <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Review Engine</p>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/85">Production path</span>
+              </div>
+              <div className="mt-7 grid gap-3">
+                {[
+                  ["Skill grounding", "present vs weak proof vs absent"],
+                  ["Provider telemetry", "live count, sources, timeout risk"],
+                  ["ATS readability", "parse risk separate from score"],
+                  ["Recruiter lens", "prioritized actions, not generic advice"],
+                ].map(([title, detail]) => (
+                  <div key={title} className="rounded-[1.2rem] border border-white/10 bg-white/[0.07] p-4 backdrop-blur">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-white">{title}</p>
+                      <span className="h-2.5 w-2.5 rounded-full bg-sea shadow-[0_0_24px_rgba(102,216,205,0.9)]" />
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-white/72">{detail}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-[1.2rem] bg-sea/95 p-4 text-ink">
+                <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Confidence-aware by design</p>
+                <p className="mt-1 text-sm font-semibold leading-6 opacity-80">If Render returns only 3-4 jobs, the UI now says the market sample is limited instead of overclaiming certainty.</p>
+              </div>
             </div>
           </div>
         </div>

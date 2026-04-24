@@ -21,7 +21,7 @@ export default {
         soft: "0 20px 70px rgba(5, 19, 28, 0.12)"
       },
       fontFamily: {
-        display: ["'Space Grotesk'", "sans-serif"],
+        display: ["'Bricolage Grotesque'", "sans-serif"],
         body: ["'Manrope'", "sans-serif"],
         mono: ["'IBM Plex Mono'", "monospace"]
       }

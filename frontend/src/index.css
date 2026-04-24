@@ -1,55 +1,111 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color: #06131c;
-  background: #f3f7f4;
+  color: #07131c;
+  background: #e8efe8;
   font-family: "Manrope", sans-serif;
   --app-bg:
-    radial-gradient(circle at top, rgba(94, 194, 183, 0.16), transparent 28%),
-    linear-gradient(180deg, #f6faf8 0%, #eef4f1 100%);
-  --selection-bg: rgba(6, 19, 28, 0.12);
-  --selection-color: #06131c;
-  --chart-grid: #dbe5e3;
-  --chart-axis: #52606b;
-  --chart-bar: #ff8a5b;
-  --tooltip-bg: rgba(255, 255, 255, 0.96);
-  --tooltip-border: rgba(6, 19, 28, 0.12);
-  --tooltip-text: #06131c;
+    radial-gradient(circle at 12% 7%, rgba(255, 122, 74, 0.24), transparent 28%),
+    radial-gradient(circle at 84% 4%, rgba(42, 168, 162, 0.22), transparent 31%),
+    linear-gradient(135deg, rgba(7, 19, 28, 0.07) 0 1px, transparent 1px 18px),
+    linear-gradient(180deg, #f8f4ea 0%, #e8efe8 48%, #dfeae4 100%);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-strong: rgba(255, 255, 255, 0.93);
+  --surface-soft: rgba(247, 250, 244, 0.72);
+  --line: rgba(7, 19, 28, 0.12);
+  --line-strong: rgba(7, 19, 28, 0.2);
+  --ink: #07131c;
+  --muted: #65727a;
+  --accent: #29b8a9;
+  --accent-2: #ff7a4a;
+  --accent-3: #f4bf45;
+  --selection-bg: rgba(41, 184, 169, 0.2);
+  --selection-color: #07131c;
+  --chart-grid: rgba(7, 19, 28, 0.11);
+  --chart-axis: #65727a;
+  --chart-bar: #ff7a4a;
+  --tooltip-bg: rgba(255, 255, 255, 0.98);
+  --tooltip-border: rgba(7, 19, 28, 0.14);
+  --tooltip-text: #07131c;
 }
 
 html.dark {
-  color: #e8f3f3;
-  background: #07131b;
+  color: #edf8f6;
+  background: #061016;
   --app-bg:
-    radial-gradient(circle at top, rgba(94, 194, 183, 0.14), transparent 18%),
-    radial-gradient(circle at bottom right, rgba(255, 138, 91, 0.08), transparent 20%),
-    linear-gradient(180deg, #061118 0%, #0a1720 48%, #10202c 100%);
-  --selection-bg: rgba(94, 194, 183, 0.22);
-  --selection-color: #f4fbfb;
-  --chart-grid: rgba(210, 228, 231, 0.18);
-  --chart-axis: #d0e0e3;
-  --chart-bar: #ff9e77;
-  --tooltip-bg: rgba(13, 27, 36, 0.98);
-  --tooltip-border: rgba(197, 216, 220, 0.2);
-  --tooltip-text: #f4fbfb;
+    radial-gradient(circle at 12% 7%, rgba(255, 122, 74, 0.16), transparent 27%),
+    radial-gradient(circle at 82% 8%, rgba(41, 184, 169, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(215, 236, 232, 0.045) 0 1px, transparent 1px 18px),
+    linear-gradient(180deg, #061016 0%, #091923 48%, #0f2330 100%);
+  --surface: rgba(13, 30, 41, 0.76);
+  --surface-strong: rgba(14, 33, 45, 0.94);
+  --surface-soft: rgba(12, 25, 34, 0.72);
+  --line: rgba(210, 229, 229, 0.15);
+  --line-strong: rgba(210, 229, 229, 0.24);
+  --ink: #edf8f6;
+  --muted: #a7b7bd;
+  --accent: #66d8cd;
+  --accent-2: #ff9a70;
+  --accent-3: #f7d36c;
+  --selection-bg: rgba(102, 216, 205, 0.24);
+  --selection-color: #f7ffff;
+  --chart-grid: rgba(210, 229, 229, 0.16);
+  --chart-axis: #c8d8dc;
+  --chart-bar: #ff9a70;
+  --tooltip-bg: rgba(12, 25, 34, 0.98);
+  --tooltip-border: rgba(210, 229, 229, 0.2);
+  --tooltip-text: #f7ffff;
 }
 
 body {
+  position: relative;
   margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
   background: var(--app-bg);
   color: inherit;
-  min-height: 100vh;
   transition:
-    background 220ms ease,
-    color 220ms ease;
+    background 260ms ease,
+    color 260ms ease;
 }
 
-html.dark body {
-  text-rendering: optimizeLegibility;
+body::before,
+body::after {
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+  content: "";
+}
+
+body::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 19, 28, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(7, 19, 28, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at top, black, transparent 72%);
+}
+
+body::after {
+  left: 50%;
+  top: 32px;
+  height: 420px;
+  width: min(760px, 80vw);
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(41, 184, 169, 0.24), transparent 65%);
+  filter: blur(34px);
+}
+
+html.dark body::before {
+  background:
+    linear-gradient(90deg, rgba(224, 246, 244, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(224, 246, 244, 0.038) 1px, transparent 1px);
+  background-size: 72px 72px;
 }
 
 * {
@@ -67,6 +123,116 @@ a {
 }
 
 input,
-button {
+button,
+textarea,
+select {
   font: inherit;
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .studio-shell {
+    @apply mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-5 sm:px-6 md:gap-7 md:px-8 md:py-8;
+  }
+
+  .glass-panel {
+    border: 1px solid var(--line);
+    background: linear-gradient(145deg, var(--surface-strong), var(--surface));
+    box-shadow: 0 24px 90px rgba(5, 18, 27, 0.14);
+    backdrop-filter: blur(22px);
+  }
+
+  .signal-panel {
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62)),
+      radial-gradient(circle at top right, rgba(41, 184, 169, 0.12), transparent 38%);
+    box-shadow: 0 20px 70px rgba(5, 18, 27, 0.11);
+    backdrop-filter: blur(18px);
+  }
+
+  html.dark .signal-panel {
+    background:
+      linear-gradient(145deg, rgba(15, 35, 48, 0.9), rgba(10, 25, 35, 0.72)),
+      radial-gradient(circle at top right, rgba(102, 216, 205, 0.1), transparent 38%);
+  }
+
+  .ink-panel {
+    background:
+      radial-gradient(circle at 18% 0%, rgba(102, 216, 205, 0.28), transparent 34%),
+      radial-gradient(circle at 100% 100%, rgba(255, 122, 74, 0.24), transparent 32%),
+      linear-gradient(145deg, #07131c, #112f3f);
+    color: white;
+    box-shadow: 0 24px 90px rgba(5, 18, 27, 0.18);
+  }
+
+  html.dark .ink-panel {
+    background:
+      radial-gradient(circle at 18% 0%, rgba(102, 216, 205, 0.18), transparent 34%),
+      radial-gradient(circle at 100% 100%, rgba(255, 122, 74, 0.16), transparent 32%),
+      linear-gradient(145deg, #061016, #102b3b);
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] font-semibold uppercase tracking-[0.34em];
+    color: var(--muted);
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.16em];
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    color: var(--ink);
+  }
+
+  .soft-card {
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  }
+
+  .field-control {
+    @apply w-full rounded-[1.15rem] px-4 py-3 text-sm font-semibold outline-none transition;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--ink);
+  }
+
+  .field-control:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(41, 184, 169, 0.14);
+  }
+
+  html.dark .field-control {
+    background: rgba(10, 25, 35, 0.78);
+  }
+
+  .primary-button {
+    @apply inline-flex min-h-[3.35rem] items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-55;
+    background: linear-gradient(135deg, var(--accent), #b5eee6);
+    color: #07131c;
+    box-shadow: 0 16px 42px rgba(41, 184, 169, 0.27);
+  }
+
+  .primary-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 52px rgba(41, 184, 169, 0.34);
+  }
+
+  .ghost-button {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-bold transition;
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    color: var(--ink);
+  }
+
+  .ghost-button:hover {
+    border-color: var(--accent);
+    background: rgba(41, 184, 169, 0.12);
+  }
 }

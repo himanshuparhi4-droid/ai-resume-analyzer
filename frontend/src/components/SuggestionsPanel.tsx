@@ -11,6 +11,17 @@ type SuggestionsPanelProps = {
   resumePreview: string;
 };
 
+function impactClass(impact: string) {
+  const normalized = impact.toLowerCase();
+  if (normalized.includes("high")) {
+    return "bg-ember text-white";
+  }
+  if (normalized.includes("medium")) {
+    return "bg-gold text-ink";
+  }
+  return "bg-sea text-ink";
+}
+
 export function SuggestionsPanel({ recommendations, aiSummary, resumePreview }: SuggestionsPanelProps) {
   const strengths = Array.isArray(aiSummary.strengths) ? aiSummary.strengths : [];
   const weaknesses = Array.isArray(aiSummary.weaknesses) ? aiSummary.weaknesses : [];
@@ -23,55 +34,70 @@ export function SuggestionsPanel({ recommendations, aiSummary, resumePreview }: 
         : [];
 
   return (
-    <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-      <div className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-        <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Recommendations</p>
-        <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Priority actions to improve this resume</h3>
+    <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="glass-panel rounded-[2.25rem] p-5 sm:p-7">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Action Queue</p>
+            <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">Highest-leverage fixes</h3>
+          </div>
+          <span className="pill">Ranked by impact</span>
+        </div>
         <div className="mt-6 grid gap-4">
-          {recommendations.map((item) => (
-            <article key={item.title} className="rounded-[1.5rem] bg-mist p-5 transition-colors duration-300 dark:bg-[#0f1d27]">
-              <div className="flex items-center justify-between gap-3">
-                <h4 className="font-semibold text-ink dark:text-slate-100">{item.title}</h4>
-                <span className="rounded-full bg-ink px-3 py-1 text-xs uppercase tracking-[0.2em] text-white dark:bg-sea dark:text-ink">{item.impact}</span>
+          {recommendations.map((item, index) => (
+            <article key={`${item.title}-${index}`} className="signal-panel rounded-[1.65rem] p-5">
+              <div className="flex items-start gap-4">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink font-display text-xl font-extrabold text-white dark:bg-sea dark:text-ink">
+                  {index + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h4 className="font-display text-2xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">{item.title}</h4>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em] ${impactClass(item.impact)}`}>{item.impact}</span>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">{item.detail}</p>
+                </div>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-200">{item.detail}</p>
             </article>
           ))}
         </div>
       </div>
-      <div className="grid gap-4">
-        <div className="rounded-[2rem] bg-gradient-to-br from-ink to-[#143446] p-6 text-white shadow-soft md:p-8 dark:from-[#0b1821] dark:to-[#153243] dark:ring-1 dark:ring-[#294250]">
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/75">Analysis Summary</p>
-          <div className="mt-5 grid gap-4 text-sm leading-6 text-white/90">
-            <div>
-              <p className="font-semibold text-white">Strengths</p>
-              <ul className="mt-2 list-disc pl-5">
-                {strengths.map((item) => (
-                  <li key={item}>{item}</li>
+
+      <div className="grid gap-5">
+        <div className="ink-panel rounded-[2.25rem] p-5 sm:p-7">
+          <p className="font-mono text-xs font-bold uppercase tracking-[0.34em] text-white/65">Recruiter-Style Summary</p>
+          <div className="mt-6 grid gap-5 text-sm leading-7 text-white/84">
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-4">
+              <p className="font-display text-2xl font-extrabold tracking-[-0.04em] text-white">What works</p>
+              <div className="mt-3 grid gap-2">
+                {(strengths.length ? strengths : ["No strong strengths were returned for this run yet."]).map((item) => (
+                  <p key={item} className="border-l-2 border-sea pl-3">{item}</p>
                 ))}
-              </ul>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-white">Weaknesses</p>
-              <ul className="mt-2 list-disc pl-5">
-                {weaknesses.map((item) => (
-                  <li key={item}>{item}</li>
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-4">
+              <p className="font-display text-2xl font-extrabold tracking-[-0.04em] text-white">What blocks it</p>
+              <div className="mt-3 grid gap-2">
+                {(weaknesses.length ? weaknesses : ["No major weaknesses were returned for this run yet."]).map((item) => (
+                  <p key={item} className="border-l-2 border-ember pl-3">{item}</p>
                 ))}
-              </ul>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-white">Next Steps</p>
-              <ul className="mt-2 list-disc pl-5">
-                {nextSteps.map((item) => (
-                  <li key={item}>{item}</li>
+            <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-4">
+              <p className="font-display text-2xl font-extrabold tracking-[-0.04em] text-white">Next moves</p>
+              <div className="mt-3 grid gap-2">
+                {(nextSteps.length ? nextSteps : ["Run another analysis after updating the resume."]).map((item) => (
+                  <p key={item} className="border-l-2 border-gold pl-3">{item}</p>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
-        <div className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Parsed Resume Snapshot</p>
-          <p className="mt-4 text-sm leading-7 text-slate-700 dark:text-slate-200">{resumePreview}</p>
+        <div className="signal-panel rounded-[2rem] p-5 sm:p-6">
+          <p className="eyebrow">Parsed Snapshot</p>
+          <p className="mt-4 max-h-56 overflow-auto rounded-[1.25rem] bg-white/45 p-4 text-sm font-semibold leading-7 text-slate-700 dark:bg-white/[0.05] dark:text-slate-300">
+            {resumePreview}
+          </p>
         </div>
       </div>
     </section>

@@ -104,10 +104,10 @@ export function SkillGapChart({
 
   return (
     <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
+      <div className="glass-panel rounded-[2.25rem] p-5 sm:p-7">
         <div className="mb-5">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Market Gaps</p>
-          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">
+          <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">
             {hasMissingSkills ? "Missing role-specific tools" : "No major missing tools found"}
           </h3>
           <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
@@ -189,7 +189,7 @@ export function SkillGapChart({
         {liveMissingDetails.length ? (
           <div className="mt-5 grid gap-3">
             {liveMissingDetails.slice(0, 3).map((detail) => (
-              <article key={detail.skill} className="rounded-[1.25rem] bg-mist p-4 transition-colors duration-300 dark:bg-[#0f1d27]">
+              <article key={detail.skill} className="soft-card rounded-[1.25rem] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-semibold text-ink dark:text-slate-50">{detail.skill}</h4>
                   <div className="flex items-center gap-2">
@@ -261,9 +261,9 @@ export function SkillGapChart({
           </div>
         ) : null}
       </div>
-      <div className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
+      <div className="glass-panel rounded-[2.25rem] p-5 sm:p-7">
         <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Matched Skills</p>
-        <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">What is already working</h3>
+        <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">What is already working</h3>
         <div className="mt-6 flex flex-wrap gap-3">
           {matchedSkills.length ? (
             matchedSkills.map((skill) => (
@@ -278,7 +278,7 @@ export function SkillGapChart({
         {matchedDetails.length ? (
           <div className="mt-6 grid gap-3">
             {matchedDetails.slice(0, 4).map((detail) => (
-              <article key={detail.skill} className="rounded-[1.25rem] bg-mist p-4 transition-colors duration-300 dark:bg-[#0f1d27]">
+              <article key={detail.skill} className="soft-card rounded-[1.25rem] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h4 className="font-semibold text-ink dark:text-slate-50">{detail.skill}</h4>
                   <div className="flex items-center gap-2">

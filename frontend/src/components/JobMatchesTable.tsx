@@ -266,11 +266,11 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
   }
 
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
+    <section className="glass-panel rounded-[2.25rem] p-5 sm:p-7">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Job Matches</p>
-          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Market sample behind this score</h3>
+          <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">Market sample behind this score</h3>
         </div>
         <p className="text-sm text-slate-700 dark:text-slate-200">
           Showing {displayedLiveJobs.length} of {liveJobs.length} live listings used for ranking. Listings are sorted by role fit and requirement quality before they influence scoring.

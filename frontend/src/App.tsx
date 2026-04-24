@@ -193,7 +193,7 @@ function App() {
 
   return (
     <main className="min-h-screen bg-transparent text-ink transition-colors duration-300 dark:text-slate-100">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
+      <div className="studio-shell">
         <Header theme={theme} onToggleTheme={() => setTheme((current) => (current === "light" ? "dark" : "light"))} />
         <AuthPanel
           user={user}
@@ -207,17 +207,41 @@ function App() {
         />
         <UploadPanel loading={loading} onSubmit={handleAnalyze} />
         {analysisError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+          <div className="rounded-[1.4rem] border border-red-300/70 bg-red-50 p-4 text-sm font-semibold leading-6 text-red-800 shadow-soft transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
             {analysisError}
           </div>
         ) : null}
         {result ? (
-          <div className="grid gap-6 pb-8">
+          <div className="grid gap-5 pb-8 md:gap-7">
             {result.analysis_context?.message ? (
-              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 transition-colors duration-300 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-4 text-sm font-semibold leading-6 text-amber-950 shadow-soft transition-colors duration-300 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
                 <span className="font-semibold">Scoring context:</span> {result.analysis_context.message}
               </div>
             ) : null}
+            <section className="glass-panel rounded-[2rem] p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-5">
+                <div>
+                  <p className="eyebrow">Analysis Ready</p>
+                  <h2 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">
+                    {result.role_query} signal report
+                  </h2>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{Math.round(result.overall_score)}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Score</p>
+                  </div>
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.analysis_context?.live_job_count ?? result.top_job_matches.filter((job) => job.source !== "role-baseline").length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Live</p>
+                  </div>
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.missing_skills.length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Gaps</p>
+                  </div>
+                </div>
+              </div>
+            </section>
             <ScoreGrid
               overallScore={result.overall_score}
               breakdown={result.breakdown}
@@ -238,10 +262,11 @@ function App() {
             <JobMatchesTable jobs={result.top_job_matches} analysisContext={result.analysis_context} />
           </div>
         ) : (
-          <section className="rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-soft transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.04]">
-            <p className="font-display text-3xl text-ink transition-colors duration-300 dark:text-slate-50">Your first review will populate this workspace.</p>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
-              Upload a resume, choose a target role, and the app will compare the document against live market requirements, ATS signals, and role-fit evidence.
+          <section className="glass-panel rounded-[2rem] p-8 text-center">
+            <p className="eyebrow">Waiting for input</p>
+            <p className="mt-3 font-display text-4xl font-extrabold tracking-[-0.05em] text-ink transition-colors duration-300 dark:text-slate-50">Your first signal map will appear here.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
+              Upload a resume, choose a target role, and the workspace will fill with scores, gaps, parser confidence, job evidence, and prioritized fixes.
             </p>
           </section>
         )}

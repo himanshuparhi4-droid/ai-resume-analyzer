@@ -12,12 +12,15 @@ type UploadPanelProps = {
   onSubmit: (payload: UploadInput) => Promise<void>;
 };
 
+const ROLE_SUGGESTIONS = ["Data Analyst", "Web Developer", "SOC Analyst", "Frontend Developer"];
+
 export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
   const [location, setLocation] = useState("Global");
   const [limit, setLimit] = useState(12);
-  const fileLabel = useMemo(() => (file ? file.name : "Upload PDF, DOCX, or TXT"), [file]);
+  const fileLabel = useMemo(() => (file ? file.name : "Drop a resume export here"), [file]);
+  const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, DOCX, or TXT";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,96 +31,84 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   }
 
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-400">Analyzer</p>
-          <h2 className="font-display text-3xl text-ink dark:text-slate-50">Run a role-fit review</h2>
-        </div>
-        <div className="rounded-full border border-ink/10 bg-mist/85 px-4 py-2 text-sm text-slate-700 transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-          Role-first live job sampling with evidence-backed scoring
-        </div>
-      </div>
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <label className="group flex cursor-pointer flex-col gap-3 rounded-[1.6rem] border border-dashed border-sea/60 bg-mist/80 p-6 transition hover:border-sea hover:bg-white dark:border-sea/50 dark:bg-[#0d1b24] dark:hover:bg-[#122430]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm font-semibold text-ink dark:text-slate-100">Resume File</span>
-            <span className="rounded-full border border-ink/10 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-200">
-              One file per run
-            </span>
+    <section className="glass-panel overflow-hidden rounded-[2.25rem]">
+      <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="ink-panel relative p-6 sm:p-8">
+          <div className="absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-sea/20 blur-3xl" />
+          <div className="relative">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.34em] text-white/65">Run Review</p>
+            <h2 className="mt-3 font-display text-4xl font-extrabold leading-none tracking-[-0.055em] text-white sm:text-5xl">Calibrate against the role you actually want.</h2>
+            <p className="mt-4 text-sm leading-7 text-white/74">
+              The role field is normalized for casing, spacing, and aliases, but exact intent still matters. Better role input creates better provider planning and better missing-skill judgment.
+            </p>
+            <div className="mt-7 grid gap-3">
+              {["Role meaning normalization", "Live provider diagnostics", "Weak proof vs true missing", "Parser confidence scoring"].map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sea" />
+                  <span className="text-sm font-semibold text-white/86">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <span className="text-lg font-medium text-ink dark:text-slate-100">{fileLabel}</span>
-          <span className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Use a clean PDF, DOCX, or TXT export so the parser can keep sections, dates, and skill evidence intact.
-          </span>
-          <input
-            className="hidden"
-            type="file"
-            accept=".pdf,.docx,.txt"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
-
-        <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr_0.95fr]">
-          <label className="flex h-full flex-col rounded-[1.5rem] border border-ink/10 bg-mist/65 p-4 transition-colors duration-300 dark:border-[#223543] dark:bg-[#0f1d27]">
-            <span className="text-sm font-semibold text-ink dark:text-slate-100">Target Role</span>
-            <input
-              className="mt-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-ink outline-none ring-0 transition focus:border-sea dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-              value={roleQuery}
-              onChange={(event) => setRoleQuery(event.target.value)}
-              placeholder="Data Analyst"
-            />
-            <span className="mt-3 min-h-[3.5rem] text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Start with the exact hiring title you want the review calibrated against so the market sample stays role-specific.
-            </span>
-          </label>
-
-          <label className="flex h-full flex-col rounded-[1.5rem] border border-ink/10 bg-mist/65 p-4 transition-colors duration-300 dark:border-[#223543] dark:bg-[#0f1d27]">
-            <span className="text-sm font-semibold text-ink dark:text-slate-100">Location</span>
-            <input
-              className="mt-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-ink outline-none transition focus:border-sea dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-              value={location}
-              list="location-suggestions"
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder="Global"
-            />
-            <datalist id="location-suggestions">
-              <option value="Global" />
-              <option value="India" />
-              <option value="Remote" />
-              <option value="United States" />
-              <option value="Europe" />
-              <option value="APAC" />
-            </datalist>
-            <span className="mt-3 min-h-[3.5rem] text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This is a soft hint, not a strict filter. `Global` is the default so the review stays broad unless you want to bias it toward one market.
-            </span>
-          </label>
-
-          <label className="flex h-full flex-col rounded-[1.5rem] border border-ink/10 bg-mist/65 p-4 transition-colors duration-300 dark:border-[#223543] dark:bg-[#0f1d27]">
-            <span className="text-sm font-semibold text-ink dark:text-slate-100">Listings to sample</span>
-            <input
-              className="mt-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-ink outline-none transition focus:border-sea dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-              type="number"
-              min={5}
-              max={20}
-              value={limit}
-              onChange={(event) => setLimit(Number(event.target.value) || 12)}
-            />
-            <span className="mt-3 min-h-[3.5rem] text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Target live-market depth for ranking. Dense roles can surface up to 6 live matches in the review.
-            </span>
-          </label>
         </div>
 
-        <button
-          className="inline-flex min-h-[3.75rem] items-center justify-center rounded-full bg-ink px-6 py-3 text-lg font-semibold text-white transition hover:bg-sea hover:text-ink disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sea dark:text-ink dark:hover:bg-[#81ddd3]"
-          type="submit"
-          disabled={loading || !file}
-        >
-          {loading ? "Reviewing..." : "Analyze Resume"}
-        </button>
-      </form>
+        <form className="grid gap-5 p-5 sm:p-7 lg:p-8" onSubmit={handleSubmit}>
+          <label className="group relative flex min-h-[13rem] cursor-pointer flex-col justify-between overflow-hidden rounded-[1.75rem] border border-dashed border-sea/60 bg-sea/10 p-6 transition hover:border-sea hover:bg-sea/15 dark:bg-sea/10">
+            <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sea/20 blur-2xl transition group-hover:scale-125" />
+            <div className="relative flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <span className="pill">Resume file</span>
+                <p className="mt-5 max-w-xl font-display text-3xl font-extrabold tracking-[-0.045em] text-ink dark:text-slate-50">{fileLabel}</p>
+              </div>
+              <span className="rounded-full bg-ink px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white dark:bg-sea dark:text-ink">
+                {fileMeta}
+              </span>
+            </div>
+            <p className="relative mt-5 max-w-2xl text-sm leading-6 text-slate-700 dark:text-slate-300">
+              Cleaner exports improve parser confidence, but the analyzer now separates parse risk from resume strength so a good multi-column resume is not punished like a broken file.
+            </p>
+            <input className="hidden" type="file" accept=".pdf,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          </label>
+
+          <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr_0.7fr]">
+            <label className="soft-card rounded-[1.5rem] p-4">
+              <span className="text-sm font-extrabold text-ink dark:text-slate-100">Target role</span>
+              <input className="field-control mt-3" value={roleQuery} onChange={(event) => setRoleQuery(event.target.value)} placeholder="Data Analyst" />
+              <div className="mt-3 flex flex-wrap gap-2">
+                {ROLE_SUGGESTIONS.map((role) => (
+                  <button key={role} className="rounded-full border border-ink/10 px-3 py-1 text-xs font-bold text-slate-700 transition hover:border-sea hover:bg-sea/10 dark:border-white/10 dark:text-slate-300" onClick={() => setRoleQuery(role)} type="button">
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </label>
+
+            <label className="soft-card rounded-[1.5rem] p-4">
+              <span className="text-sm font-extrabold text-ink dark:text-slate-100">Market location</span>
+              <input className="field-control mt-3" value={location} list="location-suggestions" onChange={(event) => setLocation(event.target.value)} placeholder="Global" />
+              <datalist id="location-suggestions">
+                <option value="Global" />
+                <option value="India" />
+                <option value="Remote" />
+                <option value="United States" />
+                <option value="Europe" />
+                <option value="APAC" />
+              </datalist>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Global keeps the sample broad. Use India or Remote when you want a sharper market bias.</p>
+            </label>
+
+            <label className="soft-card rounded-[1.5rem] p-4">
+              <span className="text-sm font-extrabold text-ink dark:text-slate-100">Sample size</span>
+              <input className="field-control mt-3" type="number" min={5} max={20} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 12)} />
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Higher targets help dense roles, while sparse roles show confidence warnings.</p>
+            </label>
+          </div>
+
+          <button className="primary-button w-full" type="submit" disabled={loading || !file}>
+            {loading ? "Building signal map..." : "Analyze Resume"}
+          </button>
+        </form>
+      </div>
     </section>
   );
 }

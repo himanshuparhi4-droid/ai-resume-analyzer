@@ -1,4 +1,4 @@
-﻿import type { ComparisonResponse, HistoryItem } from "../lib/types";
+import type { ComparisonResponse, HistoryItem } from "../lib/types";
 import { getBackendRoot } from "../api/client";
 
 type HistoryPanelProps = {
@@ -25,17 +25,17 @@ function formatAnalysisTime(value: string) {
 export function HistoryPanel({ history, comparison, onCompare }: HistoryPanelProps) {
   const root = getBackendRoot();
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
+    <section className="glass-panel rounded-[2.25rem] p-5 sm:p-7">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">History</p>
-          <h3 className="mt-2 font-display text-3xl text-ink dark:text-slate-50">Saved analyses and version comparisons</h3>
+          <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">Saved analyses and version comparisons</h3>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid gap-3">
           {history.length ? history.map((item) => (
-            <article key={item.analysis_id} className="rounded-[1.5rem] bg-mist p-5 transition-colors duration-300 dark:bg-[#0f1d27]">
+            <article key={item.analysis_id} className="soft-card rounded-[1.5rem] p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h4 className="font-semibold text-ink dark:text-slate-100">{item.role_query}</h4>
@@ -66,7 +66,7 @@ export function HistoryPanel({ history, comparison, onCompare }: HistoryPanelPro
             </article>
           )) : <p className="text-sm leading-6 text-slate-700 dark:text-slate-200">Login and run analyses to build your score history.</p>}
         </div>
-        <div className="rounded-[1.5rem] bg-ink p-6 text-white transition-colors duration-300 dark:bg-[#0b1821] dark:ring-1 dark:ring-[#294250]">
+        <div className="ink-panel rounded-[1.75rem] p-5 text-white sm:p-6">
           <p className="font-mono text-xs uppercase tracking-[0.35em] text-white/75">Comparison</p>
           {comparison ? (
             <div className="mt-4 grid gap-4 text-sm leading-6 text-white/90">

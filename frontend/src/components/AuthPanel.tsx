@@ -64,124 +64,120 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
 
   if (user) {
     return (
-      <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-        <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Account</p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+      <section className="signal-panel rounded-[2rem] p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="font-display text-2xl text-ink dark:text-slate-50">{user.full_name}</h3>
-            <p className="text-sm text-slate-700 dark:text-slate-200">{user.email}</p>
+            <p className="eyebrow">Account Synced</p>
+            <h3 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">{user.full_name}</h3>
+            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-300">{user.email}</p>
           </div>
-          <button
-            className="rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-100 dark:hover:border-sea dark:hover:bg-[#17303d]"
-            onClick={onLogout}
-            type="button"
-          >
-            Logout
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="pill">History enabled</span>
+            <button className="ghost-button" onClick={onLogout} type="button">
+              Logout
+            </button>
+          </div>
         </div>
       </section>
     );
   }
 
+  const actionLabel = busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Login";
+
   return (
-    <section className="rounded-[2rem] border border-ink/10 bg-white p-6 shadow-soft transition-colors duration-300 md:p-8 dark:border-[#223543] dark:bg-[#10202b]">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="signal-panel rounded-[2rem] p-5 sm:p-6">
+      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.35em] text-slate dark:text-slate-300">Account</p>
-          <h3 className="mt-2 font-display text-2xl text-ink dark:text-slate-50">Save analyses and compare revisions</h3>
+          <p className="eyebrow">Account</p>
+          <h3 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">Save runs. Compare versions.</h3>
+          <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
+            Optional login keeps your analysis history so we can compare revisions instead of treating every upload like a first draft.
+          </p>
         </div>
-        {mode === "reset" ? (
-          <button
-            className="rounded-full border border-ink/10 px-4 py-2 text-sm font-semibold text-ink transition hover:border-sea hover:bg-sea/10 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-100 dark:hover:border-sea dark:hover:bg-[#17303d]"
-            onClick={() => switchMode("login")}
-            type="button"
-          >
-            Back to login
-          </button>
-        ) : (
-          <div className="flex gap-2 rounded-full bg-mist p-1 text-sm font-semibold transition-colors duration-300 dark:bg-[#132531]">
-            <button
-              className={`rounded-full px-4 py-2 transition ${
-                mode === "login" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"
-              }`}
-              onClick={() => switchMode("login")}
-              type="button"
+
+        <div>
+          {mode === "reset" ? (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <span className="pill">Password recovery</span>
+              <button className="ghost-button" onClick={() => switchMode("login")} type="button">
+                Back to login
+              </button>
+            </div>
+          ) : (
+            <div className="mb-4 inline-flex rounded-full border border-ink/10 bg-white/50 p-1 text-sm font-extrabold dark:border-white/10 dark:bg-white/10">
+              <button
+                className={`rounded-full px-5 py-2 transition ${mode === "login" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"}`}
+                onClick={() => switchMode("login")}
+                type="button"
+              >
+                Login
+              </button>
+              <button
+                className={`rounded-full px-5 py-2 transition ${mode === "register" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"}`}
+                onClick={() => switchMode("register")}
+                type="button"
+              >
+                Register
+              </button>
+            </div>
+          )}
+
+          {visibleError ? (
+            <div
+              className="mb-4 rounded-[1.1rem] border border-red-300/70 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-800 shadow-sm dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-100"
+              role="alert"
+              aria-live="assertive"
             >
-              Login
+              {visibleError}
+            </div>
+          ) : null}
+
+          <form className="grid gap-3 md:grid-cols-3" onSubmit={handleSubmit}>
+            {mode === "register" || mode === "reset" ? (
+              <input
+                className="field-control"
+                placeholder={mode === "reset" ? "Registered full name" : "Full name"}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                minLength={2}
+              />
+            ) : null}
+            <input
+              className="field-control"
+              placeholder="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              className="field-control"
+              placeholder={mode === "reset" ? "New password" : "Password"}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+            <button className="primary-button" type="submit" disabled={busy}>
+              {actionLabel}
             </button>
-            <button
-              className={`rounded-full px-4 py-2 transition ${
-                mode === "register" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"
-              }`}
-              onClick={() => switchMode("register")}
-              type="button"
-            >
-              Register
-            </button>
-          </div>
-        )}
+          </form>
+
+          {mode === "reset" ? (
+            <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">
+              This deployment does not email reset links yet. It checks your email and full name, then signs you in with the new password.
+            </p>
+          ) : (
+            <div className="mt-4 flex justify-end">
+              <button className="text-sm font-extrabold text-sea transition hover:text-ink dark:hover:text-slate-50" onClick={() => switchMode("reset")} type="button">
+                Forgot password?
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={handleSubmit}>
-        {mode === "register" || mode === "reset" ? (
-          <input
-            className="rounded-2xl border border-ink/10 bg-mist px-4 py-3 text-ink transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-            placeholder={mode === "reset" ? "Full name used at registration" : "Full name"}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-            minLength={2}
-          />
-        ) : null}
-        <input
-          className="rounded-2xl border border-ink/10 bg-mist px-4 py-3 text-ink transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          className="rounded-2xl border border-ink/10 bg-mist px-4 py-3 text-ink transition-colors duration-300 dark:border-[#294250] dark:bg-[#132531] dark:text-slate-50 dark:placeholder:text-slate-400"
-          placeholder={mode === "reset" ? "New password" : "Password"}
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-        />
-        <button
-          className="rounded-full bg-ink px-5 py-3 font-semibold text-white transition disabled:opacity-60 dark:bg-sea dark:text-ink dark:hover:bg-[#81ddd3]"
-          type="submit"
-          disabled={busy}
-        >
-          {busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Login"}
-        </button>
-      </form>
-      {visibleError ? (
-        <div
-          className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700 transition-colors duration-300 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100"
-          role="alert"
-          aria-live="assertive"
-        >
-          {visibleError}
-        </div>
-      ) : null}
-      {mode === "reset" ? (
-        <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">
-          This deployment does not send email reset links yet. Recovery checks your email and full name on this deployment,
-          then signs you back in with the new password.
-        </p>
-      ) : (
-        <div className="mt-4 flex justify-end">
-          <button
-            className="text-sm font-semibold text-sea transition hover:text-ink dark:hover:text-slate-50"
-            onClick={() => switchMode("reset")}
-            type="button"
-          >
-            Forgot password?
-          </button>
-        </div>
-      )}
     </section>
   );
 }
