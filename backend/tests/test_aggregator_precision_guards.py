@@ -320,7 +320,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
         self.assertEqual(plan["supplemental_sources"], ["jooble"])
 
-    def test_data_analyst_india_provider_plan_starts_with_greenhouse(self) -> None:
+    def test_data_analyst_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
         plan = self.aggregator._build_production_provider_plan(
             query="Data Analyst",
@@ -328,8 +328,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
 
-        self.assertEqual(plan["primary_sources"][:4], ["greenhouse", "adzuna", "jobicy", "remotive"])
-        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["jooble", "adzuna", "jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse"])
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -1138,6 +1138,95 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             self.aggregator.last_fetch_diagnostics["selection_debug"]["target_live_count"],
             12,
         )
+
+    def test_dense_india_role_can_fill_requested_eighteen_from_distinct_live_matches(self) -> None:
+        jobs = []
+        sources = ["jooble", "adzuna", "jobicy", "remotive", "themuse", "greenhouse"]
+        for index in range(1, 19):
+            jobs.append(
+                {
+                    "title": f"Data Analyst {index}",
+                    "company": f"India Analytics {index}",
+                    "source": sources[index % len(sources)],
+                    "external_id": f"india-data-{index}",
+                    "url": f"https://example.test/india-data/{index}",
+                    "description": "Own SQL reporting, Power BI dashboards, Excel analysis, and analytics workflows.",
+                    "location": "India",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "excel", "analytics", "power bi", "reporting", "dashboarding"],
+                        "title_alignment_score": 24.0 - (index * 0.1),
+                        "role_fit_score": 18.0 - (index * 0.05),
+                        "market_quality_score": 28.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=18,
+        )
+
+        self.assertEqual(len(selected), 18)
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertEqual(debug["target_live_count"], 18)
+        self.assertEqual(debug["underfill"]["required_live_floor"], 18)
+        self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
+
+    def test_dense_india_role_can_overflow_source_cap_after_clean_floor(self) -> None:
+        jobs = []
+        for index in range(1, 19):
+            jobs.append(
+                {
+                    "title": f"Data Analyst {index}",
+                    "company": f"Jooble India {index}",
+                    "source": "jooble",
+                    "external_id": f"jooble-data-{index}",
+                    "url": f"https://example.test/jooble-data/{index}",
+                    "description": "Own SQL reporting, Power BI dashboards, Excel analysis, and analytics workflows.",
+                    "location": "India",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "excel", "analytics", "power bi", "reporting", "dashboarding"],
+                        "title_alignment_score": 24.0 - (index * 0.1),
+                        "role_fit_score": 18.0 - (index * 0.05),
+                        "market_quality_score": 28.0,
+                    },
+                }
+            )
+        for source in ["remotive", "jobicy", "themuse"]:
+            jobs.append(
+                {
+                    "title": f"Data Analyst {source}",
+                    "company": f"Non India {source}",
+                    "source": source,
+                    "external_id": f"non-india-{source}",
+                    "url": f"https://example.test/non-india/{source}",
+                    "description": "Own SQL reporting, dashboards, and analytics workflows.",
+                    "location": "United States",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "analytics", "reporting"],
+                        "title_alignment_score": 20.0,
+                        "role_fit_score": 14.0,
+                        "market_quality_score": 25.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=18,
+        )
+
+        self.assertEqual(len(selected), 18)
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertEqual(debug["selected_sources"], {"jooble": 18})
+        self.assertEqual(debug["india_target_fill_candidates"], 18)
 
     def test_india_search_prefers_india_aligned_live_cards_before_global_fill(self) -> None:
         jobs = []

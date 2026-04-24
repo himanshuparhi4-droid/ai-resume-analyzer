@@ -470,8 +470,8 @@ class JobAggregator:
                     primary_order = ["greenhouse", "remotive", "adzuna", "jooble"]
                     supplemental_order = ["jobicy", "themuse"]
                 elif data_analyst_style:
-                    primary_order = ["greenhouse", "adzuna", "jobicy", "remotive"]
-                    supplemental_order = ["jooble", "themuse"]
+                    primary_order = ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
+                    supplemental_order = ["greenhouse"]
                 elif weak_software_family:
                     primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
                     supplemental_order = ["themuse", "adzuna"]
@@ -1391,7 +1391,7 @@ class JobAggregator:
                 if provider_results:
                     absorb_results(provider_results)
                 preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
-                stage_completion_floor = target_live_count if stage == "supplemental" and dense_role else live_floor
+                stage_completion_floor = target_live_count if dense_role else live_floor
                 if len(preferred_live) >= stage_completion_floor:
                     if pending:
                         await _cancel_pending_tasks(
@@ -1785,7 +1785,7 @@ class JobAggregator:
             )
             return dynamic_cap
 
-        def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
+        def maybe_add(candidates: list[dict], cap_per_company: int, *, allow_source_overflow: bool = False) -> None:
             rejection_counts = selection_debug["rejections"]
             india_focused_selection = self._is_india_focused_location(location)
             for item in candidates:
@@ -1869,7 +1869,7 @@ class JobAggregator:
                         if isinstance(rejection_counts, dict):
                             rejection_counts["similarity_cap"] += 1
                         continue
-                if len(selected) >= display_floor and source_counts.get(source, 0) >= max_source_count:
+                if not allow_source_overflow and len(selected) >= display_floor and source_counts.get(source, 0) >= max_source_count:
                     if isinstance(rejection_counts, dict):
                         rejection_counts["source_cap"] += 1
                     continue
@@ -1974,6 +1974,22 @@ class JobAggregator:
             ]
             selection_debug["last_resort_themuse_candidates"] = len(last_resort_themuse)
             maybe_add(last_resort_themuse, cap_per_company=5)
+        if len(selected) < target_live_count and india_focused_location:
+            india_target_fill_candidates = [
+                item
+                for item in ranked
+                if not self._is_location_hard_mismatch(location, item)
+                and self._passes_final_live_guard(query, item)
+                and bool(self._query_signature(item.get("external_id") or item.get("url") or ""))
+                and (
+                    self._canonical_role_alignment(query, item) >= 1
+                    or self._title_precision_score(query, item) >= 2
+                    or self._title_hint_overlap(query, item) >= 1
+                    or self._role_domain_match_score(query, item) >= 2
+                )
+            ]
+            selection_debug["india_target_fill_candidates"] = len(india_target_fill_candidates)
+            maybe_add(india_target_fill_candidates, cap_per_company=6, allow_source_overflow=True)
 
         post_filter_selected: list[dict] = []
         rejection_counts = selection_debug["rejections"]
@@ -2025,7 +2041,7 @@ class JobAggregator:
                 "errors": int(request_summary.get("errors", 0)),
             }
         timeout_sources = self._timeout_sources()
-        required_live_floor = min(display_floor, target_live_count)
+        required_live_floor = target_live_count if self._is_dense_production_family(query) else min(display_floor, target_live_count)
         if len(selected) >= required_live_floor:
             underfill_reason = "sufficient_live_supply"
         elif len(family_safe_candidates) >= required_live_floor:
