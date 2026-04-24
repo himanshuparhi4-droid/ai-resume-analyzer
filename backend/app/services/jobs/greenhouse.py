@@ -110,7 +110,11 @@ class GreenhouseProvider:
         async def fetch_board_batch(client: httpx.AsyncClient, board_batch: list[str]) -> list[object]:
             board_tasks = [asyncio.create_task(self._fetch_board_index(board, client=client)) for board in board_batch]
             if settings.environment == "production":
-                done, pending = await asyncio.wait(board_tasks, timeout=3.25)
+                # The board request itself can legitimately take connect + read time
+                # on Render. A shorter batch timeout was racing successful HTTP 200s
+                # and turning useful board indexes into false Greenhouse timeouts.
+                batch_timeout = min(6.25, max(4.75, settings.job_request_timeout_seconds - 7.0))
+                done, pending = await asyncio.wait(board_tasks, timeout=batch_timeout)
                 for task in pending:
                     task.cancel()
                 batch_results: list[object] = []

@@ -305,8 +305,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["jobicy", "adzuna", "greenhouse", "remotive"])
-        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
+        self.assertEqual(plan["supplemental_sources"], ["jooble"])
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -315,8 +315,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["jobicy", "adzuna", "greenhouse", "remotive"])
-        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
+        self.assertEqual(plan["supplemental_sources"], ["jooble"])
 
     def test_frontend_developer_global_caps_jooble_to_single_query(self) -> None:
         provider = type("Provider", (), {"source_name": "jooble", "supports_query_variations": True})()
@@ -706,6 +706,49 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
 
         self.assertGreaterEqual(timeout_seconds, 9.0)
+
+    def test_data_analyst_primary_stage_has_room_for_slow_but_useful_sources(self) -> None:
+        timeout_seconds = self.aggregator._production_stage_soft_timeout(
+            stage="primary",
+            query="Data Analyst",
+            sparse_role=False,
+        )
+
+        self.assertGreaterEqual(timeout_seconds, 10.0)
+
+    def test_underfilled_live_jobs_blend_with_safe_cached_jobs(self) -> None:
+        def make_job(idx: int, source_name: str) -> dict:
+            return {
+                "title": f"Senior Data Analyst {idx}",
+                "company": f"Data Co {idx}",
+                "source": source_name,
+                "description": "Own SQL dashboards, Power BI reporting, Excel analysis, and analytics workflows.",
+                "url": f"https://example.com/{source_name}/{idx}",
+                "tags": ["data analyst", "analytics"],
+                "normalized_data": {
+                    "skills": ["sql", "power bi", "excel", "analytics", "reporting"],
+                    "title_alignment_score": 18.0,
+                    "role_fit_score": 14.0,
+                    "market_quality_score": 24.0,
+                },
+            }
+
+        live_jobs = [make_job(idx, "remotive") for idx in range(3)]
+        cached_jobs = [make_job(idx, "jobicy") for idx in range(3, 8)]
+
+        selected = self.aggregator._blend_underfilled_production_live_jobs(
+            query="Data Analyst",
+            location="Global",
+            limit=10,
+            live_jobs=live_jobs,
+            cached_jobs=cached_jobs,
+        )
+
+        self.assertGreaterEqual(len(selected), 6)
+        self.assertEqual(
+            self.aggregator.last_fetch_diagnostics["underfill_cache_blend"]["fresh_live_count"],
+            3,
+        )
 
     def test_production_fetch_preserves_stronger_primary_live_set_when_later_stage_is_weaker(self) -> None:
         class FakeProvider:

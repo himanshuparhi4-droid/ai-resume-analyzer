@@ -321,9 +321,9 @@ class JobAggregator:
             return 5.0 if stage == "primary" else 3.5
         if self._is_data_analyst_style_query(query):
             if stage == "primary":
-                return 8.5
+                return 10.75
             if stage == "supplemental":
-                return 9.0
+                return 10.25
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
@@ -456,8 +456,8 @@ class JobAggregator:
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
                 if data_analyst_style:
-                    primary_order = ["jobicy", "adzuna", "greenhouse", "remotive"]
-                    supplemental_order = ["jooble", "themuse"]
+                    primary_order = ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"]
+                    supplemental_order = ["jooble"]
                 else:
                     primary_order = ["greenhouse", "remotive", "jobicy"]
                     supplemental_order = ["themuse", "jooble", "adzuna"]
@@ -746,13 +746,20 @@ class JobAggregator:
         sparse_role = is_sparse_live_market_role(query)
         if settings.environment == "production":
             cache_key = self._production_cache_key(query=query, location=location, limit=limit)
-            cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
-            if cached_live:
-                return cached_live
             production_display_floor = self._production_display_floor(query=query, limit=limit)
-            cached_seed = []
+            cached_live = self._get_production_cached_jobs(query=query, location=location, limit=limit)
+            cached_seed = copy.deepcopy(cached_live or [])
+            if cached_live and (sparse_role or len(cached_live) >= production_display_floor):
+                return cached_live
+            if cached_live:
+                self.last_fetch_diagnostics["cache_hit_underfilled_retry"] = {
+                    "cached_live_count": len(cached_live),
+                    "required_live_floor": production_display_floor,
+                }
             if not sparse_role:
-                cached_seed = self._get_cached_production_fallback(query=query, location=location, limit=limit)
+                db_cached_seed = self._get_cached_production_fallback(query=query, location=location, limit=limit)
+                if len(db_cached_seed) > len(cached_seed):
+                    cached_seed = db_cached_seed
                 if len(cached_seed) >= production_display_floor:
                     self.last_fetch_diagnostics["db_cache_short_circuit"] = True
                     self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=cached_seed)
@@ -777,6 +784,14 @@ class JobAggregator:
                         _PRODUCTION_INFLIGHT_FETCHES.pop(cache_key, None)
             self._log_provider_diagnostic_summary(query=query)
             if live_jobs:
+                if not sparse_role and len(live_jobs) < production_display_floor and cached_seed:
+                    live_jobs = self._blend_underfilled_production_live_jobs(
+                        query=query,
+                        location=location,
+                        limit=limit,
+                        live_jobs=live_jobs,
+                        cached_jobs=cached_seed,
+                    )
                 self._store_production_cached_jobs(query=query, location=location, limit=limit, jobs=live_jobs)
                 self._persist_production_jobs(query=query, location=location, jobs=live_jobs)
                 return live_jobs
@@ -928,6 +943,57 @@ class JobAggregator:
             }
         return selected
 
+    def _blend_underfilled_production_live_jobs(
+        self,
+        *,
+        query: str,
+        location: str,
+        limit: int,
+        live_jobs: list[dict],
+        cached_jobs: list[dict],
+    ) -> list[dict]:
+        display_floor = self._production_display_floor(query=query, limit=limit)
+        if len(live_jobs) >= display_floor or not cached_jobs:
+            return live_jobs
+
+        selection_debug_before = copy.deepcopy(self.last_fetch_diagnostics.get("selection_debug"))
+        combined: list[dict] = []
+        seen: set[str] = set()
+        fresh_keys = {dedupe_key(item) for item in live_jobs}
+        cached_candidate_count = 0
+        for item in [*live_jobs, *cached_jobs]:
+            key = dedupe_key(item)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            candidate = copy.deepcopy(item)
+            self._prepare_listing_text(candidate)
+            candidate.setdefault("normalized_data", {})
+            self._annotate_item_scores(query=query, location=location, item=candidate)
+            if key not in fresh_keys:
+                cached_candidate_count += 1
+            combined.append(candidate)
+
+        selected = self._select_production_live_jobs(query=query, location=location, jobs=combined, limit=limit)
+        if len(selected) > len(live_jobs):
+            self.last_fetch_diagnostics["underfill_cache_blend"] = {
+                "fresh_live_count": len(live_jobs),
+                "cached_candidate_count": cached_candidate_count,
+                "blended_live_count": len(selected),
+                "required_live_floor": display_floor,
+            }
+            logger.info(
+                "Production live selection blended %s fresh jobs with cached candidates to return %s jobs for query=%s",
+                len(live_jobs),
+                len(selected),
+                query,
+            )
+            return selected
+
+        if selection_debug_before is not None:
+            self.last_fetch_diagnostics["selection_debug"] = selection_debug_before
+        return live_jobs
+
     def _query_signature(self, value: str) -> str:
         raw_text = str(value or "").strip()
         raw_text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", raw_text)
@@ -1012,7 +1078,7 @@ class JobAggregator:
                 if security_analyst_style:
                     provider_timeout = 7.0
                 elif data_analyst_style:
-                    provider_timeout = 6.5
+                    provider_timeout = 9.5
                 else:
                     provider_timeout = 8.0
             elif source_name == "greenhouse":
@@ -1032,15 +1098,15 @@ class JobAggregator:
             elif source_name == "jooble":
                 provider_timeout = 8.0 if india_focused_location else 6.0
                 if data_analyst_style and not india_focused_location:
-                    provider_timeout = 7.5
+                    provider_timeout = 8.5
                 if security_analyst_style and not india_focused_location:
                     provider_timeout = 4.75
                 elif weak_software_family and not india_focused_location:
                     provider_timeout = min(provider_timeout, 5.25)
             elif source_name == "adzuna":
                 provider_timeout = 7.0 if india_focused_location else 5.5
-                if data_analyst_style and not india_focused_location:
-                    provider_timeout = min(provider_timeout, 5.0)
+                if data_analyst_style:
+                    provider_timeout = 8.0 if india_focused_location else 8.5
                 if security_analyst_style and not india_focused_location:
                     provider_timeout = 4.75
                 elif weak_software_family and not india_focused_location:
@@ -1048,7 +1114,7 @@ class JobAggregator:
             elif source_name == "remotive":
                 provider_timeout = 9.0
             elif source_name == "themuse":
-                provider_timeout = 5.0 if query_domain in {"data", "software", "security"} else 5.5
+                provider_timeout = 6.5 if query_domain in {"data", "software", "security"} else 5.5
             elif source_name == "findwork":
                 provider_timeout = 6.0
             elif source_name == "remoteok":
