@@ -215,15 +215,15 @@ function App() {
           <div className="grid gap-5 pb-8 md:gap-7">
             {result.analysis_context?.message ? (
               <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-4 text-sm font-semibold leading-6 text-amber-950 shadow-soft transition-colors duration-300 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
-                <span className="font-semibold">Scoring context:</span> {result.analysis_context.message}
+                <span className="font-semibold">Review context:</span> {result.analysis_context.message}
               </div>
             ) : null}
             <section className="glass-panel rounded-[2rem] p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-5">
                 <div>
-                  <p className="eyebrow">Analysis Ready</p>
+                  <p className="eyebrow">Review complete</p>
                   <h2 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">
-                    {result.role_query} signal report
+                    {result.role_query} resume review
                   </h2>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -233,7 +233,7 @@ function App() {
                   </div>
                   <div className="soft-card rounded-[1rem] px-4 py-3">
                     <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.analysis_context?.live_job_count ?? result.top_job_matches.filter((job) => job.source !== "role-baseline").length}</p>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Live</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Jobs</p>
                   </div>
                   <div className="soft-card rounded-[1rem] px-4 py-3">
                     <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.missing_skills.length}</p>
@@ -264,10 +264,10 @@ function App() {
           </div>
         ) : (
           <section className="glass-panel rounded-[2rem] p-8 text-center">
-            <p className="eyebrow">Waiting for input</p>
-            <p className="mt-3 font-display text-4xl font-extrabold tracking-[-0.05em] text-ink transition-colors duration-300 dark:text-slate-50">Your first signal map will appear here.</p>
+            <p className="eyebrow">Ready when you are</p>
+            <p className="mt-3 font-display text-4xl font-extrabold tracking-[-0.05em] text-ink transition-colors duration-300 dark:text-slate-50">Your resume review will appear here.</p>
             <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
-              Upload a resume, choose a target role, and the workspace will fill with scores, gaps, parser confidence, job evidence, and prioritized fixes.
+              Upload a resume and choose a target role to see ATS readability, skill gaps, role fit, job evidence, and recommended improvements.
             </p>
           </section>
         )}

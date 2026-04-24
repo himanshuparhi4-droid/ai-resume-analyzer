@@ -32,9 +32,9 @@ function ThemeGlyph({ theme }: { theme: "light" | "dark" }) {
 }
 
 const REVIEW_STAGES = [
-  { label: "Parse", value: "layout + sections" },
-  { label: "Fetch", value: "live role market" },
-  { label: "Judge", value: "evidence + confidence" },
+  { label: "Upload Resume", value: "Review structure, sections, and content." },
+  { label: "Match Roles", value: "Compare against relevant hiring expectations." },
+  { label: "Improve Clearly", value: "Get focused, evidence-based recommendations." },
 ];
 
 export function Header({ theme, onToggleTheme }: HeaderProps) {
@@ -53,7 +53,7 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
             </div>
             <div>
               <p className="eyebrow">Resume Signal Studio</p>
-              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Live market fit, parser confidence, recruiter clarity</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">AI-powered resume analysis for stronger job applications.</p>
             </div>
           </div>
           <button className="ghost-button" onClick={onToggleTheme} type="button">
@@ -65,14 +65,14 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
         <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-end">
           <div>
             <div className="inline-flex rounded-full border border-slate-900/10 bg-white/60 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-800 backdrop-blur dark:border-white/10 dark:bg-slate-950/45 dark:text-slate-100">
-              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-950 dark:text-cyan-100">Evidence first</span>
-              <span className="px-3 py-1 text-slate-600 dark:text-slate-300">15-20 listing target</span>
+              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-950 dark:text-cyan-100">Resume review</span>
+              <span className="px-3 py-1 text-slate-600 dark:text-slate-300">Market-informed feedback</span>
             </div>
             <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.65rem,7vw,6.35rem)] font-extrabold leading-[0.9] tracking-[-0.065em] text-ink dark:text-slate-50">
-              Turn a resume into a hiring signal map.
+              Analyze your resume against real hiring expectations.
             </h1>
             <p className="mt-6 max-w-3xl text-base leading-8 text-slate-700 sm:text-lg dark:text-slate-200">
-              Upload once and see the role fit story the way a serious reviewer would: what parsed cleanly, what the market asked for, what is truly missing, and what simply needs stronger proof.
+              Upload your resume to review ATS readability, role alignment, skill evidence, and market fit. Get clear, prioritized feedback on what to improve before you apply.
             </p>
             <div className="mt-7 grid gap-3 sm:grid-cols-3">
               {REVIEW_STAGES.map((stage, index) => (
@@ -91,15 +91,15 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
             <div className="absolute right-12 top-12 h-12 w-12 rounded-full border border-cyan-200/10" />
             <div className="relative">
               <div className="flex items-center justify-between gap-4">
-                <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Review Engine</p>
-                <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">Production path</span>
+                <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Resume Review Dashboard</p>
+                <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">Live analysis</span>
               </div>
               <div className="mt-7 grid gap-3">
                 {[
-                  ["Skill grounding", "present vs weak proof vs absent"],
-                  ["Provider telemetry", "live count, sources, timeout risk"],
-                  ["ATS readability", "parse risk separate from score"],
-                  ["Recruiter lens", "prioritized actions, not generic advice"],
+                  ["Resume Parsing", "Checks whether your resume is structured clearly and readable by screening systems."],
+                  ["Skill Evidence", "Identifies which skills are clearly proven, weakly supported, or missing."],
+                  ["Market Alignment", "Compares your profile with role requirements and current job listing patterns."],
+                  ["ATS Readability", "Highlights formatting and structure issues that may affect automated screening."],
                 ].map(([title, detail]) => (
                   <div key={title} className="rounded-[1.1rem] border border-white/10 bg-slate-950/30 p-4 backdrop-blur transition duration-200 hover:border-cyan-300/20 hover:bg-slate-900/40">
                     <div className="flex items-center justify-between gap-3">
@@ -111,8 +111,8 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
                 ))}
               </div>
               <div className="mt-5 rounded-[1.15rem] border border-cyan-300/15 bg-slate-950/45 p-4 text-slate-100 shadow-[0_18px_46px_rgba(2,6,23,0.22)]">
-                <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Confidence-aware by design</p>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">Dense searches aim for a richer 15-20 listing market view while still labeling limited provider runs honestly.</p>
+                <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Evidence-based resume feedback</p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">Each recommendation is based on your resume content, target role expectations, and market signals, helping you focus on changes that can improve your application quality.</p>
               </div>
             </div>
           </div>

@@ -67,14 +67,14 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
       <section className="signal-panel rounded-[2rem] p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="eyebrow">Account Synced</p>
+            <p className="eyebrow">Account saved</p>
             <h3 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">{user.full_name}</h3>
             <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-300">{user.email}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="pill">History enabled</span>
+            <span className="pill">Review history on</span>
             <button className="ghost-button" onClick={onLogout} type="button">
-              Logout
+              Log out
             </button>
           </div>
         </div>
@@ -82,16 +82,16 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
     );
   }
 
-  const actionLabel = busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Login";
+  const actionLabel = busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Log in";
 
   return (
     <section className="signal-panel rounded-[2rem] p-5 sm:p-6">
       <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
         <div>
           <p className="eyebrow">Account</p>
-          <h3 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">Save runs. Compare versions.</h3>
+          <h3 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">Save reviews and track improvements.</h3>
           <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">
-            Optional login keeps your analysis history so we can compare revisions instead of treating every upload like a first draft.
+            Create an account to save resume reviews, compare versions, and track progress over time.
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <span className="pill">Password recovery</span>
               <button className="ghost-button" onClick={() => switchMode("login")} type="button">
-                Back to login
+                Back to log in
               </button>
             </div>
           ) : (
@@ -110,14 +110,14 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
                 onClick={() => switchMode("login")}
                 type="button"
               >
-                Login
+                Log in
               </button>
               <button
                 className={`rounded-full px-5 py-2 transition ${mode === "register" ? "bg-slate-950 text-white shadow-sm dark:border dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-50" : "text-slate-700 hover:text-ink dark:text-slate-300 dark:hover:text-slate-50"}`}
                 onClick={() => switchMode("register")}
                 type="button"
               >
-                Register
+                Create account
               </button>
             </div>
           )}
@@ -167,7 +167,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
 
           {mode === "reset" ? (
             <p className="mt-4 text-sm leading-6 text-slate-700 dark:text-slate-300">
-              This deployment does not email reset links yet. It checks your email and full name, then signs you in with the new password.
+              Enter your registered details to set a new password for this account.
             </p>
           ) : (
             <div className="mt-4 flex justify-end">

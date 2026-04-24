@@ -20,7 +20,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
   const [location, setLocation] = useState("India");
   const [limit, setLimit] = useState(18);
-  const fileLabel = useMemo(() => (file ? file.name : "Drop a resume export here"), [file]);
+  const fileLabel = useMemo(() => (file ? file.name : "Upload your resume"), [file]);
   const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, DOCX, or TXT";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -38,13 +38,13 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
           <div className="absolute -left-24 top-10 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl" />
           <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-cyan-300/35 to-transparent lg:h-2/3 lg:w-px lg:bg-gradient-to-b" />
           <div className="relative">
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.34em] text-cyan-100/65">Run Review</p>
-            <h2 className="mt-3 font-display text-4xl font-extrabold leading-none tracking-[-0.055em] text-white sm:text-5xl">Calibrate against the role you actually want.</h2>
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.34em] text-cyan-100/65">Start Review</p>
+            <h2 className="mt-3 font-display text-4xl font-extrabold leading-none tracking-[-0.055em] text-white sm:text-5xl">Review your resume for the role you want.</h2>
             <p className="mt-4 text-sm leading-7 text-white/74">
-              The role field is normalized for casing, spacing, and aliases, but exact intent still matters. Better role input creates better provider planning and better missing-skill judgment.
+              Choose a target role so the review can compare your resume with relevant skills, experience expectations, and job market patterns.
             </p>
             <div className="mt-7 grid gap-3">
-              {["Role meaning normalization", "Live provider diagnostics", "Weak proof vs true missing", "Parser confidence scoring"].map((item) => (
+              {["Role matching", "Job market comparison", "Skill evidence review", "ATS readability check"].map((item) => (
                 <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-cyan-300/20 hover:bg-slate-900/75">
                   <span className="h-2.5 w-2.5 rounded-full border border-cyan-200/30 bg-cyan-300/70 shadow-[0_0_14px_rgba(103,232,249,0.18)]" />
                   <span className="text-sm font-semibold text-white/86">{item}</span>
@@ -68,7 +68,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
               </span>
             </div>
             <p className="relative mt-5 max-w-2xl text-sm leading-6 text-slate-700 dark:text-slate-300">
-              Cleaner exports improve parser confidence, but the analyzer now separates parse risk from resume strength so a good multi-column resume is not punished like a broken file.
+              A clean resume file helps the system read your sections, skills, experience, and projects more accurately.
             </p>
             <input className="hidden" type="file" accept=".pdf,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
           </label>
@@ -95,18 +95,18 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
                   </option>
                 ))}
               </select>
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Global keeps the sample broad. Use India or Remote when you want a sharper market bias.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Choose a location to compare your resume with the most relevant job market.</p>
             </label>
 
             <label className="soft-card rounded-[1.5rem] p-4">
-              <span className="text-sm font-extrabold text-ink dark:text-slate-100">Sample size</span>
+              <span className="text-sm font-extrabold text-ink dark:text-slate-100">Job listings to compare</span>
               <input className="field-control mt-3" type="number" min={5} max={20} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 18)} />
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Dense roles now aim for 15-20 listings; Render may still return fewer when providers are slow.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">More listings can improve market coverage, though live sources may return fewer results at times.</p>
             </label>
           </div>
 
           <button className="primary-button w-full" type="submit" disabled={loading || !file}>
-            {loading ? "Building signal map..." : "Analyze Resume"}
+            {loading ? "Reviewing resume..." : "Analyze Resume"}
           </button>
         </form>
       </div>
