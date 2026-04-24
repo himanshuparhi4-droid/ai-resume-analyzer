@@ -396,7 +396,7 @@ class JobAggregator:
             if data_analyst_style:
                 return 1 if not india_focused_location else 2
             if security_analyst_style or weak_software_family:
-                return 1
+                return 2 if india_focused_location else 1
             if family_group in {"software", "security", "infra"} and not india_focused_location:
                 return 1
             if family_group == "data" and not india_focused_location:
@@ -434,25 +434,25 @@ class JobAggregator:
         elif dense_family:
             if india_focused_location:
                 if security_analyst_style:
-                    primary_order = ["remotive", "greenhouse", "adzuna"]
-                    supplemental_order = ["jobicy", "themuse", "jooble"]
+                    primary_order = ["greenhouse", "remotive", "adzuna", "jooble"]
+                    supplemental_order = ["jobicy", "themuse"]
                 elif data_analyst_style:
-                    primary_order = ["adzuna", "jobicy", "greenhouse", "remotive"]
+                    primary_order = ["greenhouse", "adzuna", "jobicy", "remotive"]
                     supplemental_order = ["jooble", "themuse"]
                 elif weak_software_family:
-                    primary_order = ["remotive", "jobicy", "jooble"]
-                    supplemental_order = ["greenhouse", "themuse", "adzuna"]
+                    primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
+                    supplemental_order = ["themuse", "adzuna"]
                 elif family_group == "data":
-                    primary_order = ["jooble", "remotive", "greenhouse"]
+                    primary_order = ["greenhouse", "jooble", "remotive"]
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
                 elif family_group in {"software", "infra"}:
-                    primary_order = ["remotive", "jobicy", "jooble"]
-                    supplemental_order = ["greenhouse", "themuse", "adzuna"]
+                    primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
+                    supplemental_order = ["themuse", "adzuna"]
                 elif family_group == "security":
-                    primary_order = ["remotive", "jooble", "adzuna"]
-                    supplemental_order = ["jobicy", "greenhouse", "themuse"]
+                    primary_order = ["greenhouse", "remotive", "jooble", "adzuna"]
+                    supplemental_order = ["jobicy", "themuse"]
                 else:
-                    primary_order = ["jooble", "remotive", "greenhouse"]
+                    primary_order = ["greenhouse", "jooble", "remotive"]
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
                 if data_analyst_style:
@@ -1652,11 +1652,13 @@ class JobAggregator:
         target_live_count = self._production_live_target(query=query, limit=limit)
         display_floor = self._production_display_floor(query=query, limit=limit)
         partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
+        india_focused_location = self._is_india_focused_location(location)
 
         ranked = sorted(
             live_jobs,
             key=lambda item: (
                 self._canonical_role_alignment(query, item),
+                self._location_alignment_score(location, item) if india_focused_location else 0.0,
                 float(item.get("normalized_data", {}).get("title_alignment_score", 0.0)),
                 self._title_precision_score(query, item),
                 -self._unrequested_title_penalty(query, item),
@@ -1717,6 +1719,7 @@ class JobAggregator:
             "same_family_recovery_candidates": len(same_family_recovery_candidates),
             "active_source_count": active_source_count,
             "exact_precision_query": int(exact_precision_query),
+            "india_focused_location": int(india_focused_location),
             "partial_live_floor": partial_live_floor,
             "rejections": {
                 "final_guard": 0,

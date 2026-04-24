@@ -116,6 +116,18 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
         self.assertEqual(fallback_boards, ["asana", "discord"])
 
+    def test_greenhouse_india_search_uses_india_heavy_board_mix(self) -> None:
+        provider = GreenhouseProvider()
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            boards = provider._boards_for_query("Data Analyst", location="India")
+        finally:
+            settings.environment = previous_environment
+
+        self.assertEqual(boards[:4], ["yipitdata", "okta", "rubrik", "airbnb"])
+        self.assertGreaterEqual(len(boards), 6)
+
     def test_contextual_recovery_guard_rejects_adjacent_business_analyst_noise(self) -> None:
         item = {
             "title": "Senior Business Analyst",
@@ -307,6 +319,17 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
         self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
         self.assertEqual(plan["supplemental_sources"], ["jooble"])
+
+    def test_data_analyst_india_provider_plan_starts_with_greenhouse(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="Data Analyst",
+            location="India",
+            source_groups=source_groups,
+        )
+
+        self.assertEqual(plan["primary_sources"][:4], ["greenhouse", "adzuna", "jobicy", "remotive"])
+        self.assertEqual(plan["supplemental_sources"], ["jooble", "themuse"])
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -631,7 +654,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="India",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
+        self.assertEqual(plan["primary_sources"][:4], ["greenhouse", "remotive", "jobicy", "jooble"])
         self.assertNotIn("indianapi", plan["primary_sources"])
         self.assertNotIn("indianapi", plan["supplemental_sources"])
 
@@ -1114,6 +1137,61 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(
             self.aggregator.last_fetch_diagnostics["selection_debug"]["target_live_count"],
             12,
+        )
+
+    def test_india_search_prefers_india_aligned_live_cards_before_global_fill(self) -> None:
+        jobs = []
+        for index in range(1, 5):
+            jobs.append(
+                {
+                    "title": f"Data Analyst {index}",
+                    "company": f"US Analytics {index}",
+                    "source": "greenhouse",
+                    "external_id": f"us-{index}",
+                    "url": f"https://example.test/us/{index}",
+                    "description": "Own SQL reporting, Power BI dashboards, and analytics workflows.",
+                    "location": "United States",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "power bi", "analytics", "reporting"],
+                        "title_alignment_score": 22.0,
+                        "role_fit_score": 18.0,
+                        "market_quality_score": 40.0,
+                    },
+                }
+            )
+        for index in range(1, 5):
+            jobs.append(
+                {
+                    "title": f"Data Analyst India {index}",
+                    "company": f"India Analytics {index}",
+                    "source": "greenhouse",
+                    "external_id": f"in-{index}",
+                    "url": f"https://example.test/in/{index}",
+                    "description": "Own SQL reporting, Power BI dashboards, and analytics workflows.",
+                    "location": "Bengaluru, India",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "power bi", "analytics", "reporting"],
+                        "title_alignment_score": 22.0,
+                        "role_fit_score": 18.0,
+                        "market_quality_score": 34.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=4,
+        )
+
+        self.assertEqual(len(selected), 4)
+        self.assertTrue(all("india" in str(item["location"]).lower() for item in selected))
+        self.assertEqual(
+            self.aggregator.last_fetch_diagnostics["selection_debug"]["india_focused_location"],
+            1,
         )
 
     def test_dense_role_uses_exact_backup_matches_to_fill_target_count(self) -> None:

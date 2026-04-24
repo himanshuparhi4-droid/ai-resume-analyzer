@@ -73,6 +73,30 @@ _CURATED_GREENHOUSE_BOARDS = {
     ],
 }
 
+_INDIA_LOCATION_HINTS = {
+    "india",
+    "indian",
+    "bengaluru",
+    "bangalore",
+    "hyderabad",
+    "pune",
+    "mumbai",
+    "delhi",
+    "gurgaon",
+    "gurugram",
+    "noida",
+    "chennai",
+    "kolkata",
+    "ahmedabad",
+}
+_INDIA_GREENHOUSE_BOARDS = {
+    "data": ["yipitdata", "okta", "rubrik", "airbnb", "figma"],
+    "software": ["okta", "rubrik", "yipitdata", "figma", "airbnb"],
+    "security": ["okta", "rubrik", "yipitdata", "airbnb", "figma"],
+    "product": ["airbnb", "figma", "okta", "rubrik"],
+    "design": ["figma", "airbnb", "okta"],
+}
+
 _ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
     "data analyst": ["yipitdata", "instacart", "affirm", "robinhood", "asana", "discord"],
     "data scientist": ["yipitdata", "asana", "affirm", "instacart", "robinhood", "discord"],
@@ -97,7 +121,8 @@ class GreenhouseProvider:
         family_role = role_family(query)
         domain = role_domain(query)
         profile = role_profile(query)
-        boards = self._boards_for_query(query)
+        india_focused_location = self._is_india_focused_location(location)
+        boards = self._boards_for_query(query, location=location)
         if not boards:
             return []
 
@@ -195,6 +220,9 @@ class GreenhouseProvider:
                 # without adding the old slow detail-fetch tail.
                 detail_fetch_budget = min(max(detail_fetch_budget, min(limit, 10)), target_candidates)
                 board_budget = max(board_budget, 2)
+                if india_focused_location:
+                    detail_fetch_budget = min(max(detail_fetch_budget, limit), target_candidates)
+                    board_budget = max(board_budget, 3)
             positively_aligned = [
                 item
                 for item in candidates
@@ -206,10 +234,15 @@ class GreenhouseProvider:
                 )
                 > 0
             ]
-            ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else candidates
+            ranked_pool = (
+                positively_aligned
+                if india_focused_location and positively_aligned
+                else positively_aligned if len(positively_aligned) >= max(limit * 2, 12) else candidates
+            )
             ranked_candidates = sorted(
                 ranked_pool,
                 key=lambda item: (
+                    self._location_alignment_score(location, item) if india_focused_location else 0.0,
                     role_title_alignment_score(
                         query,
                         str(item.get("title", "")),
@@ -258,12 +291,14 @@ class GreenhouseProvider:
                 ]
                 ranked_pool = (
                     positively_aligned_index_jobs
-                    if len(positively_aligned_index_jobs) >= max(limit * 2, 12)
+                    if (india_focused_location and positively_aligned_index_jobs)
+                    or len(positively_aligned_index_jobs) >= max(limit * 2, 12)
                     else jobs
                 )
                 ranked = sorted(
                     ranked_pool,
                     key=lambda item: (
+                        self._location_alignment_score(location, item) if india_focused_location else 0.0,
                         role_title_alignment_score(
                             query,
                             str(item.get("title", "")),
@@ -320,6 +355,7 @@ class GreenhouseProvider:
         ranked = sorted(
             ranked_pool,
             key=lambda item: (
+                self._location_alignment_score(location, item) if self._is_india_focused_location(location) else 0.0,
                 role_title_alignment_score(
                     query,
                     str(item.get("title", "")),
@@ -333,7 +369,7 @@ class GreenhouseProvider:
         )
         return ranked[:target_candidates]
 
-    def _boards_for_query(self, query: str) -> list[str]:
+    def _boards_for_query(self, query: str, *, location: str = "") -> list[str]:
         normalized = normalize_role(query)
         profile = role_profile(query)
         specific = _ROLE_SPECIFIC_GREENHOUSE_BOARDS.get(normalized)
@@ -343,6 +379,14 @@ class GreenhouseProvider:
             boards = settings.greenhouse_board_tokens
         else:
             boards = list(_CURATED_GREENHOUSE_BOARDS.get(role_domain(query) or "", []))
+        india_focused_location = self._is_india_focused_location(location)
+        if india_focused_location:
+            family_domain = role_domain(query) or role_domain(normalized)
+            boards = [
+                *_INDIA_GREENHOUSE_BOARDS.get(family_domain or "", []),
+                *boards,
+            ]
+        boards = list(dict.fromkeys(boards))
         if settings.environment == "production":
             family_domain = role_domain(query) or role_domain(normalized)
             board_limit = {
@@ -356,8 +400,36 @@ class GreenhouseProvider:
                 board_limit = min(board_limit, 2)
             if normalized == "cybersecurity engineer" and "analyst" in profile.head_terms:
                 board_limit = min(board_limit, 2)
+            if india_focused_location:
+                board_limit = max(board_limit, 6)
             boards = boards[:board_limit]
         return boards
+
+    def _is_india_focused_location(self, location: str) -> bool:
+        lowered = normalize_role(str(location or ""))
+        return bool(lowered and any(hint in lowered for hint in _INDIA_LOCATION_HINTS))
+
+    def _location_alignment_score(self, requested_location: str, item: dict) -> float:
+        requested = normalize_role(str(requested_location or "")).strip().lower()
+        job_location = str(item.get("location", "") or "").strip().lower()
+        remote = bool(item.get("remote"))
+        if not requested or requested in {"global", "remote", "worldwide", "anywhere"}:
+            return 1.0 if remote or "remote" in job_location else 0.8
+        if requested in job_location:
+            return 1.0
+        if self._is_india_focused_location(requested):
+            if any(token in job_location for token in _INDIA_LOCATION_HINTS):
+                return 1.0
+            if any(token in job_location for token in {"apac", "asia", "south asia"}):
+                return 0.86
+            if remote and not job_location:
+                return 0.82
+            if "remote" in job_location or "worldwide" in job_location or "global" in job_location:
+                return 0.8
+            return 0.5
+        if remote:
+            return 0.72
+        return 0.5
 
     def _fallback_boards_for_query(self, query: str, *, tried: set[str], limit: int) -> list[str]:
         normalized = normalize_role(query)
