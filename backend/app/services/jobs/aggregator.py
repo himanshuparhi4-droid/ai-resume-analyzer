@@ -1787,6 +1787,7 @@ class JobAggregator:
 
         def maybe_add(candidates: list[dict], cap_per_company: int) -> None:
             rejection_counts = selection_debug["rejections"]
+            india_focused_selection = self._is_india_focused_location(location)
             for item in candidates:
                 if item in selected:
                     continue
@@ -1819,10 +1820,16 @@ class JobAggregator:
                 has_distinct_listing_id = bool(
                     self._query_signature(item.get("external_id") or item.get("url") or "")
                 )
-                if has_distinct_listing_id and source in {"jobicy", "themuse"} and len(selected) < display_floor:
+                if (
+                    not india_focused_selection
+                    and has_distinct_listing_id
+                    and source in {"jobicy", "themuse"}
+                    and len(selected) < display_floor
+                ):
                     company_title_limit = 3
                 elif (
-                    has_distinct_listing_id
+                    not india_focused_selection
+                    and has_distinct_listing_id
                     and len(selected) < display_floor
                     and self._canonical_role_alignment(query, item) >= 2
                     and self._title_precision_score(query, item) >= 2
@@ -3046,10 +3053,11 @@ class JobAggregator:
         if not self._is_india_focused_location(requested_location):
             return False
         tier = self._location_match_tier(requested_location, item)
-        # India searches should not quietly degrade into US/Europe-only remote
-        # listings. Keep India, Asia, worldwide-remote, and unknown ATS rows as
-        # viable backup, but reject explicitly non-India markets.
-        return tier in {"remote_non_india_region", "non_india_region", "other_location"}
+        # India searches should not quietly degrade into generic global remote
+        # listings. Keep India, nearby Asia, and unknown ATS rows that lack a
+        # location field, but reject explicit non-India/global-remote fallbacks
+        # so the dropdown behaves as a real market filter rather than just sort.
+        return tier not in {"india", "asia", "unknown"}
 
     def _needs_requirement_refresh(self, item: dict) -> bool:
         normalized = item.get("normalized_data", {}) or {}

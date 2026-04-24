@@ -179,6 +179,22 @@ class GreenhouseProvider:
 
             if not candidates:
                 return []
+            if india_focused_location:
+                # India searches should not spend Render's small timeout budget
+                # ranking global ATS rows. Keep exact India board matches first,
+                # then fall back to nearby APAC/South Asia rows only if no India
+                # locations were present in the fetched board indexes.
+                india_location_candidates = [
+                    item for item in candidates if self._location_alignment_score(location, item) >= 1.0
+                ]
+                if india_location_candidates:
+                    candidates = india_location_candidates
+                else:
+                    asia_location_candidates = [
+                        item for item in candidates if self._location_alignment_score(location, item) >= 0.86
+                    ]
+                    if asia_location_candidates:
+                        candidates = asia_location_candidates
 
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             security_analyst_style = family_role == "cybersecurity engineer" and "analyst" in profile.head_terms
@@ -468,7 +484,7 @@ class GreenhouseProvider:
         payload = response.json()
         raw_jobs = payload.get("jobs") or []
         if settings.environment == "production":
-            raw_jobs = raw_jobs[:60]
+            raw_jobs = raw_jobs[:45]
 
         jobs: list[dict] = []
         for item in raw_jobs:

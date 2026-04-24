@@ -1215,6 +1215,23 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             },
             {
                 "title": "Data Analyst",
+                "company": "Generic Remote",
+                "source": "themuse",
+                "external_id": "global-role",
+                "url": "https://example.test/global-role",
+                "description": "Own SQL reporting, dashboards, and analytics workflows.",
+                "location": "Flexible / Remote",
+                "remote": True,
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "analytics", "reporting"],
+                    "title_alignment_score": 21.0,
+                    "role_fit_score": 15.0,
+                    "market_quality_score": 27.0,
+                },
+            },
+            {
+                "title": "Data Analyst",
                 "company": "India Analytics",
                 "source": "greenhouse",
                 "external_id": "india-role",
@@ -1241,7 +1258,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
         self.assertEqual([item["company"] for item in selected], ["India Analytics"])
         self.assertTrue(self.aggregator._is_location_hard_mismatch("India", jobs[0]))
-        self.assertFalse(self.aggregator._is_location_hard_mismatch("India", jobs[1]))
+        self.assertTrue(self.aggregator._is_location_hard_mismatch("India", jobs[1]))
+        self.assertFalse(self.aggregator._is_location_hard_mismatch("India", jobs[2]))
 
     def test_dense_role_uses_exact_backup_matches_to_fill_target_count(self) -> None:
         jobs = []
