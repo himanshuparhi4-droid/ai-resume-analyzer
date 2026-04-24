@@ -212,6 +212,11 @@ input {
     background: rgba(10, 25, 35, 0.78);
   }
 
+  .field-control option {
+    background: var(--surface-strong);
+    color: var(--ink);
+  }
+
   .primary-button {
     @apply inline-flex min-h-[3.35rem] items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-55;
     background: linear-gradient(135deg, var(--accent), #b5eee6);

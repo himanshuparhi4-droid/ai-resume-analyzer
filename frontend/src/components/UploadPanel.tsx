@@ -13,6 +13,7 @@ type UploadPanelProps = {
 };
 
 const ROLE_SUGGESTIONS = ["Data Analyst", "Web Developer", "SOC Analyst", "Frontend Developer"];
+const LOCATION_OPTIONS = ["Global", "India", "Remote", "United States", "Europe", "APAC"];
 
 export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -85,15 +86,13 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
 
             <label className="soft-card rounded-[1.5rem] p-4">
               <span className="text-sm font-extrabold text-ink dark:text-slate-100">Market location</span>
-              <input className="field-control mt-3" value={location} list="location-suggestions" onChange={(event) => setLocation(event.target.value)} placeholder="Global" />
-              <datalist id="location-suggestions">
-                <option value="Global" />
-                <option value="India" />
-                <option value="Remote" />
-                <option value="United States" />
-                <option value="Europe" />
-                <option value="APAC" />
-              </datalist>
+              <select className="field-control mt-3 cursor-pointer" value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Market location">
+                {LOCATION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
               <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Global keeps the sample broad. Use India or Remote when you want a sharper market bias.</p>
             </label>
 
