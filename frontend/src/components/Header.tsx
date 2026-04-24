@@ -39,16 +39,16 @@ const REVIEW_STAGES = [
 
 export function Header({ theme, onToggleTheme }: HeaderProps) {
   return (
-    <header className="glass-panel relative overflow-hidden rounded-[2.25rem] p-5 sm:p-7 lg:p-10">
-      <div className="absolute inset-0 opacity-80">
-        <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-sea/25 blur-3xl" />
-        <div className="absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-ember/20 blur-3xl" />
+    <header className="glass-panel relative overflow-hidden rounded-[2rem] p-5 sm:p-7 lg:p-10">
+      <div className="absolute inset-0 opacity-75">
+        <div className="absolute -left-28 top-8 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-cyan-300/10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-sm font-black text-white shadow-soft dark:bg-sea dark:text-ink">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-slate-950 text-sm font-black text-cyan-100 shadow-soft dark:bg-cyan-300/10 dark:text-cyan-100">
               AI
             </div>
             <div>
@@ -64,11 +64,11 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
 
         <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-end">
           <div>
-            <div className="inline-flex rounded-full border border-ink/10 bg-white/55 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-ink backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
-              <span className="rounded-full bg-gradient-to-r from-gold via-ember to-sea px-3 py-1 text-ink shadow-[0_10px_28px_rgba(255,88,63,0.22)]">Evidence first</span>
-              <span className="px-3 py-1">15-20 listing target</span>
+            <div className="inline-flex rounded-full border border-slate-900/10 bg-white/60 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-800 backdrop-blur dark:border-white/10 dark:bg-slate-950/45 dark:text-slate-100">
+              <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-950 dark:text-cyan-100">Evidence first</span>
+              <span className="px-3 py-1 text-slate-600 dark:text-slate-300">15-20 listing target</span>
             </div>
-            <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.7rem,7vw,6.6rem)] font-extrabold leading-[0.88] tracking-[-0.065em] text-ink dark:text-slate-50">
+            <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.65rem,7vw,6.35rem)] font-extrabold leading-[0.9] tracking-[-0.065em] text-ink dark:text-slate-50">
               Turn a resume into a hiring signal map.
             </h1>
             <p className="mt-6 max-w-3xl text-base leading-8 text-slate-700 sm:text-lg dark:text-slate-200">
@@ -76,7 +76,7 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
             </p>
             <div className="mt-7 grid gap-3 sm:grid-cols-3">
               {REVIEW_STAGES.map((stage, index) => (
-                <div key={stage.label} className="soft-card rounded-[1.35rem] p-4">
+                <div key={stage.label} className="soft-card rounded-[1.25rem] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30">
                   <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">0{index + 1}</p>
                   <p className="mt-3 font-display text-xl font-bold text-ink dark:text-slate-50">{stage.label}</p>
                   <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{stage.value}</p>
@@ -85,13 +85,14 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
             </div>
           </div>
 
-          <div className="ink-panel relative overflow-hidden rounded-[2rem] p-5 sm:p-6">
-            <div className="absolute right-6 top-6 h-24 w-24 rounded-full border border-white/10" />
-            <div className="absolute right-12 top-12 h-12 w-12 rounded-full border border-white/10" />
+          <div className="ink-panel relative overflow-hidden rounded-[1.75rem] border border-cyan-300/10 p-5 sm:p-6">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent" />
+            <div className="absolute right-6 top-6 h-24 w-24 rounded-full border border-white/5" />
+            <div className="absolute right-12 top-12 h-12 w-12 rounded-full border border-cyan-200/10" />
             <div className="relative">
               <div className="flex items-center justify-between gap-4">
                 <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Review Engine</p>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/85">Production path</span>
+                <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">Production path</span>
               </div>
               <div className="mt-7 grid gap-3">
                 {[
@@ -100,18 +101,18 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
                   ["ATS readability", "parse risk separate from score"],
                   ["Recruiter lens", "prioritized actions, not generic advice"],
                 ].map(([title, detail]) => (
-                  <div key={title} className="rounded-[1.2rem] border border-white/10 bg-white/[0.07] p-4 backdrop-blur">
+                  <div key={title} className="rounded-[1.1rem] border border-white/10 bg-slate-950/30 p-4 backdrop-blur transition duration-200 hover:border-cyan-300/20 hover:bg-slate-900/40">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-semibold text-white">{title}</p>
-                      <span className="h-2.5 w-2.5 rounded-full bg-sea shadow-[0_0_24px_rgba(102,216,205,0.9)]" />
+                      <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.45)]" />
                     </div>
                     <p className="mt-1 text-sm leading-6 text-white/72">{detail}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-[1.2rem] bg-gradient-to-br from-gold via-ember to-sea p-4 text-ink shadow-[0_18px_46px_rgba(255,88,63,0.26)]">
+              <div className="mt-5 rounded-[1.15rem] border border-cyan-300/15 bg-slate-950/45 p-4 text-slate-100 shadow-[0_18px_46px_rgba(2,6,23,0.22)]">
                 <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Confidence-aware by design</p>
-                <p className="mt-1 text-sm font-semibold leading-6 opacity-85">Dense searches now aim for a richer 15-20 listing market view, while still labeling limited provider runs honestly.</p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">Dense searches aim for a richer 15-20 listing market view while still labeling limited provider runs honestly.</p>
               </div>
             </div>
           </div>

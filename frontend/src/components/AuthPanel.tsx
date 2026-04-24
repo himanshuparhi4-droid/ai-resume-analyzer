@@ -104,16 +104,16 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
               </button>
             </div>
           ) : (
-            <div className="mb-4 inline-flex rounded-full border border-ink/10 bg-white/50 p-1 text-sm font-extrabold dark:border-white/10 dark:bg-white/10">
+            <div className="mb-4 inline-flex rounded-full border border-slate-900/10 bg-white/55 p-1 text-sm font-extrabold shadow-sm dark:border-white/10 dark:bg-slate-950/45">
               <button
-                className={`rounded-full px-5 py-2 transition ${mode === "login" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"}`}
+                className={`rounded-full px-5 py-2 transition ${mode === "login" ? "bg-slate-950 text-white shadow-sm dark:border dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-50" : "text-slate-700 hover:text-ink dark:text-slate-300 dark:hover:text-slate-50"}`}
                 onClick={() => switchMode("login")}
                 type="button"
               >
                 Login
               </button>
               <button
-                className={`rounded-full px-5 py-2 transition ${mode === "register" ? "bg-ink text-white dark:bg-sea dark:text-ink" : "text-ink dark:text-slate-100"}`}
+                className={`rounded-full px-5 py-2 transition ${mode === "register" ? "bg-slate-950 text-white shadow-sm dark:border dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-50" : "text-slate-700 hover:text-ink dark:text-slate-300 dark:hover:text-slate-50"}`}
                 onClick={() => switchMode("register")}
                 type="button"
               >
@@ -171,7 +171,7 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
             </p>
           ) : (
             <div className="mt-4 flex justify-end">
-              <button className="text-sm font-extrabold text-sea transition hover:text-ink dark:hover:text-slate-50" onClick={() => switchMode("reset")} type="button">
+              <button className="text-sm font-extrabold text-cyan-700 transition hover:text-ink dark:text-cyan-200 dark:hover:text-slate-50" onClick={() => switchMode("reset")} type="button">
                 Forgot password?
               </button>
             </div>

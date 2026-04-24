@@ -43,7 +43,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>("dark");
   const analyzeRequestId = useRef(0);
 
   useEffect(() => {

@@ -7,11 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#06131c",
-        mist: "#fff7e6",
-        sea: "#00c7b8",
-        ember: "#ff583f",
-        gold: "#ffd343",
+        ink: "#07111f",
+        mist: "#eef3f8",
+        sea: "#67e8f9",
+        ember: "#60a5fa",
+        gold: "#34d399",
         slate: {
           ...colors.slate,
           DEFAULT: "#7c8b95",
