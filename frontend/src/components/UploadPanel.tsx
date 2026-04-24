@@ -99,8 +99,8 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
 
             <label className="soft-card rounded-[1.5rem] p-4">
               <span className="text-sm font-extrabold text-ink dark:text-slate-100">Sample size</span>
-              <input className="field-control mt-3" type="number" min={5} max={20} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 12)} />
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Higher targets help dense roles, while sparse roles show confidence warnings.</p>
+              <input className="field-control mt-3" type="number" min={5} max={15} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 12)} />
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-400">Higher targets help dense roles; hosted runs cap at 15 to protect response time.</p>
             </label>
           </div>
 

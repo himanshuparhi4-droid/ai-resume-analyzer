@@ -716,6 +716,11 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
         self.assertGreaterEqual(timeout_seconds, 10.0)
 
+    def test_dense_roles_target_requested_sample_above_ten(self) -> None:
+        self.assertEqual(self.aggregator._production_live_target(query="Data Analyst", limit=12), 12)
+        self.assertGreaterEqual(self.aggregator._production_display_floor(query="Data Analyst", limit=12), 8)
+        self.assertGreaterEqual(self.aggregator._production_partial_live_floor(query="Data Analyst", limit=12), 6)
+
     def test_underfilled_live_jobs_blend_with_safe_cached_jobs(self) -> None:
         def make_job(idx: int, source_name: str) -> dict:
             return {
@@ -814,7 +819,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             FakeProvider("themuse", make_live_jobs(2, "themuse")),
         ]
         aggregator = ScriptedAggregator(
-            scripted_live_results=[primary_live, weaker_supplemental_live, weaker_supplemental_live],
+            scripted_live_results=[primary_live, primary_live, weaker_supplemental_live, weaker_supplemental_live],
             providers=providers,
         )
         previous_environment = settings.environment
@@ -1058,6 +1063,58 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertGreaterEqual(len(selected), 6)
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertGreaterEqual(debug["upstream_family_safe_count"], 6)
+
+    def test_dense_role_can_select_twelve_when_upstream_has_twelve_safe_matches(self) -> None:
+        jobs = []
+        sources = ["remotive", "jobicy", "themuse", "greenhouse", "jooble", "adzuna"]
+        titles = [
+            "Data Analyst",
+            "Senior Data Analyst",
+            "Product Data Analyst",
+            "Marketing Data Analyst",
+            "Operations Data Analyst",
+            "Business Intelligence Analyst",
+            "Reporting Analyst",
+            "Analytics Analyst",
+            "Insights Analyst",
+            "Data Operations Analyst",
+            "BI Analyst",
+            "Lead Data Analyst",
+        ]
+        for index, title in enumerate(titles, start=1):
+            jobs.append(
+                {
+                    "title": title,
+                    "company": f"Analytics Co {index}",
+                    "source": sources[index % len(sources)],
+                    "external_id": f"dense-{index}",
+                    "url": f"https://example.test/data/{index}",
+                    "description": (
+                        f"Own SQL reporting, Power BI dashboards, Excel analysis, and analytics workflow {index}."
+                    ),
+                    "location": "India",
+                    "tags": ["data analyst"],
+                    "normalized_data": {
+                        "skills": ["sql", "excel", "analytics", "power bi", "reporting", "dashboarding"],
+                        "title_alignment_score": 24.0 - (index * 0.2),
+                        "role_fit_score": 18.0 - (index * 0.1),
+                        "market_quality_score": 26.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=12,
+        )
+
+        self.assertEqual(len(selected), 12)
+        self.assertEqual(
+            self.aggregator.last_fetch_diagnostics["selection_debug"]["target_live_count"],
+            12,
+        )
 
     def test_dense_role_uses_exact_backup_matches_to_fill_target_count(self) -> None:
         jobs = []

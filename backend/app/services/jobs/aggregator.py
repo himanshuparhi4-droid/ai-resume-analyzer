@@ -1478,7 +1478,15 @@ class JobAggregator:
                 len(preferred_live),
             )
             preferred_live = _preserve_best_live("supplemental", preferred_live)
-            if len(preferred_live) >= live_floor:
+            supplemental_target_reached = len(preferred_live) >= target_live_count
+            should_try_fallback_for_more = (
+                bool(fallback_sources)
+                and dense_role
+                and not sparse_role
+                and len(preferred_live) < target_live_count
+                and _remaining_runtime_budget(reserve_seconds=1.0) > 2.5
+            )
+            if len(preferred_live) >= live_floor and (supplemental_target_reached or not should_try_fallback_for_more):
                 _store_selected_live(preferred_live)
                 logger.info(
                     "Production live selection reached floor after supplemental fetch with %s jobs from %s candidates for query=%s",
@@ -1573,11 +1581,16 @@ class JobAggregator:
                 and len(preferred_live) < live_floor
                 and remaining_budget > 1.5
             )
+            should_try_fallback_for_more = (
+                dense_role
+                and len(preferred_live) < target_live_count
+                and remaining_budget > 2.5
+            )
             if preferred_live and (
                 len(preferred_live) >= partial_live_floor
                 or dense_role_live_guard
                 or (remaining_budget <= 6.0 and query_domain not in {"data", "software", "security"})
-            ) and not allow_weak_software_fallback:
+            ) and not allow_weak_software_fallback and not should_try_fallback_for_more:
                 _store_selected_live(
                     preferred_live,
                     partial_live_return={
@@ -1746,8 +1759,8 @@ class JobAggregator:
                         rejection_counts["final_guard"] += 1
                     continue
                 source = str(item.get("source", "unknown")).lower()
-                company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
-                title_key = normalize_role(str(item.get("title", "")).lower()) or "unknown"
+                company = self._query_signature(str(item.get("company", ""))) or "unknown"
+                title_key = self._query_signature(str(item.get("title", ""))) or "unknown"
                 similarity_signature = self._job_similarity_signature(item)
                 if company == "unknown":
                     fallback_company_id = self._query_signature(
@@ -1785,7 +1798,10 @@ class JobAggregator:
                     continue
                 if similarity_signature in selected_signatures:
                     allow_similarity_escape = (
-                        len(selected) < display_floor
+                        (
+                            len(selected) < display_floor
+                            or (has_distinct_listing_id and len(selected) < target_live_count)
+                        )
                         and self._canonical_role_alignment(query, item) >= 2
                         and self._title_precision_score(query, item) >= 2
                     )
@@ -2746,20 +2762,23 @@ class JobAggregator:
         if is_sparse_live_market_role(query):
             return min(limit, 4)
         if self._is_dense_production_family(query):
-            return min(limit, 10)
+            return min(limit, settings.production_live_fetch_maximum)
         return min(limit, max(settings.production_live_display_minimum, settings.production_live_fetch_minimum))
 
     def _production_display_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
-        return min(limit, 6)
+        if self._is_dense_production_family(query):
+            return min(limit, max(6, settings.production_live_display_minimum))
+        return min(limit, max(6, min(settings.production_live_display_minimum, settings.production_live_fetch_minimum)))
 
     def _production_partial_live_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
         if self._is_dense_production_family(query):
-            return min(limit, 4)
-        return min(limit, 3)
+            display_floor = self._production_display_floor(query=query, limit=limit)
+            return min(limit, max(4, display_floor - 2))
+        return min(limit, 4)
 
     def _skill_overlap_score(self, query: str, item: dict) -> float:
         normalized = item.get("normalized_data", {}) or {}

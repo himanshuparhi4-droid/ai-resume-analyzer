@@ -1785,12 +1785,32 @@ def query_variations(query: str) -> list[str]:
     return list(dict.fromkeys(item for item in variations if item))
 
 
+def _is_generic_security_query(profile: RoleProfile) -> bool:
+    cleaned_tokens = set(profile.cleaned_query.split())
+    explicit_head_tokens = cleaned_tokens & ROLE_HEAD_TOKENS
+    return (
+        profile.domain == "security"
+        and not explicit_head_tokens
+        and bool(cleaned_tokens & {"cyber", "cybersecurity", "security", "infosec"})
+    )
+
+
 def production_query_variations(query: str) -> list[str]:
     profile = role_profile(query)
     canonical_role = profile.family_role or profile.normalized_role
     variations = [*ROLE_PRODUCTION_VARIATIONS.get(canonical_role, [canonical_role])]
     if not _preserve_exact_canonical_query(profile):
         variations = [*_generic_query_expansions(profile), *variations]
+    if _is_generic_security_query(profile):
+        variations = [
+            "cybersecurity",
+            "cybersecurity engineer",
+            "security engineer",
+            "security analyst",
+            "soc analyst",
+            "cybersecurity analyst",
+            *variations,
+        ]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
@@ -1808,7 +1828,15 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
         score += 3.0 if profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES and profile.specialty_tokens else 10.0
     if profile.specialty_tokens:
         score += len(candidate_tokens & set(profile.specialty_tokens)) * 3.0
-    if profile.head_terms:
+    generic_security_query = _is_generic_security_query(profile)
+    if generic_security_query:
+        if candidate_tokens & {"security", "cybersecurity", "cyber", "soc"}:
+            score += 4.0
+        if candidate_tokens & {"analyst", "soc"}:
+            score += 7.0
+        if cleaned_candidate in {"security analyst", "soc analyst"}:
+            score += 10.0
+    if profile.head_terms and not generic_security_query:
         head_overlap = len(candidate_tokens & set(profile.head_terms))
         score += head_overlap * 4.0
         exact_head_overlap = len(candidate_heads & set(profile.head_terms))

@@ -245,6 +245,13 @@ class RoleTaxonomyCoverageTest(unittest.TestCase):
         self.assertIn("security analyst", remotive_queries)
         self.assertIn("security analyst", jooble_queries)
 
+    def test_generic_cyber_security_queries_include_analyst_recovery_terms(self) -> None:
+        queries = production_query_variations("cyber security")
+
+        self.assertIn("security analyst", queries)
+        self.assertIn("soc analyst", queries)
+        self.assertIn("cybersecurity engineer", queries)
+
     def test_explicit_canonical_roles_do_not_drift_into_sibling_production_queries(self) -> None:
         analyst_queries = production_query_variations("Data Analyst")
         self.assertIn("data analyst", analyst_queries)
