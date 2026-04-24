@@ -52,15 +52,46 @@ INDIA_LOCATION_HINTS = {"india", "indian", "bengaluru", "bangalore", "hyderabad"
 ASIA_LOCATION_HINTS = {"apac", "asia", "south asia", "southeast asia"}
 NON_INDIA_REGION_HINTS = {
     "usa",
+    "u s",
+    "u s a",
     "united states",
+    "america",
     "north america",
     "uk",
     "united kingdom",
+    "england",
+    "scotland",
+    "ireland",
     "emea",
     "europe",
+    "european union",
     "canada",
     "australia",
     "new zealand",
+    "netherlands",
+    "germany",
+    "france",
+    "spain",
+    "portugal",
+    "italy",
+    "belgium",
+    "sweden",
+    "norway",
+    "denmark",
+    "finland",
+    "poland",
+    "switzerland",
+    "austria",
+    "singapore",
+    "japan",
+    "korea",
+    "south korea",
+    "china",
+    "hong kong",
+    "taiwan",
+    "uae",
+    "dubai",
+    "middle east",
     "latam",
     "latin america",
 }
@@ -240,6 +271,8 @@ class JobAggregator:
         normalized["domain_alignment_score"] = self._role_domain_match_score(query, item)
         normalized["skill_overlap_score"] = self._skill_overlap_score(query, item)
         normalized["cache_query_bucket"] = self._cache_query_bucket(query, item)
+        normalized["requested_location"] = location
+        normalized["location_match_tier"] = self._location_match_tier(location, item)
 
     def _prepare_listing_text(self, item: dict) -> None:
         description = strip_html(str(item.get("description", "") or ""))
@@ -403,7 +436,7 @@ class JobAggregator:
                 return 2
             return 2 if india_focused_location else 1
         if source_name == "remotive" and data_analyst_style:
-            return 2
+            return 3 if india_focused_location else 2
         if source_name == "jobicy" and security_analyst_style:
             return 1
         if source_name == "jobicy" and data_analyst_style:
@@ -1757,6 +1790,10 @@ class JobAggregator:
             for item in candidates:
                 if item in selected:
                     continue
+                if self._is_location_hard_mismatch(location, item):
+                    if isinstance(rejection_counts, dict):
+                        rejection_counts["final_guard"] += 1
+                    continue
                 if not self._passes_final_live_guard(query, item):
                     if isinstance(rejection_counts, dict):
                         rejection_counts["final_guard"] += 1
@@ -1921,7 +1958,7 @@ class JobAggregator:
         post_filter_selected: list[dict] = []
         rejection_counts = selection_debug["rejections"]
         for item in selected:
-            if self._passes_final_live_guard(query, item):
+            if not self._is_location_hard_mismatch(location, item) and self._passes_final_live_guard(query, item):
                 post_filter_selected.append(item)
             elif isinstance(rejection_counts, dict):
                 rejection_counts["post_selection_final_guard"] += 1
@@ -1932,7 +1969,11 @@ class JobAggregator:
         for item in selected:
             source = str(item.get("source", "unknown")).lower()
             filtered_source_counts[source] = filtered_source_counts.get(source, 0) + 1
-        family_safe_candidates = [item for item in live_jobs if self._passes_final_live_guard(query, item)]
+        family_safe_candidates = [
+            item
+            for item in live_jobs
+            if not self._is_location_hard_mismatch(location, item) and self._passes_final_live_guard(query, item)
+        ]
         raw_source_counts = self._count_items_by_source(live_jobs)
         precision_source_counts = self._count_items_by_source(precision_guarded)
         backup_source_counts = self._count_items_by_source(exact_backup_candidates)
@@ -1984,6 +2025,11 @@ class JobAggregator:
         }
         selection_debug["selected_count"] = len(selected)
         selection_debug["selected_titles"] = [str(item.get("title", "")) for item in selected[:8]]
+        selection_debug["selected_locations"] = [str(item.get("location", "")) for item in selected[:8]]
+        selection_debug["selected_location_tiers"] = [
+            str((item.get("normalized_data") or {}).get("location_match_tier") or self._location_match_tier(location, item))
+            for item in selected[:8]
+        ]
         selection_debug["selected_sources"] = filtered_source_counts
         self.last_fetch_diagnostics["selection_debug"] = selection_debug
         self.last_fetch_diagnostics["provider_request_summary"] = provider_request_summary
@@ -2964,8 +3010,46 @@ class JobAggregator:
             return 0.68
         return 0.52
 
+    def _location_match_tier(self, requested_location: str, item: dict) -> str:
+        requested = normalize_role(str(requested_location or "")).strip().lower()
+        job_location = normalize_role(str(item.get("location", "") or ""))
+        raw_location = str(item.get("location", "") or "").strip().lower()
+        remote = bool(item.get("remote")) or any(token in job_location for token in GLOBAL_REMOTE_HINTS)
+
+        if not requested or requested in GLOBAL_REMOTE_HINTS:
+            return "global_remote" if remote else "global_open"
+        if requested == "india" or self._is_india_focused_location(requested_location):
+            if any(token in job_location for token in INDIA_LOCATION_HINTS):
+                return "india"
+            if any(token in job_location for token in ASIA_LOCATION_HINTS):
+                return "asia"
+            if any(token in job_location for token in GLOBAL_REMOTE_HINTS):
+                return "worldwide_remote"
+            if remote and not raw_location:
+                return "remote_unspecified"
+            if remote and any(token in job_location for token in NON_INDIA_REGION_HINTS):
+                return "remote_non_india_region"
+            if any(token in job_location for token in NON_INDIA_REGION_HINTS):
+                return "non_india_region"
+            if remote:
+                return "remote_other"
+            if not raw_location or raw_location == "unknown":
+                return "unknown"
+            return "other_location"
+        if requested and requested in job_location:
+            return "exact"
+        if remote:
+            return "remote_fallback"
+        return "other_location"
+
     def _is_location_hard_mismatch(self, requested_location: str, item: dict) -> bool:
-        return False
+        if not self._is_india_focused_location(requested_location):
+            return False
+        tier = self._location_match_tier(requested_location, item)
+        # India searches should not quietly degrade into US/Europe-only remote
+        # listings. Keep India, Asia, worldwide-remote, and unknown ATS rows as
+        # viable backup, but reject explicitly non-India markets.
+        return tier in {"remote_non_india_region", "non_india_region", "other_location"}
 
     def _needs_requirement_refresh(self, item: dict) -> bool:
         normalized = item.get("normalized_data", {}) or {}
@@ -2987,6 +3071,14 @@ class JobAggregator:
         source_name = str(getattr(provider, "source_name", provider.__class__.__name__)).lower()
         if settings.environment == "production":
             variations = provider_query_variations(query, source_name, production=True)
+            if self._is_india_focused_location(location) and source_name in {"remotive"}:
+                # Remotive has no location parameter. Add one India-biased query
+                # without dropping the canonical query, so India runs get a real
+                # market signal instead of only global remote leftovers.
+                localized_variations: list[str] = []
+                for variation in variations[:2]:
+                    localized_variations.extend([variation, f"{variation} india"])
+                variations = list(dict.fromkeys([*localized_variations, *variations]))
             cap = self._production_search_query_cap(source_name=source_name, query=query, location=location)
             if cap is not None:
                 return variations[: max(1, cap)]

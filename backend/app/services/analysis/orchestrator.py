@@ -61,7 +61,11 @@ class AnalysisOrchestrator:
         logger.info("Analysis step: parsed resume in %sms", round((time.perf_counter() - started) * 1000, 2))
         jobs: list[dict]
         if settings.environment == "production":
-            logger.info("Analysis step: using lightweight production review path with live market fetch")
+            logger.info(
+                "Analysis step: using lightweight production review path with live market fetch for query=%s location=%s",
+                role_query,
+                location,
+            )
             production_limit = min(
                 max(limit, settings.production_live_fetch_minimum),
                 settings.production_live_fetch_maximum,
@@ -163,6 +167,7 @@ class AnalysisOrchestrator:
             logger.info("Analysis step: scoring finished in %sms", round((time.perf_counter() - started) * 1000, 2))
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
+        score_payload["analysis_context"]["target_location"] = location
         score_payload["analysis_context"]["parser_confidence"] = self.scoring_engine.parser_confidence_profile(resume_data)
         if score_payload.get("market_confidence"):
             score_payload["analysis_context"]["market_confidence"] = score_payload["market_confidence"]

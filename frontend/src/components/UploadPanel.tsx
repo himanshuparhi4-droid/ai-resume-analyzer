@@ -18,7 +18,7 @@ const LOCATION_OPTIONS = ["Global", "India", "Remote", "United States", "Europe"
 export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
-  const [location, setLocation] = useState("Global");
+  const [location, setLocation] = useState("India");
   const [limit, setLimit] = useState(12);
   const fileLabel = useMemo(() => (file ? file.name : "Drop a resume export here"), [file]);
   const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, DOCX, or TXT";

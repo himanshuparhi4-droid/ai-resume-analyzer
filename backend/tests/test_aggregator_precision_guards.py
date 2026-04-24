@@ -1194,6 +1194,55 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             1,
         )
 
+    def test_india_search_rejects_explicit_non_india_remote_markets(self) -> None:
+        jobs = [
+            {
+                "title": "Senior Data Analyst",
+                "company": "US Remote Co",
+                "source": "remotive",
+                "external_id": "us-remote",
+                "url": "https://example.test/us-remote",
+                "description": "Own SQL reporting, Power BI dashboards, and analytics workflows.",
+                "location": "United States",
+                "remote": True,
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "power bi", "analytics", "reporting"],
+                    "title_alignment_score": 24.0,
+                    "role_fit_score": 18.0,
+                    "market_quality_score": 52.0,
+                },
+            },
+            {
+                "title": "Data Analyst",
+                "company": "India Analytics",
+                "source": "greenhouse",
+                "external_id": "india-role",
+                "url": "https://example.test/india-role",
+                "description": "Own SQL reporting, Power BI dashboards, and analytics workflows.",
+                "location": "Bengaluru, India",
+                "remote": False,
+                "tags": ["data analyst"],
+                "normalized_data": {
+                    "skills": ["sql", "power bi", "analytics", "reporting"],
+                    "title_alignment_score": 20.0,
+                    "role_fit_score": 14.0,
+                    "market_quality_score": 28.0,
+                },
+            },
+        ]
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Data Analyst",
+            location="India",
+            jobs=jobs,
+            limit=4,
+        )
+
+        self.assertEqual([item["company"] for item in selected], ["India Analytics"])
+        self.assertTrue(self.aggregator._is_location_hard_mismatch("India", jobs[0]))
+        self.assertFalse(self.aggregator._is_location_hard_mismatch("India", jobs[1]))
+
     def test_dense_role_uses_exact_backup_matches_to_fill_target_count(self) -> None:
         jobs = []
         titles = [

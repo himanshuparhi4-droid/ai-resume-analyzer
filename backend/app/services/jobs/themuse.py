@@ -56,6 +56,8 @@ class TheMuseProvider:
                 # pages materially improve dense-role coverage while still
                 # staying within a small request budget on Render free tier.
                 request_specs.append({"category": categories[0]})
+                if use_location and normalize_role(location_value) == "india":
+                    request_specs.append({"category": categories[0], "location": location_value})
             else:
                 for category in categories[:2]:
                     request_specs.append({"category": category})

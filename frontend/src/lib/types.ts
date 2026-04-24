@@ -99,6 +99,7 @@ export type AnalysisResponse = {
   top_job_matches: JobMatch[];
   analysis_context?: {
     market_source?: string;
+    target_location?: string;
     live_job_count?: number;
     live_company_count?: number;
     live_source_counts?: Record<string, number>;

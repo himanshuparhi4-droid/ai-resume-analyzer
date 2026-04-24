@@ -283,6 +283,11 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
               {describeMarketConfidence(analysisContext.market_confidence)}
             </span>
+            {analysisContext.target_location ? (
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
+                Market {analysisContext.target_location}
+              </span>
+            ) : null}
             {typeof liveJobCount === "number" ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink dark:bg-[#132531] dark:text-slate-100">
                 {liveJobCount} live jobs
