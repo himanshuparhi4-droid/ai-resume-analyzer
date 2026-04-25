@@ -8,7 +8,7 @@
       "normalized_role": "data analyst",
       "family_role": "data analyst",
       "domain": "data",
-      "elapsed_ms": 10763.82,
+      "elapsed_ms": 12714.4,
       "min_live": 7,
       "provider_plan": {
         "family_group": "data",
@@ -111,8 +111,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6772.64,
-          "avg_elapsed_ms": 6772.64,
+          "max_elapsed_ms": 8087.63,
+          "avg_elapsed_ms": 8087.63,
           "attempts": 1
         },
         "jooble": {
@@ -130,8 +130,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2048.43,
-          "avg_elapsed_ms": 1853.23,
+          "max_elapsed_ms": 4062.58,
+          "avg_elapsed_ms": 3278.01,
           "attempts": 2
         }
       },
@@ -165,7 +165,7 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 6,
-          "exact_backup": 11,
+          "exact_backup": 7,
           "same_family_recovery": 0,
           "family_safe": 6,
           "selected_live": 6,
@@ -201,7 +201,7 @@
       },
       "final_live_count": 18,
       "top_selected_titles": [
-        "Data Analyst",
+        "Senior Data Analyst",
         "Data Analyst",
         "Data Analyst",
         "Data Analyst",
@@ -214,24 +214,24 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 26,
-        "exact_backup_candidates": 11,
+        "exact_backup_candidates": 7,
         "same_family_recovery_candidates": 0,
         "upstream_family_safe_count": 24,
         "selected_count": 18
       },
       "selection_rejections": {
-        "final_guard": 0,
+        "final_guard": 4,
         "company_cap": 3,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 18,
+        "source_cap": 35,
         "post_selection_final_guard": 0
       }
     }
   ],
   "summary": {
     "query_count": 1,
-    "avg_elapsed_ms": 10763.82,
+    "avg_elapsed_ms": 12714.4,
     "avg_final_live_count": 18.0,
     "below_min_live_queries": [],
     "underfilled_queries": [],

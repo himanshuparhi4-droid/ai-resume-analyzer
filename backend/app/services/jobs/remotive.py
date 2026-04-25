@@ -5,7 +5,7 @@ from datetime import datetime
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.fast_profile import build_fast_requirement_profile
+from app.services.jobs.fast_profile import build_fast_requirement_profile, fast_title_alignment_score
 from app.services.jobs.taxonomy import role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
@@ -61,10 +61,9 @@ class RemotiveProvider:
             ranked_seed = sorted(
                 seed_jobs,
                 key=lambda item: (
-                    role_title_alignment_score(
+                    fast_title_alignment_score(
                         query,
                         str(item.get("title", "")),
-                        description="",
                         tags=item.get("tags") or [],
                     ),
                     1 if item.get("remote") else 0,
