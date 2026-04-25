@@ -13,6 +13,7 @@ from app.services.jobs.taxonomy import (
     role_fit_score,
     role_title_alignment_score,
 )
+from app.services.jobs.fast_profile import build_fast_requirement_profile
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -57,12 +58,7 @@ class JoobleProvider:
             page_size = min(max(limit * 2, 16), 24 if analyst_style else 30)
             page_count = 1
             extraction_limit = 750 if analyst_style else 900
-            if analyst_style:
-                enrichment_budget = min(max(limit // 2 + 2, 6), 10)
-            elif india_focused_location and high_recall_role:
-                enrichment_budget = min(max(limit // 2 + 5, 12), 14)
-            else:
-                enrichment_budget = min(max(limit // 2 + 2, 6), 9)
+            enrichment_budget = target_candidates
         else:
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)
             page_size = min(max(limit * 4, 30), 100)
@@ -155,12 +151,21 @@ class JoobleProvider:
 
         jobs: list[dict] = []
         for item in ranked_seed:
-            extraction_description = truncate(str(item.get("description", "")), extraction_limit)
-            requirement_profile = extract_job_requirement_profile(
-                title=str(item.get("title", "")),
-                description=extraction_description,
-                tags=item.get("tags") or [],
-            )
+            if settings.environment == "production":
+                requirement_profile = build_fast_requirement_profile(
+                    query=query,
+                    title=str(item.get("title", "")),
+                    description=truncate(str(item.get("description", "")), 500),
+                    tags=item.get("tags") or [],
+                    source=self.source_name,
+                )
+            else:
+                extraction_description = truncate(str(item.get("description", "")), extraction_limit)
+                requirement_profile = extract_job_requirement_profile(
+                    title=str(item.get("title", "")),
+                    description=extraction_description,
+                    tags=item.get("tags") or [],
+                )
             item["normalized_data"] = {
                 **(item.get("normalized_data") or {}),
                 **requirement_profile,

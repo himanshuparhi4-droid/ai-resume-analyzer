@@ -32,6 +32,9 @@ except Exception:
     OpenAI = None  # type: ignore
 
 
+MIN_PRODUCTION_MARKET_SAMPLE_SIZE = 7
+
+
 GENERIC_DYNAMIC_SKILLS = {
     "analysis",
     "analyst",
@@ -133,14 +136,24 @@ class SkillGroundingService:
             return jobs
 
         sample_metadata = self._inspect_market_sample(role_query=role_query, jobs=jobs)
-        if not sample_metadata["needs_blend"]:
+        minimum_sample_size = MIN_PRODUCTION_MARKET_SAMPLE_SIZE if settings.environment == "production" else 0
+        needs_minimum_fill = bool(minimum_sample_size and len(jobs) < minimum_sample_size)
+        if not sample_metadata["needs_blend"] and not needs_minimum_fill:
             return jobs
 
+        fallback_count = 3
+        if needs_minimum_fill:
+            fallback_count = max(fallback_count, minimum_sample_size - len(jobs))
         fallback_jobs = await self.build_fallback_jobs(
             role_query=role_query,
             location=location,
             resume_data=resume_data,
-            reason="Live job providers returned a narrow skill sample, so the market view was expanded with a role calibration baseline.",
+            reason=(
+                "Live job providers returned fewer than the minimum market sample, so the market view was expanded with a role calibration baseline."
+                if needs_minimum_fill
+                else "Live job providers returned a narrow skill sample, so the market view was expanded with a role calibration baseline."
+            ),
+            count=fallback_count,
         )
         for item in fallback_jobs:
             item.setdefault("normalized_data", {})
@@ -251,7 +264,15 @@ class SkillGroundingService:
             "role_focus": audit.get("role_focus", []) if audit else [],
         }
 
-    async def build_fallback_jobs(self, *, role_query: str, location: str, resume_data: dict, reason: str | None = None) -> list[dict]:
+    async def build_fallback_jobs(
+        self,
+        *,
+        role_query: str,
+        location: str,
+        resume_data: dict,
+        reason: str | None = None,
+        count: int = 3,
+    ) -> list[dict]:
         baseline = await self._generate_role_baseline(role_query=role_query, resume_data=resume_data)
         role_title = baseline.get("role_title") or role_query.title()
         skills = baseline.get("skills", [])
@@ -266,15 +287,24 @@ class SkillGroundingService:
                 f"Conservative fallback baseline for {role_title}. "
                 "This role had weak live coverage and only limited modeled support, so the baseline should not be treated like real-time market demand."
             )
-        titles = baseline.get("titles") or [
+        titles = list(baseline.get("titles") or [
             role_title,
             f"Junior {role_title}",
             f"Entry-Level {role_title}",
-        ]
+        ])
+        for title in [
+            f"Associate {role_title}",
+            f"Remote {role_title}",
+            f"{role_title} Specialist",
+            f"{role_title} Coordinator",
+            f"Early Career {role_title}",
+        ]:
+            if title not in titles:
+                titles.append(title)
         skill_profiles = self._build_baseline_skill_profiles(skills)
 
         jobs: list[dict] = []
-        for index, title in enumerate(titles[:3], start=1):
+        for index, title in enumerate(titles[: max(1, count)], start=1):
             profile_skills = skill_profiles[min(index - 1, len(skill_profiles) - 1)]
             if baseline_confidence == "low":
                 profile_skills = profile_skills[: min(3, len(profile_skills))]

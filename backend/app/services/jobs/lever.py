@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from app.core.config import settings
+from app.services.jobs.fast_profile import build_fast_requirement_profile
 from app.services.jobs.taxonomy import normalize_role, role_domain, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
@@ -204,7 +205,16 @@ class LeverProvider:
             team = str(categories.get("team") or "").strip()
             commitment = str(categories.get("commitment") or "").strip()
             tags = [tag for tag in [team, commitment, company] if tag]
-            requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=tags)
+            if settings.environment == "production":
+                requirement_profile = build_fast_requirement_profile(
+                    query=title,
+                    title=title,
+                    description=truncate(raw_description, 500),
+                    tags=tags,
+                    source=self.source_name,
+                )
+            else:
+                requirement_profile = extract_job_requirement_profile(title=title, description=raw_description, tags=tags)
             description = truncate(raw_description, 4000)
             jobs.append(
                 {

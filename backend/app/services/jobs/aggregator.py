@@ -554,19 +554,15 @@ class JobAggregator:
                 elif support_engineer_style:
                     primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
                     supplemental_order = ["themuse", "greenhouse"]
-                elif data_analyst_style:
-                    # India Data Analyst coverage comes mostly from location-aware
-                    # sources. Keep the primary stage narrow so Adzuna is not
-                    # starved by global providers, and avoid slow Greenhouse as
-                    # the only supplemental stage on Render free instances.
+                elif family_group == "data":
+                    # India data-role coverage is strongest from location-aware
+                    # sources. Keep the primary stage focused so Render free
+                    # instances spend their first budget where India jobs exist.
                     primary_order = ["adzuna", "jooble"]
                     supplemental_order = ["jobicy", "remotive", "themuse"]
                 elif weak_software_family:
                     primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
                     supplemental_order = ["themuse", "adzuna"]
-                elif family_group == "data":
-                    primary_order = ["greenhouse", "jooble", "remotive"]
-                    supplemental_order = ["jobicy", "adzuna", "themuse"]
                 elif family_group in {"software", "infra"}:
                     primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
                     supplemental_order = ["themuse", "adzuna"]

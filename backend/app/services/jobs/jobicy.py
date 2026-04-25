@@ -5,6 +5,7 @@ from datetime import datetime
 import httpx
 
 from app.core.config import settings
+from app.services.jobs.fast_profile import build_fast_requirement_profile
 from app.services.jobs.taxonomy import normalize_role, role_fit_score, role_title_alignment_score
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
@@ -26,7 +27,7 @@ class JobicyProvider:
         if settings.environment == "production":
             request_count = min(max(limit + 4, 12), 24)
             extraction_limit = 850
-            enrichment_budget = min(max(limit // 2 + 1, 5), 8)
+            enrichment_budget = request_count
         else:
             request_count = min(max(limit * 2, settings.production_live_candidate_fetch), 50)
             extraction_limit = 4000
@@ -105,12 +106,21 @@ class JobicyProvider:
 
         jobs: list[dict] = []
         for item in ranked_seed:
-            extraction_description = truncate(str(item.get("description", "")), extraction_limit)
-            requirement_profile = extract_job_requirement_profile(
-                title=str(item.get("title", "")),
-                description=extraction_description,
-                tags=item.get("tags") or [],
-            )
+            if settings.environment == "production":
+                requirement_profile = build_fast_requirement_profile(
+                    query=query,
+                    title=str(item.get("title", "")),
+                    description=truncate(str(item.get("description", "")), 500),
+                    tags=item.get("tags") or [],
+                    source=self.source_name,
+                )
+            else:
+                extraction_description = truncate(str(item.get("description", "")), extraction_limit)
+                requirement_profile = extract_job_requirement_profile(
+                    title=str(item.get("title", "")),
+                    description=extraction_description,
+                    tags=item.get("tags") or [],
+                )
             item["normalized_data"] = {
                 **(item.get("normalized_data") or {}),
                 **requirement_profile,
