@@ -440,8 +440,8 @@ class GreenhouseProvider:
             family_domain = role_domain(query) or role_domain(normalized)
             board_limit = {
                 "data": 5,
-                "software": 8,
-                "security": 8,
+                "software": 6,
+                "security": 6,
                 "product": 4,
                 "design": 3,
             }.get(family_domain, len(boards))
@@ -517,7 +517,10 @@ class GreenhouseProvider:
         payload = response.json()
         raw_jobs = payload.get("jobs") or []
         if settings.environment == "production":
-            raw_jobs = raw_jobs[:45]
+            # Render free instances are CPU constrained. Keep enough index rows
+            # for broad role coverage without spending the request window
+            # normalizing hundreds of ATS rows that will never be displayed.
+            raw_jobs = raw_jobs[:24]
 
         jobs: list[dict] = []
         for item in raw_jobs:

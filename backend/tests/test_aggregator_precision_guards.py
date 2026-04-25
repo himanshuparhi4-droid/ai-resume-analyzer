@@ -352,8 +352,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
 
-        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse", "adzuna"])
 
     def test_cybersecurity_india_provider_plan_keeps_exact_pass_short(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -364,7 +364,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
 
         self.assertEqual(plan["primary_sources"], ["jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["adzuna", "greenhouse", "jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse", "adzuna"])
         self.assertEqual(
             self.aggregator._production_search_query_cap(
                 source_name="jooble",
@@ -697,8 +697,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="India",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse", "adzuna"])
         self.assertNotIn("indianapi", plan["primary_sources"])
         self.assertNotIn("indianapi", plan["supplemental_sources"])
 
@@ -1009,9 +1009,11 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
         self.assertGreaterEqual(len(selected), 10)
         self.assertEqual([item["location"] for item in selected[:2]], ["India", "India"])
-        self.assertIn(
-            "global_fallback",
-            [stage["stage"] for stage in aggregator.last_fetch_diagnostics["stage_results"]],
+        self.assertTrue(
+            any(
+                str(stage["stage"]).startswith("global_fallback")
+                for stage in aggregator.last_fetch_diagnostics["stage_results"]
+            ),
         )
         self.assertIn(
             aggregator.last_fetch_diagnostics["partial_live_return"]["reason"],
@@ -1050,7 +1052,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
                 sparse_role: bool,
                 india_focused_location: bool = False,
             ) -> float:
-                return 0.6 if stage in {"primary", "global_fallback"} else super()._production_stage_soft_timeout(
+                return 0.6 if stage in {"primary", "global_fallback_fast", "global_fallback_slow"} else super()._production_stage_soft_timeout(
                     stage=stage,
                     query=query,
                     sparse_role=sparse_role,
@@ -1110,10 +1112,119 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertLess(time.perf_counter() - started_at, 2.5)
         self.assertGreaterEqual(len(selected), 10)
         self.assertEqual(selected[0]["location"], "India")
-        self.assertIn(
-            "global_fallback",
-            [stage["stage"] for stage in aggregator.last_fetch_diagnostics["stage_results"]],
+        self.assertTrue(
+            any(
+                str(stage["stage"]).startswith("global_fallback")
+                for stage in aggregator.last_fetch_diagnostics["stage_results"]
+            ),
         )
+
+    def test_india_global_fast_fill_does_not_wait_for_slow_credential_sources(self) -> None:
+        class SlowCredentialProvider:
+            supports_query_variations = False
+            supports_location_variations = False
+            source_name = "adzuna"
+
+            async def search(self, query: str, location: str, limit: int) -> list[dict]:
+                await asyncio.sleep(5)
+                return []
+
+        class ExactIndiaProvider:
+            supports_query_variations = False
+            supports_location_variations = False
+            source_name = "jooble"
+
+            async def search(self, query: str, location: str, limit: int) -> list[dict]:
+                return [make_security_job(0, "India", "jooble")]
+
+        class FastAtsProvider:
+            supports_query_variations = False
+            supports_location_variations = False
+            source_name = "greenhouse"
+
+            async def search(self, query: str, location: str, limit: int) -> list[dict]:
+                await asyncio.sleep(0.05)
+                return [make_security_job(idx, "Worldwide", "greenhouse") for idx in range(12)]
+
+        class FastTimeoutAggregator(JobAggregator):
+            def _production_stage_soft_timeout(
+                self,
+                *,
+                stage: str,
+                query: str,
+                sparse_role: bool,
+                india_focused_location: bool = False,
+            ) -> float:
+                if stage == "primary":
+                    return 0.6
+                if stage == "global_fallback_fast":
+                    return 1.2
+                if stage == "global_fallback_slow":
+                    return 0.6
+                return super()._production_stage_soft_timeout(
+                    stage=stage,
+                    query=query,
+                    sparse_role=sparse_role,
+                    india_focused_location=india_focused_location,
+                )
+
+        def make_security_job(idx: int, location: str, source: str) -> dict:
+            titles = [
+                "Cyber Security Analyst",
+                "Security Engineer",
+                "Cloud Security Engineer",
+                "Application Security Engineer",
+                "SOC Analyst",
+                "Information Security Analyst",
+                "Threat Detection Engineer",
+                "Vulnerability Analyst",
+                "Incident Response Analyst",
+                "Security Operations Analyst",
+                "Product Security Engineer",
+                "Cyber Defense Analyst",
+            ]
+            title = titles[idx % len(titles)]
+            return {
+                "source": source,
+                "external_id": f"{source}-{location}-{idx}",
+                "url": f"https://example.com/{source}/{location}/{idx}",
+                "title": title,
+                "company": f"Security Co {idx}",
+                "location": location,
+                "remote": location == "Worldwide",
+                "description": f"{title} role covering SIEM, IAM, vulnerability management, and incident response.",
+                "tags": ["cybersecurity", "security analyst"],
+                "normalized_data": {
+                    "skills": ["siem", "iam", "incident response", "vulnerability management"],
+                    "role_fit_score": 8.0,
+                    "market_quality_score": 34.0,
+                    "title_alignment_score": 18.0,
+                },
+            }
+
+        aggregator = FastTimeoutAggregator(None)
+        aggregator.providers = [SlowCredentialProvider(), ExactIndiaProvider(), FastAtsProvider()]
+        previous_environment = settings.environment
+        settings.environment = "production"
+        started_at = time.perf_counter()
+        try:
+            selected = asyncio.run(
+                aggregator._fetch_production_jobs(
+                    query="Cybersecurity",
+                    location="India",
+                    limit=15,
+                )
+            )
+        finally:
+            settings.environment = previous_environment
+
+        stages = [stage["stage"] for stage in aggregator.last_fetch_diagnostics["stage_results"]]
+        provider_sources = [entry["source"] for entry in aggregator.last_fetch_diagnostics.get("providers", [])]
+        self.assertLess(time.perf_counter() - started_at, 2.0)
+        self.assertGreaterEqual(len(selected), 10)
+        self.assertIn("global_fallback_fast", stages)
+        self.assertNotIn("global_fallback_slow", stages)
+        self.assertNotIn("adzuna", provider_sources)
 
     def test_dense_underfill_grace_window_stays_off_once_floor_is_met(self) -> None:
         grace_seconds = self.aggregator._production_underfill_grace_seconds(
