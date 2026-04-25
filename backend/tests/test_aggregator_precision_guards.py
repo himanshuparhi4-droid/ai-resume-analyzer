@@ -773,7 +773,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["supplemental_sources"][:3], ["remotive", "jobicy", "greenhouse"])
         self.assertEqual(plan["fallback_sources"], ["lever"])
 
-    def test_dense_underfill_grace_window_extends_underfilled_primary_stage(self) -> None:
+    def test_dense_underfill_grace_window_does_not_delay_next_stage(self) -> None:
         grace_seconds = self.aggregator._production_underfill_grace_seconds(
             stage="primary",
             query="Data Analyst",
@@ -782,7 +782,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             live_floor=6,
             partial_live_floor=4,
         )
-        self.assertGreaterEqual(grace_seconds, 0.75)
+        self.assertEqual(grace_seconds, 0.0)
 
     def test_data_analyst_supplemental_stage_has_room_for_jooble_completion(self) -> None:
         timeout_seconds = self.aggregator._production_stage_soft_timeout(
@@ -927,6 +927,89 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(
             aggregator.last_fetch_diagnostics["best_live_preserved_after_stage"]["preserved_selected_live"],
             7,
+        )
+
+    def test_india_dense_underfill_uses_global_role_fallback_after_exact_market(self) -> None:
+        class LocationAwareFakeProvider:
+            supports_query_variations = False
+            supports_location_variations = False
+
+            def __init__(self, source_name: str, india_jobs: list[dict], global_jobs: list[dict]) -> None:
+                self.source_name = source_name
+                self._india_jobs = india_jobs
+                self._global_jobs = global_jobs
+
+            async def search(self, query: str, location: str, limit: int) -> list[dict]:
+                if str(location).lower() == "global":
+                    return list(self._global_jobs)
+                return list(self._india_jobs)
+
+        def make_security_job(idx: int, location: str, *, source: str = "jooble") -> dict:
+            variants = [
+                "Cyber Security Analyst",
+                "Cybersecurity Engineer",
+                "Information Security Analyst",
+                "SOC Analyst",
+                "Cloud Security Engineer",
+                "Application Security Engineer",
+                "Security Operations Analyst",
+                "Threat Detection Engineer",
+                "Vulnerability Analyst",
+                "Incident Response Analyst",
+                "Product Security Engineer",
+                "Cyber Defense Analyst",
+            ]
+            title = variants[idx % len(variants)]
+            return {
+                "source": source,
+                "external_id": f"{source}-{location}-{idx}",
+                "url": f"https://example.com/{source}/{location}/{idx}",
+                "title": title,
+                "company": f"Security Company {variants[idx % len(variants)].replace(' ', '')}",
+                "location": location,
+                "remote": location == "Worldwide",
+                "description": f"{title} role covering SIEM, incident response, IAM, and vulnerability management.",
+                "tags": ["cyber security", "security analyst"],
+                "normalized_data": {
+                    "skills": ["siem", "incident response", "iam", "vulnerability management"],
+                    "role_fit_score": 8.0,
+                    "market_quality_score": 36.0,
+                    "title_alignment_score": 20.0,
+                },
+            }
+
+        india_jobs = [make_security_job(idx, "India") for idx in range(2)]
+        global_jobs = [make_security_job(idx, "Worldwide") for idx in range(12)]
+        aggregator = JobAggregator(None)
+        aggregator.providers = [
+            LocationAwareFakeProvider("jooble", india_jobs, global_jobs),
+            LocationAwareFakeProvider("remotive", [], []),
+        ]
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            selected = asyncio.run(
+                aggregator._fetch_production_jobs(
+                    query="Cybersecurity",
+                    location="India",
+                    limit=15,
+                )
+            )
+        finally:
+            settings.environment = previous_environment
+
+        self.assertGreaterEqual(len(selected), 10)
+        self.assertEqual([item["location"] for item in selected[:2]], ["India", "India"])
+        self.assertIn(
+            "global_fallback",
+            [stage["stage"] for stage in aggregator.last_fetch_diagnostics["stage_results"]],
+        )
+        self.assertIn(
+            aggregator.last_fetch_diagnostics["partial_live_return"]["reason"],
+            {
+                "india_underfill_role_accurate_global_fallback",
+                "acceptable_partial_live_set",
+            },
         )
 
     def test_dense_underfill_grace_window_stays_off_once_floor_is_met(self) -> None:

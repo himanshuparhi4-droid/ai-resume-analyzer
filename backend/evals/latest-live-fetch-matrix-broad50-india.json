@@ -8,7 +8,7 @@
       "normalized_role": "software engineer",
       "family_role": "software engineer",
       "domain": "software",
-      "elapsed_ms": 8911.36,
+      "elapsed_ms": 5604.62,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -112,8 +112,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5606.08,
-          "avg_elapsed_ms": 5606.08,
+          "max_elapsed_ms": 4045.02,
+          "avg_elapsed_ms": 4045.02,
           "attempts": 1
         },
         "jooble": {
@@ -131,8 +131,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2078.03,
-          "avg_elapsed_ms": 1849.27,
+          "max_elapsed_ms": 1708.89,
+          "avg_elapsed_ms": 1243.58,
           "attempts": 2
         }
       },
@@ -166,9 +166,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 5,
-          "exact_backup": 3,
+          "exact_backup": 2,
           "same_family_recovery": 0,
-          "family_safe": 8,
+          "family_safe": 7,
           "selected_live": 4,
           "timeouts": 0,
           "errors": 0
@@ -185,7 +185,7 @@
           "collected_candidates": 58,
           "selected_live": 15,
           "precision_guarded_candidates": 28,
-          "upstream_family_safe_count": 31,
+          "upstream_family_safe_count": 30,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -193,7 +193,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 31,
+        "upstream_family_safe_count": 30,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -215,9 +215,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 28,
-        "exact_backup_candidates": 3,
+        "exact_backup_candidates": 2,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 31,
+        "upstream_family_safe_count": 30,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -234,7 +234,7 @@
       "normalized_role": "software engineer",
       "family_role": "software engineer",
       "domain": "software",
-      "elapsed_ms": 5407.24,
+      "elapsed_ms": 3532.86,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -339,8 +339,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1561.03,
-          "avg_elapsed_ms": 1370.75,
+          "max_elapsed_ms": 1728.1,
+          "avg_elapsed_ms": 1341.61,
           "attempts": 2
         }
       },
@@ -357,9 +357,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 11,
-          "exact_backup": 12,
+          "exact_backup": 13,
           "same_family_recovery": 0,
-          "family_safe": 22,
+          "family_safe": 23,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
@@ -385,7 +385,7 @@
           "collected_candidates": 37,
           "selected_live": 15,
           "precision_guarded_candidates": 11,
-          "upstream_family_safe_count": 22,
+          "upstream_family_safe_count": 23,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -393,7 +393,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 22,
+        "upstream_family_safe_count": 23,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -414,9 +414,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 11,
-        "exact_backup_candidates": 12,
+        "exact_backup_candidates": 13,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 22,
+        "upstream_family_safe_count": 23,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -433,7 +433,7 @@
       "normalized_role": "frontend developer",
       "family_role": "frontend developer",
       "domain": "software",
-      "elapsed_ms": 6016.98,
+      "elapsed_ms": 3246.52,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -538,8 +538,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3335.56,
-          "avg_elapsed_ms": 2175.97,
+          "max_elapsed_ms": 1906.15,
+          "avg_elapsed_ms": 1332.57,
           "attempts": 2
         }
       },
@@ -556,9 +556,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 3,
-          "exact_backup": 13,
+          "exact_backup": 14,
           "same_family_recovery": 0,
-          "family_safe": 16,
+          "family_safe": 17,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
@@ -581,10 +581,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 29,
+          "collected_candidates": 30,
           "selected_live": 15,
           "precision_guarded_candidates": 3,
-          "upstream_family_safe_count": 16,
+          "upstream_family_safe_count": 17,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -592,7 +592,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 16,
+        "upstream_family_safe_count": 17,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -613,9 +613,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 3,
-        "exact_backup_candidates": 13,
+        "exact_backup_candidates": 14,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 16,
+        "upstream_family_safe_count": 17,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -632,7 +632,7 @@
       "normalized_role": "full stack developer",
       "family_role": "full stack developer",
       "domain": "software",
-      "elapsed_ms": 3362.07,
+      "elapsed_ms": 1958.94,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -736,8 +736,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1020.15,
-          "avg_elapsed_ms": 1020.15,
+          "max_elapsed_ms": 804.85,
+          "avg_elapsed_ms": 804.85,
           "attempts": 1
         }
       },
@@ -830,7 +830,7 @@
       "normalized_role": "frontend developer",
       "family_role": "frontend developer",
       "domain": "software",
-      "elapsed_ms": 4604.3,
+      "elapsed_ms": 3200.24,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -935,8 +935,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1331.41,
-          "avg_elapsed_ms": 1124.61,
+          "max_elapsed_ms": 1934.25,
+          "avg_elapsed_ms": 1344.51,
           "attempts": 2
         }
       },
@@ -952,10 +952,10 @@
         "jooble": {
           "requests": 2,
           "raw_returned": 40,
-          "precision_guarded": 23,
+          "precision_guarded": 24,
           "exact_backup": 0,
           "same_family_recovery": 0,
-          "family_safe": 18,
+          "family_safe": 19,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
@@ -978,10 +978,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 29,
+          "collected_candidates": 30,
           "selected_live": 15,
-          "precision_guarded_candidates": 23,
-          "upstream_family_safe_count": 18,
+          "precision_guarded_candidates": 24,
+          "upstream_family_safe_count": 19,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -989,7 +989,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 18,
+        "upstream_family_safe_count": 19,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -1009,10 +1009,10 @@
         "Angular Developer"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 23,
+        "precision_guarded_candidates": 24,
         "exact_backup_candidates": 0,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 18,
+        "upstream_family_safe_count": 19,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -1029,7 +1029,7 @@
       "normalized_role": "mobile developer",
       "family_role": "mobile developer",
       "domain": "software",
-      "elapsed_ms": 9260.28,
+      "elapsed_ms": 4729.54,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -1133,8 +1133,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5528.61,
-          "avg_elapsed_ms": 5528.61,
+          "max_elapsed_ms": 3082.39,
+          "avg_elapsed_ms": 3082.39,
           "attempts": 1
         },
         "jooble": {
@@ -1152,8 +1152,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2452.17,
-          "avg_elapsed_ms": 1918.89,
+          "max_elapsed_ms": 987.24,
+          "avg_elapsed_ms": 891.3,
           "attempts": 2
         }
       },
@@ -1179,18 +1179,18 @@
           "exact_backup": 5,
           "same_family_recovery": 0,
           "family_safe": 18,
-          "selected_live": 13,
+          "selected_live": 14,
           "timeouts": 0,
           "errors": 0
         },
         "jooble": {
           "requests": 2,
           "raw_returned": 40,
-          "precision_guarded": 1,
+          "precision_guarded": 0,
           "exact_backup": 1,
           "same_family_recovery": 0,
-          "family_safe": 2,
-          "selected_live": 2,
+          "family_safe": 1,
+          "selected_live": 1,
           "timeouts": 0,
           "errors": 0
         }
@@ -1205,8 +1205,8 @@
           ],
           "collected_candidates": 44,
           "selected_live": 15,
-          "precision_guarded_candidates": 14,
-          "upstream_family_safe_count": 20,
+          "precision_guarded_candidates": 13,
+          "upstream_family_safe_count": 19,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -1214,12 +1214,12 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 20,
+        "upstream_family_safe_count": 19,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "adzuna": 13,
-        "jooble": 2
+        "adzuna": 14,
+        "jooble": 1
       },
       "final_live_count": 15,
       "top_selected_titles": [
@@ -1235,10 +1235,10 @@
         "Mobile Developer"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 14,
+        "precision_guarded_candidates": 13,
         "exact_backup_candidates": 6,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 20,
+        "upstream_family_safe_count": 19,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -1246,7 +1246,7 @@
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 23,
+        "source_cap": 18,
         "post_selection_final_guard": 0
       }
     },
@@ -1255,7 +1255,7 @@
       "normalized_role": "mobile developer",
       "family_role": "mobile developer",
       "domain": "software",
-      "elapsed_ms": 9284.29,
+      "elapsed_ms": 4904.84,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -1359,8 +1359,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5758.86,
-          "avg_elapsed_ms": 5758.86,
+          "max_elapsed_ms": 3160.18,
+          "avg_elapsed_ms": 3160.18,
           "attempts": 1
         },
         "jooble": {
@@ -1378,8 +1378,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2870.17,
-          "avg_elapsed_ms": 1884.21,
+          "max_elapsed_ms": 1698.69,
+          "avg_elapsed_ms": 1216.72,
           "attempts": 2
         }
       },
@@ -1481,7 +1481,7 @@
       "normalized_role": "mobile developer",
       "family_role": "mobile developer",
       "domain": "software",
-      "elapsed_ms": 9723.83,
+      "elapsed_ms": 4454.56,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -1585,8 +1585,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6820.56,
-          "avg_elapsed_ms": 6820.56,
+          "max_elapsed_ms": 3048.26,
+          "avg_elapsed_ms": 3048.26,
           "attempts": 1
         },
         "jooble": {
@@ -1604,8 +1604,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2785.42,
-          "avg_elapsed_ms": 1869.16,
+          "max_elapsed_ms": 1614.53,
+          "avg_elapsed_ms": 1162.62,
           "attempts": 2
         }
       },
@@ -1707,7 +1707,7 @@
       "normalized_role": "mobile developer",
       "family_role": "mobile developer",
       "domain": "software",
-      "elapsed_ms": 4105.92,
+      "elapsed_ms": 3305.51,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -1798,40 +1798,41 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 1,
-          "successes": 1,
+          "requests": 2,
+          "successes": 2,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 20,
+          "raw_returned": 40,
           "queries": [
+            "mobile developer",
             "react native developer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1621.37,
-          "avg_elapsed_ms": 1621.37,
-          "attempts": 1
+          "max_elapsed_ms": 1734.04,
+          "avg_elapsed_ms": 1251.4,
+          "attempts": 2
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 2,
+          "raw_returned": 40,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 2,
+          "raw_returned": 40,
           "precision_guarded": 8,
-          "exact_backup": 7,
+          "exact_backup": 8,
           "same_family_recovery": 0,
-          "family_safe": 15,
+          "family_safe": 16,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
@@ -1840,11 +1841,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 2,
+          "cancelled_pending_tasks": 1,
           "soft_timeout_seconds": 12.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 2
+          "cancelled_and_drained_tasks": 1
         }
       ],
       "stage_results": [
@@ -1854,10 +1855,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 20,
+          "collected_candidates": 40,
           "selected_live": 15,
           "precision_guarded_candidates": 8,
-          "upstream_family_safe_count": 15,
+          "upstream_family_safe_count": 16,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -1865,7 +1866,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 16,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -1886,9 +1887,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 8,
-        "exact_backup_candidates": 7,
+        "exact_backup_candidates": 8,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 16,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -1905,7 +1906,7 @@
       "normalized_role": "devops engineer",
       "family_role": "devops engineer",
       "domain": "software",
-      "elapsed_ms": 10123.61,
+      "elapsed_ms": 5101.2,
       "min_live": 10,
       "provider_plan": {
         "family_group": "infra",
@@ -2009,8 +2010,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6124.24,
-          "avg_elapsed_ms": 6124.24,
+          "max_elapsed_ms": 3152.18,
+          "avg_elapsed_ms": 3152.18,
           "attempts": 1
         },
         "jooble": {
@@ -2028,8 +2029,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3215.62,
-          "avg_elapsed_ms": 2183.51,
+          "max_elapsed_ms": 1809.41,
+          "avg_elapsed_ms": 1305.82,
           "attempts": 2
         }
       },
@@ -2063,9 +2064,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 2,
-          "exact_backup": 4,
+          "exact_backup": 3,
           "same_family_recovery": 0,
-          "family_safe": 6,
+          "family_safe": 5,
           "selected_live": 2,
           "timeouts": 0,
           "errors": 0
@@ -2082,7 +2083,7 @@
           "collected_candidates": 59,
           "selected_live": 15,
           "precision_guarded_candidates": 18,
-          "upstream_family_safe_count": 23,
+          "upstream_family_safe_count": 22,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -2090,7 +2091,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 23,
+        "upstream_family_safe_count": 22,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -2112,9 +2113,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 18,
-        "exact_backup_candidates": 7,
+        "exact_backup_candidates": 6,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 23,
+        "upstream_family_safe_count": 22,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -2131,7 +2132,7 @@
       "normalized_role": "devops engineer",
       "family_role": "devops engineer",
       "domain": "software",
-      "elapsed_ms": 10590.52,
+      "elapsed_ms": 5046.57,
       "min_live": 10,
       "provider_plan": {
         "family_group": "infra",
@@ -2235,8 +2236,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 7027.26,
-          "avg_elapsed_ms": 7027.26,
+          "max_elapsed_ms": 3281.36,
+          "avg_elapsed_ms": 3281.36,
           "attempts": 1
         },
         "jooble": {
@@ -2247,15 +2248,15 @@
           "errors": 0,
           "raw_returned": 40,
           "queries": [
-            "cloud engineer",
-            "devops engineer"
+            "devops engineer",
+            "cloud engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2804.94,
-          "avg_elapsed_ms": 2095.52,
+          "max_elapsed_ms": 1717.71,
+          "avg_elapsed_ms": 1228.91,
           "attempts": 2
         }
       },
@@ -2289,9 +2290,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 3,
-          "exact_backup": 3,
+          "exact_backup": 2,
           "same_family_recovery": 0,
-          "family_safe": 6,
+          "family_safe": 5,
           "selected_live": 3,
           "timeouts": 0,
           "errors": 0
@@ -2308,7 +2309,7 @@
           "collected_candidates": 61,
           "selected_live": 15,
           "precision_guarded_candidates": 15,
-          "upstream_family_safe_count": 28,
+          "upstream_family_safe_count": 27,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -2316,7 +2317,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 28,
+        "upstream_family_safe_count": 27,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -2325,6 +2326,7 @@
       },
       "final_live_count": 15,
       "top_selected_titles": [
+        "AWS DevOps Engineer",
         "AI Cloud Engineer (AWS & Generative AI)",
         "Cloud Engineer (AWS/Kubernetes/GitHub Actions/Runners)",
         "Data-Cloud engineer",
@@ -2333,14 +2335,13 @@
         "Associate - Cloud Engineer (on 3rd party payroll)",
         "Sr. DevOps Engineer",
         "Cloud Engineering Lead Analyst",
-        "VP - Cloud Engineering",
-        "Senior Manager - GPS Cloud Engineering"
+        "VP - Cloud Engineering"
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 15,
-        "exact_backup_candidates": 13,
+        "exact_backup_candidates": 12,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 28,
+        "upstream_family_safe_count": 27,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -2348,7 +2349,7 @@
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 5,
+        "source_cap": 10,
         "post_selection_final_guard": 0
       }
     },
@@ -2357,7 +2358,7 @@
       "normalized_role": "devops engineer",
       "family_role": "devops engineer",
       "domain": "software",
-      "elapsed_ms": 9994.27,
+      "elapsed_ms": 5619.58,
       "min_live": 10,
       "provider_plan": {
         "family_group": "infra",
@@ -2461,8 +2462,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6820.09,
-          "avg_elapsed_ms": 6820.09,
+          "max_elapsed_ms": 4099.57,
+          "avg_elapsed_ms": 4099.57,
           "attempts": 1
         },
         "jooble": {
@@ -2480,8 +2481,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2965.78,
-          "avg_elapsed_ms": 1939.55,
+          "max_elapsed_ms": 1701.74,
+          "avg_elapsed_ms": 1215.33,
           "attempts": 2
         }
       },
@@ -2515,9 +2516,9 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 3,
-          "exact_backup": 2,
+          "exact_backup": 1,
           "same_family_recovery": 0,
-          "family_safe": 5,
+          "family_safe": 4,
           "selected_live": 3,
           "timeouts": 0,
           "errors": 0
@@ -2534,7 +2535,7 @@
           "collected_candidates": 62,
           "selected_live": 15,
           "precision_guarded_candidates": 27,
-          "upstream_family_safe_count": 27,
+          "upstream_family_safe_count": 26,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -2542,7 +2543,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 27,
+        "upstream_family_safe_count": 26,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -2564,9 +2565,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 27,
-        "exact_backup_candidates": 2,
+        "exact_backup_candidates": 1,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 27,
+        "upstream_family_safe_count": 26,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -2583,7 +2584,7 @@
       "normalized_role": "qa engineer",
       "family_role": "qa engineer",
       "domain": "software",
-      "elapsed_ms": 4087.93,
+      "elapsed_ms": 2390.44,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -2687,8 +2688,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1047.72,
-          "avg_elapsed_ms": 1047.72,
+          "max_elapsed_ms": 922.66,
+          "avg_elapsed_ms": 922.66,
           "attempts": 1
         }
       },
@@ -2753,8 +2754,8 @@
         "QA Engineer",
         "QA Engineer",
         "QA Engineer",
-        "Sr. QA Engineer",
         "QA Engineer",
+        "Sr. QA Engineer",
         "Sr. QA Engineer",
         "Quality Assurance",
         "BI QA Engineer",
@@ -2781,7 +2782,7 @@
       "normalized_role": "qa engineer",
       "family_role": "qa engineer",
       "domain": "software",
-      "elapsed_ms": 10881.41,
+      "elapsed_ms": 4196.96,
       "min_live": 10,
       "provider_plan": {
         "family_group": "software",
@@ -2885,8 +2886,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 8329.64,
-          "avg_elapsed_ms": 8329.64,
+          "max_elapsed_ms": 2611.36,
+          "avg_elapsed_ms": 2611.36,
           "attempts": 1
         },
         "jooble": {
@@ -2897,15 +2898,15 @@
           "errors": 0,
           "raw_returned": 40,
           "queries": [
-            "sdet",
-            "qa engineer"
+            "qa engineer",
+            "sdet"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3203.55,
-          "avg_elapsed_ms": 2272.5,
+          "max_elapsed_ms": 2375.11,
+          "avg_elapsed_ms": 1752.07,
           "attempts": 2
         }
       },
@@ -2955,7 +2956,7 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 55,
+          "collected_candidates": 56,
           "selected_live": 15,
           "precision_guarded_candidates": 21,
           "upstream_family_safe_count": 21,
@@ -3006,7 +3007,7 @@
       "normalized_role": "data analyst",
       "family_role": "data analyst",
       "domain": "data",
-      "elapsed_ms": 9202.36,
+      "elapsed_ms": 4905.13,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -3110,8 +3111,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6373.42,
-          "avg_elapsed_ms": 6373.42,
+          "max_elapsed_ms": 3589.4,
+          "avg_elapsed_ms": 3589.4,
           "attempts": 1
         },
         "jooble": {
@@ -3122,15 +3123,15 @@
           "errors": 0,
           "raw_returned": 40,
           "queries": [
-            "reporting analyst",
-            "data analyst"
+            "data analyst",
+            "reporting analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1447.66,
-          "avg_elapsed_ms": 1238.4,
+          "max_elapsed_ms": 1756.27,
+          "avg_elapsed_ms": 1387.83,
           "attempts": 2
         }
       },
@@ -3164,7 +3165,7 @@
           "requests": 2,
           "raw_returned": 40,
           "precision_guarded": 6,
-          "exact_backup": 8,
+          "exact_backup": 7,
           "same_family_recovery": 0,
           "family_safe": 6,
           "selected_live": 4,
@@ -3213,7 +3214,7 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 26,
-        "exact_backup_candidates": 8,
+        "exact_backup_candidates": 7,
         "same_family_recovery_candidates": 0,
         "upstream_family_safe_count": 24,
         "selected_count": 15
@@ -3232,7 +3233,7 @@
       "normalized_role": "data analyst",
       "family_role": "data analyst",
       "domain": "data",
-      "elapsed_ms": 6120.71,
+      "elapsed_ms": 3229.8,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -3337,8 +3338,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3475.31,
-          "avg_elapsed_ms": 2207.22,
+          "max_elapsed_ms": 1942.73,
+          "avg_elapsed_ms": 1333.35,
           "attempts": 2
         }
       },
@@ -3357,7 +3358,7 @@
           "precision_guarded": 19,
           "exact_backup": 9,
           "same_family_recovery": 0,
-          "family_safe": 24,
+          "family_safe": 23,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
@@ -3383,7 +3384,7 @@
           "collected_candidates": 38,
           "selected_live": 15,
           "precision_guarded_candidates": 19,
-          "upstream_family_safe_count": 24,
+          "upstream_family_safe_count": 23,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -3391,7 +3392,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 24,
+        "upstream_family_safe_count": 23,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -3414,7 +3415,7 @@
         "precision_guarded_candidates": 19,
         "exact_backup_candidates": 9,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 24,
+        "upstream_family_safe_count": 23,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -3431,7 +3432,7 @@
       "normalized_role": "data scientist",
       "family_role": "data scientist",
       "domain": "data",
-      "elapsed_ms": 5677.74,
+      "elapsed_ms": 3041.51,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -3536,8 +3537,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2061.7,
-          "avg_elapsed_ms": 1511.55,
+          "max_elapsed_ms": 1262.74,
+          "avg_elapsed_ms": 996.85,
           "attempts": 2
         }
       },
@@ -3630,7 +3631,7 @@
       "normalized_role": "machine learning engineer",
       "family_role": "machine learning engineer",
       "domain": "data",
-      "elapsed_ms": 6798.85,
+      "elapsed_ms": 3387.5,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -3734,8 +3735,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4258.53,
-          "avg_elapsed_ms": 4258.53,
+          "max_elapsed_ms": 2188.15,
+          "avg_elapsed_ms": 2188.15,
           "attempts": 1
         },
         "jooble": {
@@ -3752,8 +3753,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 913.79,
-          "avg_elapsed_ms": 913.79,
+          "max_elapsed_ms": 1082.64,
+          "avg_elapsed_ms": 1082.64,
           "attempts": 1
         }
       },
@@ -3855,7 +3856,7 @@
       "normalized_role": "machine learning engineer",
       "family_role": "machine learning engineer",
       "domain": "data",
-      "elapsed_ms": 6075.5,
+      "elapsed_ms": 3348.85,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -3953,15 +3954,15 @@
           "errors": 0,
           "raw_returned": 40,
           "queries": [
-            "machine learning engineer",
-            "ai engineer"
+            "ai engineer",
+            "machine learning engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3132.45,
-          "avg_elapsed_ms": 2018.35,
+          "max_elapsed_ms": 1641.27,
+          "avg_elapsed_ms": 1309.34,
           "attempts": 2
         }
       },
@@ -3977,10 +3978,10 @@
         "jooble": {
           "requests": 2,
           "raw_returned": 40,
-          "precision_guarded": 8,
+          "precision_guarded": 9,
           "exact_backup": 4,
           "same_family_recovery": 0,
-          "family_safe": 12,
+          "family_safe": 13,
           "selected_live": 12,
           "timeouts": 0,
           "errors": 0
@@ -4003,10 +4004,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 28,
+          "collected_candidates": 29,
           "selected_live": 12,
-          "precision_guarded_candidates": 8,
-          "upstream_family_safe_count": 12,
+          "precision_guarded_candidates": 9,
+          "upstream_family_safe_count": 13,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -4014,7 +4015,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 12,
-        "upstream_family_safe_count": 12,
+        "upstream_family_safe_count": 13,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -4023,27 +4024,27 @@
       "final_live_count": 12,
       "top_selected_titles": [
         "AI Engineer",
-        "AI / ML Engineer",
         "AI/ML Engineer",
         "AI / ML Engineer",
         "AI/ML Engineer",
         "AI/ML Engineer",
         "AI/ML Engineer",
         "AI/ML Engineer",
-        "Senior Python Developer (AI/ML)",
-        "AI/ML Developer"
+        "AI/ML Engineer",
+        "AI / ML Engineer",
+        "Senior Python Developer (AI/ML)"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 8,
+        "precision_guarded_candidates": 9,
         "exact_backup_candidates": 4,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 12,
+        "upstream_family_safe_count": 13,
         "selected_count": 12
       },
       "selection_rejections": {
         "final_guard": 0,
         "company_cap": 0,
-        "company_title_cap": 0,
+        "company_title_cap": 3,
         "similarity_cap": 0,
         "source_cap": 0,
         "post_selection_final_guard": 0
@@ -4054,7 +4055,7 @@
       "normalized_role": "data engineer",
       "family_role": "data engineer",
       "domain": "data",
-      "elapsed_ms": 13473.75,
+      "elapsed_ms": 6883.6,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -4152,15 +4153,15 @@
           "errors": 0,
           "raw_returned": 48,
           "queries": [
-            "data engineer",
-            "etl engineer"
+            "etl engineer",
+            "data engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6389.77,
-          "avg_elapsed_ms": 6219.19,
+          "max_elapsed_ms": 3443.89,
+          "avg_elapsed_ms": 3338.18,
           "attempts": 2
         },
         "jooble": {
@@ -4178,8 +4179,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2518.8,
-          "avg_elapsed_ms": 1921.56,
+          "max_elapsed_ms": 1526.11,
+          "avg_elapsed_ms": 1241.97,
           "attempts": 2
         }
       },
@@ -4281,374 +4282,7 @@
       "normalized_role": "database engineer",
       "family_role": "database engineer",
       "domain": "data",
-      "elapsed_ms": 42691.06,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "data",
-        "dense_family": true,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "greenhouse",
-          "jobicy",
-          "remotive",
-          "themuse"
-        ],
-        "fallback_sources": []
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "adzuna": {
-          "requests": 2,
-          "successes": 0,
-          "skipped_budget": 0,
-          "timeouts": 2,
-          "errors": 2,
-          "raw_returned": 0,
-          "queries": [
-            "data warehouse engineer",
-            "database engineer"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [
-            "TimeoutError"
-          ],
-          "max_elapsed_ms": 11727.66,
-          "avg_elapsed_ms": 11529.59,
-          "attempts": 2
-        },
-        "jobicy": {
-          "requests": 1,
-          "successes": 0,
-          "skipped_budget": 0,
-          "timeouts": 1,
-          "errors": 1,
-          "raw_returned": 0,
-          "queries": [
-            "database engineer"
-          ],
-          "stages": [
-            "supplemental"
-          ],
-          "error_samples": [
-            "TimeoutError"
-          ],
-          "max_elapsed_ms": 9052.87,
-          "avg_elapsed_ms": 9052.87,
-          "attempts": 1
-        },
-        "jooble": {
-          "requests": 4,
-          "successes": 4,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 60,
-          "queries": [
-            "database engineer",
-            "database developer",
-            "data warehouse engineer",
-            "database administrator"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 6638.79,
-          "avg_elapsed_ms": 4537.19,
-          "attempts": 4
-        },
-        "remotive": {
-          "requests": 5,
-          "successes": 5,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 105,
-          "queries": [
-            "data warehouse engineer",
-            "database administrator",
-            "data warehouse engineer india",
-            "database developer",
-            "database engineer india"
-          ],
-          "stages": [
-            "supplemental"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 8504.46,
-          "avg_elapsed_ms": 7606.24,
-          "attempts": 5
-        },
-        "themuse": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 19,
-          "queries": [
-            "database engineer"
-          ],
-          "stages": [
-            "supplemental"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 1251.42,
-          "avg_elapsed_ms": 1251.42,
-          "attempts": 1
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 4,
-          "raw_returned": 60,
-          "timeouts": 0,
-          "errors": 0
-        },
-        "adzuna": {
-          "requests": 2,
-          "raw_returned": 0,
-          "timeouts": 2,
-          "errors": 2
-        },
-        "themuse": {
-          "requests": 1,
-          "raw_returned": 19,
-          "timeouts": 0,
-          "errors": 0
-        },
-        "jobicy": {
-          "requests": 1,
-          "raw_returned": 0,
-          "timeouts": 1,
-          "errors": 1
-        },
-        "remotive": {
-          "requests": 5,
-          "raw_returned": 105,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "adzuna": {
-          "requests": 2,
-          "raw_returned": 0,
-          "precision_guarded": 0,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 0,
-          "selected_live": 0,
-          "timeouts": 2,
-          "errors": 2
-        },
-        "jobicy": {
-          "requests": 1,
-          "raw_returned": 0,
-          "precision_guarded": 0,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 0,
-          "selected_live": 0,
-          "timeouts": 1,
-          "errors": 1
-        },
-        "jooble": {
-          "requests": 4,
-          "raw_returned": 60,
-          "precision_guarded": 0,
-          "exact_backup": 11,
-          "same_family_recovery": 0,
-          "family_safe": 11,
-          "selected_live": 11,
-          "timeouts": 0,
-          "errors": 0
-        },
-        "remotive": {
-          "requests": 5,
-          "raw_returned": 105,
-          "precision_guarded": 0,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 0,
-          "selected_live": 0,
-          "timeouts": 0,
-          "errors": 0
-        },
-        "themuse": {
-          "requests": 1,
-          "raw_returned": 19,
-          "precision_guarded": 0,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 0,
-          "selected_live": 0,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "supplemental",
-          "cancelled_pending_tasks": 2,
-          "soft_timeout_seconds": 10.0,
-          "reason": "soft_timeout",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 2
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 52,
-          "selected_live": 11,
-          "precision_guarded_candidates": 0,
-          "upstream_family_safe_count": 11,
-          "underfill_reason": "provider_timeout_or_upstream_scarcity"
-        },
-        {
-          "stage": "supplemental",
-          "sources": [
-            "greenhouse",
-            "jobicy",
-            "remotive",
-            "themuse"
-          ],
-          "collected_candidates": 91,
-          "selected_live": 11,
-          "precision_guarded_candidates": 0,
-          "upstream_family_safe_count": 11,
-          "underfill_reason": "provider_timeout_or_upstream_scarcity"
-        }
-      ],
-      "underfill": {
-        "reason": "provider_timeout_or_upstream_scarcity",
-        "required_live_floor": 12,
-        "selected_live_count": 11,
-        "upstream_family_safe_count": 11,
-        "timeout_sources": [
-          "adzuna",
-          "jobicy"
-        ]
-      },
-      "selected_live_sources": {
-        "jooble": 11
-      },
-      "final_live_count": 11,
-      "top_selected_titles": [
-        ".NET Developer",
-        ".NET Developer",
-        ".NET Developer",
-        ".NET Developer",
-        ".NET Developer",
-        ".NET Developer",
-        ".NET Developer",
-        "Sr. Data Engineer",
-        "Data Engineer",
-        "Data Engineer"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 0,
-        "exact_backup_candidates": 11,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 11,
-        "selected_count": 11
-      },
-      "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 0,
-        "company_title_cap": 0,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "SQL Developer",
-      "normalized_role": "database engineer",
-      "family_role": "database engineer",
-      "domain": "data",
-      "elapsed_ms": 12258.33,
+      "elapsed_ms": 7128.28,
       "min_live": 10,
       "provider_plan": {
         "family_group": "data",
@@ -4746,15 +4380,15 @@
           "errors": 0,
           "raw_returned": 48,
           "queries": [
-            "database developer",
-            "sql developer"
+            "database engineer",
+            "data warehouse engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5680.09,
-          "avg_elapsed_ms": 5458.51,
+          "max_elapsed_ms": 4784.75,
+          "avg_elapsed_ms": 4692.94,
           "attempts": 2
         },
         "jooble": {
@@ -4763,26 +4397,26 @@
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 80,
+          "raw_returned": 60,
           "queries": [
-            "database engineer",
             "database developer",
-            "sql developer",
-            "etl developer"
+            "data warehouse engineer",
+            "database administrator",
+            "database engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4813.46,
-          "avg_elapsed_ms": 3670.43,
+          "max_elapsed_ms": 2340.96,
+          "avg_elapsed_ms": 1784.52,
           "attempts": 4
         }
       },
       "provider_request_summary": {
         "jooble": {
           "requests": 4,
-          "raw_returned": 80,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         },
@@ -4797,21 +4431,21 @@
         "adzuna": {
           "requests": 2,
           "raw_returned": 48,
-          "precision_guarded": 45,
-          "exact_backup": 0,
+          "precision_guarded": 18,
+          "exact_backup": 18,
           "same_family_recovery": 0,
-          "family_safe": 40,
+          "family_safe": 34,
           "selected_live": 15,
           "timeouts": 0,
           "errors": 0
         },
         "jooble": {
           "requests": 4,
-          "raw_returned": 80,
+          "raw_returned": 60,
           "precision_guarded": 0,
-          "exact_backup": 23,
+          "exact_backup": 11,
           "same_family_recovery": 0,
-          "family_safe": 23,
+          "family_safe": 11,
           "selected_live": 0,
           "timeouts": 0,
           "errors": 0
@@ -4825,10 +4459,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 105,
+          "collected_candidates": 94,
           "selected_live": 15,
-          "precision_guarded_candidates": 45,
-          "upstream_family_safe_count": 63,
+          "precision_guarded_candidates": 18,
+          "upstream_family_safe_count": 45,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -4836,7 +4470,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 63,
+        "upstream_family_safe_count": 45,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -4844,23 +4478,224 @@
       },
       "final_live_count": 15,
       "top_selected_titles": [
-        "Database Developer",
-        "Database Developer",
-        "Database Developer",
-        "Clinical Database Developer -Spotfire",
-        "KMDB Developer (Knowledge Management Database Developer)",
-        "Database Developer",
-        "Database Developer",
-        "Database Developer",
-        "Database developer",
-        "Database Developer"
+        "Data warehouse Engineer",
+        "Data Warehouse Engineer",
+        "Senior Database Engineer",
+        "Database Engineer",
+        "Database Engineer",
+        "Database Engineer",
+        "Database Engineer",
+        "Database Engineer",
+        "Database Engineer",
+        "Database Engineer"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 45,
-        "exact_backup_candidates": 23,
+        "precision_guarded_candidates": 18,
+        "exact_backup_candidates": 29,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 63,
+        "upstream_family_safe_count": 45,
         "selected_count": 15
+      },
+      "selection_rejections": {
+        "final_guard": 0,
+        "company_cap": 0,
+        "company_title_cap": 0,
+        "similarity_cap": 0,
+        "source_cap": 0,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
+      "query": "SQL Developer",
+      "normalized_role": "database engineer",
+      "family_role": "database engineer",
+      "domain": "data",
+      "elapsed_ms": 5463.2,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "data",
+        "dense_family": true,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "greenhouse",
+          "jobicy",
+          "remotive",
+          "themuse"
+        ],
+        "fallback_sources": []
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 4,
+          "successes": 4,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 80,
+          "queries": [
+            "database engineer",
+            "database developer",
+            "etl developer",
+            "sql developer"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 2391.55,
+          "avg_elapsed_ms": 1812.71,
+          "attempts": 4
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "precision_guarded": 0,
+          "exact_backup": 24,
+          "same_family_recovery": 0,
+          "family_safe": 24,
+          "selected_live": 12,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 2,
+          "soft_timeout_seconds": 12.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 2
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 60,
+          "selected_live": 12,
+          "precision_guarded_candidates": 0,
+          "upstream_family_safe_count": 24,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 12,
+        "selected_live_count": 12,
+        "upstream_family_safe_count": 24,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 12
+      },
+      "final_live_count": 12,
+      "top_selected_titles": [
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        ".NET Developer",
+        "Data Engineer",
+        "Data Engineer"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 0,
+        "exact_backup_candidates": 24,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 24,
+        "selected_count": 12
       },
       "selection_rejections": {
         "final_guard": 0,
@@ -4876,7 +4711,7 @@
       "normalized_role": "cybersecurity engineer",
       "family_role": "cybersecurity engineer",
       "domain": "security",
-      "elapsed_ms": 11027.16,
+      "elapsed_ms": 7333.91,
       "min_live": 10,
       "provider_plan": {
         "family_group": "security",
@@ -4980,34 +4815,35 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4674.57,
-          "avg_elapsed_ms": 4674.57,
+          "max_elapsed_ms": 4612.05,
+          "avg_elapsed_ms": 4612.05,
           "attempts": 1
         },
         "jooble": {
-          "requests": 2,
-          "successes": 2,
+          "requests": 3,
+          "successes": 3,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 40,
+          "raw_returned": 60,
           "queries": [
             "security analyst",
+            "soc analyst",
             "cybersecurity"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4302.25,
-          "avg_elapsed_ms": 2925.65,
-          "attempts": 2
+          "max_elapsed_ms": 2274.63,
+          "avg_elapsed_ms": 1690.26,
+          "attempts": 3
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
+          "requests": 3,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         },
@@ -5031,8 +4867,8 @@
           "errors": 0
         },
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
+          "requests": 3,
+          "raw_returned": 60,
           "precision_guarded": 5,
           "exact_backup": 0,
           "same_family_recovery": 0,
@@ -5050,7 +4886,7 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 63,
+          "collected_candidates": 67,
           "selected_live": 15,
           "precision_guarded_candidates": 28,
           "upstream_family_safe_count": 22,
@@ -5102,7 +4938,7 @@
       "normalized_role": "cybersecurity engineer",
       "family_role": "cybersecurity engineer",
       "domain": "security",
-      "elapsed_ms": 8691.73,
+      "elapsed_ms": 5808.46,
       "min_live": 10,
       "provider_plan": {
         "family_group": "security",
@@ -5206,34 +5042,35 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4815.16,
-          "avg_elapsed_ms": 4815.16,
+          "max_elapsed_ms": 3809.76,
+          "avg_elapsed_ms": 3809.76,
           "attempts": 1
         },
         "jooble": {
-          "requests": 2,
-          "successes": 2,
+          "requests": 3,
+          "successes": 3,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 40,
+          "raw_returned": 60,
           "queries": [
+            "soc analyst",
             "security analyst",
-            "soc analyst"
+            "cybersecurity analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2987.41,
-          "avg_elapsed_ms": 1971.15,
-          "attempts": 2
+          "max_elapsed_ms": 2142.71,
+          "avg_elapsed_ms": 1667.15,
+          "attempts": 3
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
+          "requests": 3,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         },
@@ -5252,18 +5089,18 @@
           "exact_backup": 4,
           "same_family_recovery": 0,
           "family_safe": 19,
-          "selected_live": 14,
+          "selected_live": 13,
           "timeouts": 0,
           "errors": 0
         },
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
-          "precision_guarded": 1,
+          "requests": 3,
+          "raw_returned": 60,
+          "precision_guarded": 2,
           "exact_backup": 0,
           "same_family_recovery": 0,
-          "family_safe": 1,
-          "selected_live": 1,
+          "family_safe": 2,
+          "selected_live": 2,
           "timeouts": 0,
           "errors": 0
         }
@@ -5276,10 +5113,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 48,
+          "collected_candidates": 51,
           "selected_live": 15,
-          "precision_guarded_candidates": 18,
-          "upstream_family_safe_count": 20,
+          "precision_guarded_candidates": 19,
+          "upstream_family_safe_count": 21,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -5287,12 +5124,12 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 12,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 20,
+        "upstream_family_safe_count": 21,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "adzuna": 14,
-        "jooble": 1
+        "adzuna": 13,
+        "jooble": 2
       },
       "final_live_count": 15,
       "top_selected_titles": [
@@ -5308,10 +5145,10 @@
         "SOC Analyst"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 18,
+        "precision_guarded_candidates": 19,
         "exact_backup_candidates": 4,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 20,
+        "upstream_family_safe_count": 21,
         "selected_count": 15
       },
       "selection_rejections": {
@@ -5328,7 +5165,7 @@
       "normalized_role": "cybersecurity engineer",
       "family_role": "cybersecurity engineer",
       "domain": "security",
-      "elapsed_ms": 8995.83,
+      "elapsed_ms": 5703.29,
       "min_live": 10,
       "provider_plan": {
         "family_group": "security",
@@ -5432,34 +5269,35 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4071.78,
-          "avg_elapsed_ms": 4071.78,
+          "max_elapsed_ms": 3285.37,
+          "avg_elapsed_ms": 3285.37,
           "attempts": 1
         },
         "jooble": {
-          "requests": 2,
-          "successes": 2,
+          "requests": 3,
+          "successes": 3,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 24,
+          "raw_returned": 44,
           "queries": [
-            "cyber security analyst",
-            "security analyst"
+            "soc analyst",
+            "security analyst",
+            "cyber security analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1777.81,
-          "avg_elapsed_ms": 1366.59,
-          "attempts": 2
+          "max_elapsed_ms": 1934.57,
+          "avg_elapsed_ms": 1281.23,
+          "attempts": 3
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 24,
+          "requests": 3,
+          "raw_returned": 44,
           "timeouts": 0,
           "errors": 0
         },
@@ -5483,8 +5321,8 @@
           "errors": 0
         },
         "jooble": {
-          "requests": 2,
-          "raw_returned": 24,
+          "requests": 3,
+          "raw_returned": 44,
           "precision_guarded": 2,
           "exact_backup": 0,
           "same_family_recovery": 0,
@@ -5502,7 +5340,7 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 47,
+          "collected_candidates": 51,
           "selected_live": 15,
           "precision_guarded_candidates": 25,
           "upstream_family_safe_count": 24,
@@ -5554,7 +5392,7 @@
       "normalized_role": "product manager",
       "family_role": "product manager",
       "domain": "product",
-      "elapsed_ms": 24508.79,
+      "elapsed_ms": 12025.41,
       "min_live": 10,
       "provider_plan": {
         "family_group": "product",
@@ -5654,15 +5492,15 @@
           "errors": 0,
           "raw_returned": 48,
           "queries": [
-            "associate product manager",
-            "product manager"
+            "product manager",
+            "associate product manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 12722.43,
-          "avg_elapsed_ms": 12510.19,
+          "max_elapsed_ms": 6341.66,
+          "avg_elapsed_ms": 6248.82,
           "attempts": 2
         },
         "jobicy": {
@@ -5673,15 +5511,15 @@
           "errors": 0,
           "raw_returned": 18,
           "queries": [
-            "product manager",
-            "associate product manager"
+            "associate product manager",
+            "product manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 7588.71,
-          "avg_elapsed_ms": 6680.84,
+          "max_elapsed_ms": 5617.13,
+          "avg_elapsed_ms": 5502.76,
           "attempts": 2
         },
         "jooble": {
@@ -5693,47 +5531,44 @@
           "raw_returned": 39,
           "queries": [
             "technical product manager",
-            "associate product manager",
-            "product manager"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 10231.26,
-          "avg_elapsed_ms": 8799.42,
-          "attempts": 3
-        },
-        "remotive": {
-          "requests": 5,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 4,
-          "errors": 4,
-          "raw_returned": 21,
-          "queries": [
-            "associate product manager india",
-            "product manager india",
-            "technical product manager",
             "product manager",
             "associate product manager"
           ],
           "stages": [
             "primary"
           ],
-          "error_samples": [
-            "TimeoutError"
+          "error_samples": [],
+          "max_elapsed_ms": 3607.31,
+          "avg_elapsed_ms": 3086.82,
+          "attempts": 3
+        },
+        "remotive": {
+          "requests": 4,
+          "successes": 4,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 84,
+          "queries": [
+            "associate product manager",
+            "technical product manager",
+            "associate product manager india",
+            "product manager"
           ],
-          "max_elapsed_ms": 11851.14,
-          "avg_elapsed_ms": 9712.22,
-          "attempts": 5
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 5966.62,
+          "avg_elapsed_ms": 4272.85,
+          "attempts": 4
         },
         "themuse": {
           "requests": 1,
-          "successes": 0,
+          "successes": 1,
           "skipped_budget": 0,
-          "timeouts": 1,
-          "errors": 1,
+          "timeouts": 0,
+          "errors": 0,
           "raw_returned": 0,
           "queries": [
             "product manager"
@@ -5741,30 +5576,34 @@
           "stages": [
             "primary"
           ],
-          "error_samples": [
-            "TimeoutError"
-          ],
-          "max_elapsed_ms": 9935.93,
-          "avg_elapsed_ms": 9935.93,
+          "error_samples": [],
+          "max_elapsed_ms": 3205.97,
+          "avg_elapsed_ms": 3205.97,
           "attempts": 1
         }
       },
       "provider_request_summary": {
+        "jooble": {
+          "requests": 3,
+          "raw_returned": 39,
+          "timeouts": 0,
+          "errors": 0
+        },
+        "remotive": {
+          "requests": 4,
+          "raw_returned": 84,
+          "timeouts": 0,
+          "errors": 0
+        },
         "jobicy": {
           "requests": 2,
           "raw_returned": 18,
           "timeouts": 0,
           "errors": 0
         },
-        "remotive": {
-          "requests": 5,
-          "raw_returned": 21,
-          "timeouts": 4,
-          "errors": 4
-        },
-        "jooble": {
-          "requests": 3,
-          "raw_returned": 39,
+        "themuse": {
+          "requests": 1,
+          "raw_returned": 0,
           "timeouts": 0,
           "errors": 0
         },
@@ -5773,12 +5612,6 @@
           "raw_returned": 48,
           "timeouts": 0,
           "errors": 0
-        },
-        "themuse": {
-          "requests": 1,
-          "raw_returned": 0,
-          "timeouts": 1,
-          "errors": 1
         }
       },
       "provider_match_counts": {
@@ -5816,15 +5649,15 @@
           "errors": 0
         },
         "remotive": {
-          "requests": 5,
-          "raw_returned": 21,
+          "requests": 4,
+          "raw_returned": 84,
           "precision_guarded": 0,
           "exact_backup": 0,
           "same_family_recovery": 0,
           "family_safe": 0,
           "selected_live": 0,
-          "timeouts": 4,
-          "errors": 4
+          "timeouts": 0,
+          "errors": 0
         },
         "themuse": {
           "requests": 1,
@@ -5834,11 +5667,20 @@
           "same_family_recovery": 0,
           "family_safe": 0,
           "selected_live": 0,
-          "timeouts": 1,
-          "errors": 1
+          "timeouts": 0,
+          "errors": 0
         }
       },
-      "stage_short_circuits": [],
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 1,
+          "soft_timeout_seconds": 15.0,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 1
+        }
+      ],
       "stage_results": [
         {
           "stage": "primary",
@@ -5861,10 +5703,7 @@
         "required_live_floor": 10,
         "selected_live_count": 15,
         "upstream_family_safe_count": 46,
-        "timeout_sources": [
-          "remotive",
-          "themuse"
-        ]
+        "timeout_sources": []
       },
       "selected_live_sources": {
         "adzuna": 15
@@ -5903,207 +5742,7 @@
       "normalized_role": "project manager",
       "family_role": "project manager",
       "domain": "operations",
-      "elapsed_ms": 3817.71,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "operations",
-        "dense_family": false,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "jobicy",
-          "remotive",
-          "themuse",
-          "greenhouse"
-        ],
-        "fallback_sources": [
-          "lever"
-        ]
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "jooble": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 10,
-          "queries": [
-            "implementation manager"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 978.41,
-          "avg_elapsed_ms": 978.41,
-          "attempts": 1
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 10,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 10,
-          "precision_guarded": 10,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 10,
-          "selected_live": 10,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 4,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 10,
-          "selected_live": 10,
-          "precision_guarded_candidates": 10,
-          "upstream_family_safe_count": 10,
-          "underfill_reason": "sufficient_live_supply"
-        }
-      ],
-      "underfill": {
-        "reason": "sufficient_live_supply",
-        "required_live_floor": 10,
-        "selected_live_count": 10,
-        "upstream_family_safe_count": 10,
-        "timeout_sources": []
-      },
-      "selected_live_sources": {
-        "jooble": 10
-      },
-      "final_live_count": 10,
-      "top_selected_titles": [
-        "Project Coordinator / Junior Project Manager",
-        "Assistant Project Manager",
-        "Junior Project Manager",
-        "Project Manager",
-        "Project Manager",
-        "IT Project Manager",
-        "QA cum IT Project Coordinator",
-        "Project Coordinator Intern",
-        "Project Coordinator",
-        "Project Coordinator"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 10,
-        "exact_backup_candidates": 0,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 10,
-        "selected_count": 10
-      },
-      "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 0,
-        "company_title_cap": 0,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "Program Manager",
-      "normalized_role": "project manager",
-      "family_role": "project manager",
-      "domain": "operations",
-      "elapsed_ms": 5102.88,
+      "elapsed_ms": 2480.18,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -6209,8 +5848,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1660.67,
-          "avg_elapsed_ms": 1660.67,
+          "max_elapsed_ms": 1034.91,
+          "avg_elapsed_ms": 1034.91,
           "attempts": 1
         }
       },
@@ -6271,14 +5910,14 @@
       },
       "final_live_count": 10,
       "top_selected_titles": [
-        "Junior Project Manager",
         "Project Manager",
+        "Junior Project Manager",
         "Project Coordinator / Junior Project Manager",
         "Assistant Project Manager",
         "IT Project Manager",
         "Project Manager",
-        "QA cum IT Project Coordinator",
         "Project Coordinator",
+        "QA cum IT Project Coordinator",
         "Project Coordinator Intern",
         "Project Coordinator"
       ],
@@ -6299,11 +5938,11 @@
       }
     },
     {
-      "query": "Scrum Master",
+      "query": "Program Manager",
       "normalized_role": "project manager",
       "family_role": "project manager",
       "domain": "operations",
-      "elapsed_ms": 6460.81,
+      "elapsed_ms": 2383.07,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -6396,43 +6035,41 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 3,
-          "successes": 3,
+          "requests": 1,
+          "successes": 1,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 60,
+          "raw_returned": 17,
           "queries": [
-            "operations manager",
-            "project manager",
-            "scrum master"
+            "delivery manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2416.15,
-          "avg_elapsed_ms": 1846.49,
-          "attempts": 3
+          "max_elapsed_ms": 739.87,
+          "avg_elapsed_ms": 739.87,
+          "attempts": 1
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 3,
-          "raw_returned": 60,
+          "requests": 1,
+          "raw_returned": 17,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 3,
-          "raw_returned": 60,
-          "precision_guarded": 11,
-          "exact_backup": 2,
+          "requests": 1,
+          "raw_returned": 17,
+          "precision_guarded": 10,
+          "exact_backup": 0,
           "same_family_recovery": 0,
-          "family_safe": 14,
-          "selected_live": 13,
+          "family_safe": 10,
+          "selected_live": 10,
           "timeouts": 0,
           "errors": 0
         }
@@ -6440,11 +6077,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 2,
+          "cancelled_pending_tasks": 4,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 2
+          "cancelled_and_drained_tasks": 4
         }
       ],
       "stage_results": [
@@ -6454,42 +6091,42 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 44,
-          "selected_live": 13,
-          "precision_guarded_candidates": 11,
-          "upstream_family_safe_count": 14,
+          "collected_candidates": 17,
+          "selected_live": 10,
+          "precision_guarded_candidates": 10,
+          "upstream_family_safe_count": 10,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
       "underfill": {
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
-        "selected_live_count": 13,
-        "upstream_family_safe_count": 14,
+        "selected_live_count": 10,
+        "upstream_family_safe_count": 10,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "jooble": 13
+        "jooble": 10
       },
-      "final_live_count": 13,
+      "final_live_count": 10,
       "top_selected_titles": [
-        "QA cum IT Project Coordinator",
+        "Project Manager",
+        "Junior Project Manager",
         "Project Coordinator / Junior Project Manager",
-        "Project Coordinator Intern",
-        "Project Coordinator",
-        "QA cum IT Project Coordinator",
-        "Project Coordinator",
         "Assistant Project Manager",
         "IT Project Manager",
         "Project Manager",
-        "Project Manager"
+        "Project Coordinator",
+        "QA cum IT Project Coordinator",
+        "Project Coordinator Intern",
+        "Project Coordinator"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 11,
-        "exact_backup_candidates": 2,
+        "precision_guarded_candidates": 10,
+        "exact_backup_candidates": 0,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 14,
-        "selected_count": 13
+        "upstream_family_safe_count": 10,
+        "selected_count": 10
       },
       "selection_rejections": {
         "final_guard": 0,
@@ -6501,11 +6138,214 @@
       }
     },
     {
+      "query": "Scrum Master",
+      "normalized_role": "project manager",
+      "family_role": "project manager",
+      "domain": "operations",
+      "elapsed_ms": 4350.1,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "operations",
+        "dense_family": false,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "jobicy",
+          "remotive",
+          "themuse",
+          "greenhouse"
+        ],
+        "fallback_sources": [
+          "lever"
+        ]
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 4,
+          "successes": 4,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 80,
+          "queries": [
+            "operations manager",
+            "scrum master",
+            "project manager",
+            "scrum master manager"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 2269.38,
+          "avg_elapsed_ms": 1732.2,
+          "attempts": 4
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "precision_guarded": 16,
+          "exact_backup": 2,
+          "same_family_recovery": 0,
+          "family_safe": 19,
+          "selected_live": 12,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 1,
+          "soft_timeout_seconds": 15.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 1
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 58,
+          "selected_live": 12,
+          "precision_guarded_candidates": 16,
+          "upstream_family_safe_count": 19,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 10,
+        "selected_live_count": 12,
+        "upstream_family_safe_count": 19,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 12
+      },
+      "final_live_count": 12,
+      "top_selected_titles": [
+        "Project Coordinator / Junior Project Manager",
+        "IT Project Manager",
+        "Assistant Project Manager",
+        "Project Manager",
+        "Project Manager",
+        "Junior Project Manager",
+        "Project Coordinator Intern",
+        "Project Coordinator",
+        "Project Coordinator / Junior Project Manager",
+        "Project Coordinator"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 16,
+        "exact_backup_candidates": 2,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 19,
+        "selected_count": 12
+      },
+      "selection_rejections": {
+        "final_guard": 0,
+        "company_cap": 1,
+        "company_title_cap": 3,
+        "similarity_cap": 0,
+        "source_cap": 0,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
       "query": "UI/UX Designer",
       "normalized_role": "ui/ux designer",
       "family_role": "ui/ux designer",
       "domain": "design",
-      "elapsed_ms": 7507.63,
+      "elapsed_ms": 5766.27,
       "min_live": 10,
       "provider_plan": {
         "family_group": "design",
@@ -6611,27 +6451,49 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5415.79,
-          "avg_elapsed_ms": 5415.79,
+          "max_elapsed_ms": 2770.58,
+          "avg_elapsed_ms": 2770.58,
           "attempts": 1
         },
         "jooble": {
-          "requests": 1,
-          "successes": 1,
+          "requests": 3,
+          "successes": 3,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 20,
+          "raw_returned": 60,
           "queries": [
+            "ui/ux designer",
+            "ux designer",
+            "ui ux designer"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 3556.91,
+          "avg_elapsed_ms": 3364.81,
+          "attempts": 3
+        },
+        "remotive": {
+          "requests": 3,
+          "successes": 3,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 63,
+          "queries": [
+            "ui/ux designer",
+            "ui ux designer india",
             "ux designer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4266.02,
-          "avg_elapsed_ms": 4266.02,
-          "attempts": 1
+          "max_elapsed_ms": 2001.44,
+          "avg_elapsed_ms": 1844.15,
+          "attempts": 3
         }
       },
       "provider_request_summary": {
@@ -6641,9 +6503,15 @@
           "timeouts": 0,
           "errors": 0
         },
+        "remotive": {
+          "requests": 3,
+          "raw_returned": 63,
+          "timeouts": 0,
+          "errors": 0
+        },
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 3,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         }
@@ -6661,13 +6529,24 @@
           "errors": 0
         },
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "precision_guarded": 10,
-          "exact_backup": 9,
+          "requests": 3,
+          "raw_returned": 60,
+          "precision_guarded": 15,
+          "exact_backup": 12,
           "same_family_recovery": 0,
-          "family_safe": 19,
-          "selected_live": 13,
+          "family_safe": 27,
+          "selected_live": 12,
+          "timeouts": 0,
+          "errors": 0
+        },
+        "remotive": {
+          "requests": 3,
+          "raw_returned": 63,
+          "precision_guarded": 2,
+          "exact_backup": 0,
+          "same_family_recovery": 0,
+          "family_safe": 0,
+          "selected_live": 0,
           "timeouts": 0,
           "errors": 0
         }
@@ -6675,11 +6554,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 10,
+          "cancelled_pending_tasks": 5,
           "soft_timeout_seconds": 15.0,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 10
+          "cancelled_and_drained_tasks": 5
         }
       ],
       "stage_results": [
@@ -6692,24 +6571,24 @@
             "remotive",
             "themuse"
           ],
-          "collected_candidates": 20,
-          "selected_live": 13,
-          "precision_guarded_candidates": 10,
-          "upstream_family_safe_count": 19,
+          "collected_candidates": 49,
+          "selected_live": 12,
+          "precision_guarded_candidates": 17,
+          "upstream_family_safe_count": 27,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
       "underfill": {
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
-        "selected_live_count": 13,
-        "upstream_family_safe_count": 19,
+        "selected_live_count": 12,
+        "upstream_family_safe_count": 27,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "jooble": 13
+        "jooble": 12
       },
-      "final_live_count": 13,
+      "final_live_count": 12,
       "top_selected_titles": [
         "UI/UX Designer",
         "UI/UX Designer",
@@ -6723,18 +6602,18 @@
         "UI/UX Designer (Figma Specialist)"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 10,
-        "exact_backup_candidates": 9,
+        "precision_guarded_candidates": 17,
+        "exact_backup_candidates": 12,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 19,
-        "selected_count": 13
+        "upstream_family_safe_count": 27,
+        "selected_count": 12
       },
       "selection_rejections": {
         "final_guard": 0,
         "company_cap": 0,
-        "company_title_cap": 0,
+        "company_title_cap": 3,
         "similarity_cap": 0,
-        "source_cap": 6,
+        "source_cap": 25,
         "post_selection_final_guard": 0
       }
     },
@@ -6743,7 +6622,7 @@
       "normalized_role": "ui/ux designer",
       "family_role": "ui/ux designer",
       "domain": "design",
-      "elapsed_ms": 8042.77,
+      "elapsed_ms": 4234.16,
       "min_live": 10,
       "provider_plan": {
         "family_group": "design",
@@ -6843,14 +6722,14 @@
           "errors": 0,
           "raw_returned": 20,
           "queries": [
-            "product designer"
+            "ux designer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5007.04,
-          "avg_elapsed_ms": 5007.04,
+          "max_elapsed_ms": 2344.92,
+          "avg_elapsed_ms": 2344.92,
           "attempts": 1
         }
       },
@@ -6867,9 +6746,9 @@
           "requests": 1,
           "raw_returned": 20,
           "precision_guarded": 0,
-          "exact_backup": 17,
+          "exact_backup": 19,
           "same_family_recovery": 0,
-          "family_safe": 17,
+          "family_safe": 19,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -6898,7 +6777,7 @@
           "collected_candidates": 20,
           "selected_live": 13,
           "precision_guarded_candidates": 0,
-          "upstream_family_safe_count": 17,
+          "upstream_family_safe_count": 19,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -6906,7 +6785,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 17,
+        "upstream_family_safe_count": 19,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -6927,17 +6806,17 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 0,
-        "exact_backup_candidates": 17,
+        "exact_backup_candidates": 19,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 17,
+        "upstream_family_safe_count": 19,
         "selected_count": 13
       },
       "selection_rejections": {
         "final_guard": 0,
-        "company_cap": 0,
+        "company_cap": 1,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 4,
+        "source_cap": 5,
         "post_selection_final_guard": 0
       }
     },
@@ -6946,7 +6825,7 @@
       "normalized_role": "technical writer",
       "family_role": "technical writer",
       "domain": "product",
-      "elapsed_ms": 10784.4,
+      "elapsed_ms": 3364.28,
       "min_live": 10,
       "provider_plan": {
         "family_group": "docs",
@@ -7038,24 +6917,6 @@
         }
       ],
       "provider_attempts": {
-        "adzuna": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 24,
-          "queries": [
-            "technical writer"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 7288.69,
-          "avg_elapsed_ms": 7288.69,
-          "attempts": 1
-        },
         "jooble": {
           "requests": 3,
           "successes": 3,
@@ -7064,16 +6925,16 @@
           "errors": 0,
           "raw_returned": 56,
           "queries": [
+            "documentation writer",
             "technical writer",
-            "technical content writer",
-            "documentation writer"
+            "technical content writer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3319.3,
-          "avg_elapsed_ms": 2685.14,
+          "max_elapsed_ms": 1207.73,
+          "avg_elapsed_ms": 1008.59,
           "attempts": 3
         }
       },
@@ -7083,39 +6944,31 @@
           "raw_returned": 56,
           "timeouts": 0,
           "errors": 0
-        },
-        "adzuna": {
-          "requests": 1,
-          "raw_returned": 24,
-          "timeouts": 0,
-          "errors": 0
         }
       },
       "provider_match_counts": {
-        "adzuna": {
-          "requests": 1,
-          "raw_returned": 24,
-          "precision_guarded": 24,
-          "exact_backup": 0,
-          "same_family_recovery": 0,
-          "family_safe": 22,
-          "selected_live": 9,
-          "timeouts": 0,
-          "errors": 0
-        },
         "jooble": {
           "requests": 3,
           "raw_returned": 56,
           "precision_guarded": 4,
-          "exact_backup": 4,
+          "exact_backup": 9,
           "same_family_recovery": 0,
-          "family_safe": 6,
-          "selected_live": 3,
+          "family_safe": 11,
+          "selected_live": 11,
           "timeouts": 0,
           "errors": 0
         }
       },
-      "stage_short_circuits": [],
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 1,
+          "soft_timeout_seconds": 15.0,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 1
+        }
+      ],
       "stage_results": [
         {
           "stage": "primary",
@@ -7123,50 +6976,49 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 63,
-          "selected_live": 12,
-          "precision_guarded_candidates": 28,
-          "upstream_family_safe_count": 28,
+          "collected_candidates": 40,
+          "selected_live": 11,
+          "precision_guarded_candidates": 4,
+          "upstream_family_safe_count": 11,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
       "underfill": {
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
-        "selected_live_count": 12,
-        "upstream_family_safe_count": 28,
+        "selected_live_count": 11,
+        "upstream_family_safe_count": 11,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "adzuna": 9,
-        "jooble": 3
+        "jooble": 11
       },
-      "final_live_count": 12,
+      "final_live_count": 11,
       "top_selected_titles": [
-        "AppScan Product _Sr. Documentation Engineer / Technical Writer",
+        "Technical Content Writer",
+        "Technical Content Writer",
         "Technical Writer",
-        "Technical Writer II",
-        "Technical Writer",
-        "Technical Writer",
-        "Technical Writer",
-        "Technical Writer",
-        "Technical Writer",
-        "Technical Writer",
-        "Technical Writer"
+        "Technical Content Writer",
+        "Content Creator",
+        "Junior Content Writer",
+        "Content Writer",
+        "Content Writer",
+        "Senior Content Writer",
+        "Content Writer"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 28,
-        "exact_backup_candidates": 4,
+        "precision_guarded_candidates": 4,
+        "exact_backup_candidates": 9,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 28,
-        "selected_count": 12
+        "upstream_family_safe_count": 11,
+        "selected_count": 11
       },
       "selection_rejections": {
-        "final_guard": 0,
+        "final_guard": 2,
         "company_cap": 0,
-        "company_title_cap": 1,
+        "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 13,
+        "source_cap": 0,
         "post_selection_final_guard": 0
       }
     },
@@ -7175,7 +7027,7 @@
       "normalized_role": "content writer",
       "family_role": "content writer",
       "domain": "marketing",
-      "elapsed_ms": 6759.51,
+      "elapsed_ms": 3938.78,
       "min_live": 10,
       "provider_plan": {
         "family_group": "marketing",
@@ -7276,16 +7128,16 @@
           "raw_returned": 58,
           "queries": [
             "blog writer",
-            "content editor",
+            "seo writer",
             "content writer",
-            "seo writer"
+            "content editor"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3252.12,
-          "avg_elapsed_ms": 2365.67,
+          "max_elapsed_ms": 2217.36,
+          "avg_elapsed_ms": 1793.85,
           "attempts": 4
         }
       },
@@ -7304,7 +7156,7 @@
           "precision_guarded": 17,
           "exact_backup": 15,
           "same_family_recovery": 0,
-          "family_safe": 29,
+          "family_safe": 28,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -7330,7 +7182,7 @@
           "collected_candidates": 43,
           "selected_live": 13,
           "precision_guarded_candidates": 17,
-          "upstream_family_safe_count": 29,
+          "upstream_family_safe_count": 28,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -7338,7 +7190,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 29,
+        "upstream_family_safe_count": 28,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -7361,7 +7213,7 @@
         "precision_guarded_candidates": 17,
         "exact_backup_candidates": 15,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 29,
+        "upstream_family_safe_count": 28,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -7378,7 +7230,7 @@
       "normalized_role": "marketing manager",
       "family_role": "marketing manager",
       "domain": "marketing",
-      "elapsed_ms": 6209.17,
+      "elapsed_ms": 2830.29,
       "min_live": 10,
       "provider_plan": {
         "family_group": "marketing",
@@ -7471,41 +7323,40 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 2,
-          "successes": 2,
+          "requests": 1,
+          "successes": 1,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 40,
+          "raw_returned": 20,
           "queries": [
-            "growth marketing manager",
-            "performance marketing manager"
+            "growth marketing manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1408.71,
-          "avg_elapsed_ms": 1199.35,
-          "attempts": 2
+          "max_elapsed_ms": 1113.8,
+          "avg_elapsed_ms": 1113.8,
+          "attempts": 1
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
+          "requests": 1,
+          "raw_returned": 20,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
-          "precision_guarded": 6,
-          "exact_backup": 20,
+          "requests": 1,
+          "raw_returned": 20,
+          "precision_guarded": 5,
+          "exact_backup": 13,
           "same_family_recovery": 0,
-          "family_safe": 26,
+          "family_safe": 18,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -7514,11 +7365,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 3,
+          "cancelled_pending_tasks": 4,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 3
+          "cancelled_and_drained_tasks": 4
         }
       ],
       "stage_results": [
@@ -7528,10 +7379,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 32,
+          "collected_candidates": 20,
           "selected_live": 13,
-          "precision_guarded_candidates": 6,
-          "upstream_family_safe_count": 26,
+          "precision_guarded_candidates": 5,
+          "upstream_family_safe_count": 18,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -7539,7 +7390,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 26,
+        "upstream_family_safe_count": 18,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -7547,30 +7398,30 @@
       },
       "final_live_count": 13,
       "top_selected_titles": [
-        "Performance Marketing Manager",
-        "Digital Marketing Manager",
         "Sr. Marketing Manager",
         "Digital Marketing Manager",
         "Digital Marketing Manager",
+        "Performance Marketing Manager",
         "Marketing Manager",
         "SEO Manager",
+        "Digital Marketing Executive",
         "Expert Digital Marketing Executive",
         "SEO Executive",
         "SEO Executive"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 6,
-        "exact_backup_candidates": 20,
+        "precision_guarded_candidates": 5,
+        "exact_backup_candidates": 13,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 26,
+        "upstream_family_safe_count": 18,
         "selected_count": 13
       },
       "selection_rejections": {
         "final_guard": 0,
         "company_cap": 0,
-        "company_title_cap": 4,
+        "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 9,
+        "source_cap": 5,
         "post_selection_final_guard": 0
       }
     },
@@ -7579,7 +7430,7 @@
       "normalized_role": "digital marketing specialist",
       "family_role": "digital marketing specialist",
       "domain": "marketing",
-      "elapsed_ms": 6256.16,
+      "elapsed_ms": 2696.09,
       "min_live": 10,
       "provider_plan": {
         "family_group": "marketing",
@@ -7672,41 +7523,40 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 2,
-          "successes": 2,
+          "requests": 1,
+          "successes": 1,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 40,
+          "raw_returned": 20,
           "queries": [
-            "seo specialist",
-            "content marketing specialist"
+            "seo specialist"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1371.92,
-          "avg_elapsed_ms": 1163.95,
-          "attempts": 2
+          "max_elapsed_ms": 839.56,
+          "avg_elapsed_ms": 839.56,
+          "attempts": 1
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
+          "requests": 1,
+          "raw_returned": 20,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 2,
-          "raw_returned": 40,
-          "precision_guarded": 6,
-          "exact_backup": 19,
+          "requests": 1,
+          "raw_returned": 20,
+          "precision_guarded": 1,
+          "exact_backup": 14,
           "same_family_recovery": 0,
-          "family_safe": 23,
+          "family_safe": 13,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -7715,11 +7565,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 3,
+          "cancelled_pending_tasks": 4,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 3
+          "cancelled_and_drained_tasks": 4
         }
       ],
       "stage_results": [
@@ -7729,10 +7579,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 40,
+          "collected_candidates": 20,
           "selected_live": 13,
-          "precision_guarded_candidates": 6,
-          "upstream_family_safe_count": 23,
+          "precision_guarded_candidates": 1,
+          "upstream_family_safe_count": 13,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -7740,7 +7590,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 23,
+        "upstream_family_safe_count": 13,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -7749,21 +7599,21 @@
       "final_live_count": 13,
       "top_selected_titles": [
         "SEO Specialist",
-        "Digital Marketing Specialist",
-        "Digital Marketing Specialist",
-        "Digital Marketing Expert",
-        "Digital Marketing Experts",
-        "Digital Marketing Analyst",
-        "LinkedIN Marketing Executive",
-        "Field Marketing Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
         "SEO Executive",
         "SEO Executive"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 6,
-        "exact_backup_candidates": 19,
+        "precision_guarded_candidates": 1,
+        "exact_backup_candidates": 14,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 23,
+        "upstream_family_safe_count": 13,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -7771,7 +7621,7 @@
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 8,
+        "source_cap": 0,
         "post_selection_final_guard": 0
       }
     },
@@ -7780,7 +7630,207 @@
       "normalized_role": "digital marketing specialist",
       "family_role": "digital marketing specialist",
       "domain": "marketing",
-      "elapsed_ms": 4542.81,
+      "elapsed_ms": 2770.76,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "marketing",
+        "dense_family": false,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "jobicy",
+          "remotive",
+          "themuse",
+          "greenhouse"
+        ],
+        "fallback_sources": [
+          "lever"
+        ]
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 1,
+          "successes": 1,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 20,
+          "queries": [
+            "seo specialist"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 1550.04,
+          "avg_elapsed_ms": 1550.04,
+          "attempts": 1
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 1,
+          "raw_returned": 20,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 1,
+          "raw_returned": 20,
+          "precision_guarded": 1,
+          "exact_backup": 14,
+          "same_family_recovery": 0,
+          "family_safe": 13,
+          "selected_live": 13,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 4,
+          "soft_timeout_seconds": 15.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 4
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 20,
+          "selected_live": 13,
+          "precision_guarded_candidates": 1,
+          "upstream_family_safe_count": 13,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 10,
+        "selected_live_count": 13,
+        "upstream_family_safe_count": 13,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 13
+      },
+      "final_live_count": 13,
+      "top_selected_titles": [
+        "SEO Specialist",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive",
+        "SEO Executive"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 1,
+        "exact_backup_candidates": 14,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 13,
+        "selected_count": 13
+      },
+      "selection_rejections": {
+        "final_guard": 1,
+        "company_cap": 0,
+        "company_title_cap": 0,
+        "similarity_cap": 0,
+        "source_cap": 0,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
+      "query": "Social Media Specialist",
+      "normalized_role": "digital marketing specialist",
+      "family_role": "digital marketing specialist",
+      "domain": "marketing",
+      "elapsed_ms": 2498.6,
       "min_live": 10,
       "provider_plan": {
         "family_group": "marketing",
@@ -7886,8 +7936,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1776.57,
-          "avg_elapsed_ms": 1776.57,
+          "max_elapsed_ms": 1123.88,
+          "avg_elapsed_ms": 1123.88,
           "attempts": 1
         }
       },
@@ -7907,7 +7957,7 @@
           "exact_backup": 8,
           "same_family_recovery": 0,
           "family_safe": 15,
-          "selected_live": 12,
+          "selected_live": 13,
           "timeouts": 0,
           "errors": 0
         }
@@ -7930,7 +7980,7 @@
             "jooble"
           ],
           "collected_candidates": 20,
-          "selected_live": 12,
+          "selected_live": 13,
           "precision_guarded_candidates": 6,
           "upstream_family_safe_count": 15,
           "underfill_reason": "sufficient_live_supply"
@@ -7939,14 +7989,14 @@
       "underfill": {
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
-        "selected_live_count": 12,
+        "selected_live_count": 13,
         "upstream_family_safe_count": 15,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "jooble": 12
+        "jooble": 13
       },
-      "final_live_count": 12,
+      "final_live_count": 13,
       "top_selected_titles": [
         "Digital Marketing Specialist",
         "Digital Marketing Specialist",
@@ -7957,213 +8007,13 @@
         "Marketing Associate",
         "Sr. Marketing Executive (Sector Sales)",
         "Marketing Executive",
-        "LinkedIN Marketing Executive"
+        "Field Marketing Executive"
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 6,
         "exact_backup_candidates": 8,
         "same_family_recovery_candidates": 0,
         "upstream_family_safe_count": 15,
-        "selected_count": 12
-      },
-      "selection_rejections": {
-        "final_guard": 1,
-        "company_cap": 0,
-        "company_title_cap": 0,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "Social Media Specialist",
-      "normalized_role": "digital marketing specialist",
-      "family_role": "digital marketing specialist",
-      "domain": "marketing",
-      "elapsed_ms": 4426.15,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "marketing",
-        "dense_family": false,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "jobicy",
-          "remotive",
-          "themuse",
-          "greenhouse"
-        ],
-        "fallback_sources": [
-          "lever"
-        ]
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "jooble": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 20,
-          "queries": [
-            "social media specialist"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 2139.6,
-          "avg_elapsed_ms": 2139.6,
-          "attempts": 1
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "precision_guarded": 11,
-          "exact_backup": 9,
-          "same_family_recovery": 0,
-          "family_safe": 19,
-          "selected_live": 13,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 4,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 20,
-          "selected_live": 13,
-          "precision_guarded_candidates": 11,
-          "upstream_family_safe_count": 19,
-          "underfill_reason": "sufficient_live_supply"
-        }
-      ],
-      "underfill": {
-        "reason": "sufficient_live_supply",
-        "required_live_floor": 10,
-        "selected_live_count": 13,
-        "upstream_family_safe_count": 19,
-        "timeout_sources": []
-      },
-      "selected_live_sources": {
-        "jooble": 13
-      },
-      "final_live_count": 13,
-      "top_selected_titles": [
-        "Social Media Executive",
-        "Social Media Executive",
-        "Social Media Executive",
-        "Digital Marketing Specialist",
-        "Digital Marketing Specialist",
-        "Digital Marketing Experts",
-        "Digital Marketing Expert",
-        "Digital Marketing Executive",
-        "Social Media Manager",
-        "Digital Marketing Manager"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 11,
-        "exact_backup_candidates": 9,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 19,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -8171,7 +8021,7 @@
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 6,
+        "source_cap": 0,
         "post_selection_final_guard": 0
       }
     },
@@ -8180,410 +8030,7 @@
       "normalized_role": "account executive",
       "family_role": "account executive",
       "domain": "sales",
-      "elapsed_ms": 4527.36,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "sales",
-        "dense_family": false,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "jobicy",
-          "remotive",
-          "themuse",
-          "greenhouse"
-        ],
-        "fallback_sources": [
-          "lever"
-        ]
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "jooble": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 20,
-          "queries": [
-            "sales executive"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 1844.61,
-          "avg_elapsed_ms": 1844.61,
-          "attempts": 1
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "precision_guarded": 15,
-          "exact_backup": 2,
-          "same_family_recovery": 0,
-          "family_safe": 18,
-          "selected_live": 12,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 4,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 20,
-          "selected_live": 12,
-          "precision_guarded_candidates": 15,
-          "upstream_family_safe_count": 18,
-          "underfill_reason": "sufficient_live_supply"
-        }
-      ],
-      "underfill": {
-        "reason": "sufficient_live_supply",
-        "required_live_floor": 10,
-        "selected_live_count": 12,
-        "upstream_family_safe_count": 18,
-        "timeout_sources": []
-      },
-      "selected_live_sources": {
-        "jooble": 12
-      },
-      "final_live_count": 12,
-      "top_selected_titles": [
-        "Sales Executive",
-        "Sales Executive",
-        "Sales Executive",
-        "Sales Executive",
-        "Sales Executive",
-        "Senior Real Estate Sales Executive",
-        "Export Sales Executive",
-        "Product Sales Executive",
-        "Field Sales Executive",
-        "Sales Executives"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 15,
-        "exact_backup_candidates": 2,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 18,
-        "selected_count": 12
-      },
-      "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 6,
-        "company_title_cap": 1,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "Sales Development Representative",
-      "normalized_role": "account executive",
-      "family_role": "account executive",
-      "domain": "sales",
-      "elapsed_ms": 8772.34,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "sales",
-        "dense_family": false,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "jobicy",
-          "remotive",
-          "themuse",
-          "greenhouse"
-        ],
-        "fallback_sources": [
-          "lever"
-        ]
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "jooble": {
-          "requests": 4,
-          "successes": 4,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 80,
-          "queries": [
-            "account executive",
-            "sales representative",
-            "sales development executive",
-            "sales development representative"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 4585.07,
-          "avg_elapsed_ms": 3378.72,
-          "attempts": 4
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 4,
-          "raw_returned": 80,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 4,
-          "raw_returned": 80,
-          "precision_guarded": 23,
-          "exact_backup": 13,
-          "same_family_recovery": 0,
-          "family_safe": 37,
-          "selected_live": 13,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 1,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 1
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 54,
-          "selected_live": 13,
-          "precision_guarded_candidates": 23,
-          "upstream_family_safe_count": 37,
-          "underfill_reason": "sufficient_live_supply"
-        }
-      ],
-      "underfill": {
-        "reason": "sufficient_live_supply",
-        "required_live_floor": 10,
-        "selected_live_count": 13,
-        "upstream_family_safe_count": 37,
-        "timeout_sources": []
-      },
-      "selected_live_sources": {
-        "jooble": 13
-      },
-      "final_live_count": 13,
-      "top_selected_titles": [
-        "Sales Development Representative",
-        "Account Executive",
-        "Export Sales Executive",
-        "Sales Executive",
-        "Sales Executive",
-        "Sales Executive",
-        "Senior Real Estate Sales Executive",
-        "Export Sales Executive",
-        "Product Sales Executive",
-        "Sales Development Representative"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 23,
-        "exact_backup_candidates": 13,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 37,
-        "selected_count": 13
-      },
-      "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 9,
-        "company_title_cap": 1,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "Business Development Manager",
-      "normalized_role": "account executive",
-      "family_role": "account executive",
-      "domain": "sales",
-      "elapsed_ms": 5389.49,
+      "elapsed_ms": 4081.41,
       "min_live": 10,
       "provider_plan": {
         "family_group": "sales",
@@ -8681,25 +8128,25 @@
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 40,
+          "raw_returned": 60,
           "queries": [
-            "business development owner",
             "account manager",
-            "account executive"
+            "sales executive",
+            "sales representative"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1767.54,
-          "avg_elapsed_ms": 1356.02,
+          "max_elapsed_ms": 2134.82,
+          "avg_elapsed_ms": 1607.9,
           "attempts": 3
         }
       },
       "provider_request_summary": {
         "jooble": {
           "requests": 3,
-          "raw_returned": 40,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         }
@@ -8707,11 +8154,11 @@
       "provider_match_counts": {
         "jooble": {
           "requests": 3,
-          "raw_returned": 40,
-          "precision_guarded": 15,
-          "exact_backup": 2,
+          "raw_returned": 60,
+          "precision_guarded": 22,
+          "exact_backup": 12,
           "same_family_recovery": 0,
-          "family_safe": 19,
+          "family_safe": 34,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -8734,10 +8181,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 35,
+          "collected_candidates": 50,
           "selected_live": 13,
-          "precision_guarded_candidates": 15,
-          "upstream_family_safe_count": 19,
+          "precision_guarded_candidates": 22,
+          "upstream_family_safe_count": 34,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -8745,7 +8192,408 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
+        "upstream_family_safe_count": 34,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 13
+      },
+      "final_live_count": 13,
+      "top_selected_titles": [
+        "Sales Executive",
+        "Sales Executive",
+        "Export Sales Executive",
+        "Senior Real Estate Sales Executive",
+        "Product Sales Executive",
+        "Key Account Manager",
+        "Sales Development Representative",
+        "Field Sales Executive",
+        "Sales Executive",
+        "Sales Executive"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 22,
+        "exact_backup_candidates": 12,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 34,
+        "selected_count": 13
+      },
+      "selection_rejections": {
+        "final_guard": 0,
+        "company_cap": 8,
+        "company_title_cap": 1,
+        "similarity_cap": 0,
+        "source_cap": 0,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
+      "query": "Sales Development Representative",
+      "normalized_role": "account executive",
+      "family_role": "account executive",
+      "domain": "sales",
+      "elapsed_ms": 2534.15,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "sales",
+        "dense_family": false,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "jobicy",
+          "remotive",
+          "themuse",
+          "greenhouse"
+        ],
+        "fallback_sources": [
+          "lever"
+        ]
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 1,
+          "successes": 1,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 20,
+          "queries": [
+            "sales development representative"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 1332.93,
+          "avg_elapsed_ms": 1332.93,
+          "attempts": 1
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 1,
+          "raw_returned": 20,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 1,
+          "raw_returned": 20,
+          "precision_guarded": 14,
+          "exact_backup": 2,
+          "same_family_recovery": 0,
+          "family_safe": 19,
+          "selected_live": 12,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 4,
+          "soft_timeout_seconds": 15.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 4
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 20,
+          "selected_live": 12,
+          "precision_guarded_candidates": 14,
+          "upstream_family_safe_count": 19,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 10,
+        "selected_live_count": 12,
         "upstream_family_safe_count": 19,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 12
+      },
+      "final_live_count": 12,
+      "top_selected_titles": [
+        "Sales Development Representative",
+        "Sales Representative",
+        "Field Sales Representative",
+        "Sales Executive",
+        "Sales Executive",
+        "Sales Executive",
+        "Senior Real Estate Sales Executive",
+        "Export Sales Executive",
+        "Product Sales Executive",
+        "Sales Executives"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 14,
+        "exact_backup_candidates": 2,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 19,
+        "selected_count": 12
+      },
+      "selection_rejections": {
+        "final_guard": 0,
+        "company_cap": 9,
+        "company_title_cap": 0,
+        "similarity_cap": 0,
+        "source_cap": 0,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
+      "query": "Business Development Manager",
+      "normalized_role": "account executive",
+      "family_role": "account executive",
+      "domain": "sales",
+      "elapsed_ms": 2964.83,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "sales",
+        "dense_family": false,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "jobicy",
+          "remotive",
+          "themuse",
+          "greenhouse"
+        ],
+        "fallback_sources": [
+          "lever"
+        ]
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 2,
+          "successes": 2,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 40,
+          "queries": [
+            "account executive",
+            "account manager"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 1129.62,
+          "avg_elapsed_ms": 1024.7,
+          "attempts": 2
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 2,
+          "raw_returned": 40,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 2,
+          "raw_returned": 40,
+          "precision_guarded": 17,
+          "exact_backup": 2,
+          "same_family_recovery": 0,
+          "family_safe": 21,
+          "selected_live": 13,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 3,
+          "soft_timeout_seconds": 15.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 3
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 36,
+          "selected_live": 13,
+          "precision_guarded_candidates": 17,
+          "upstream_family_safe_count": 21,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 10,
+        "selected_live_count": 13,
+        "upstream_family_safe_count": 21,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -8756,19 +8604,19 @@
         "Account Executive",
         "Key Account Manager",
         "Business Development Executive",
-        "Senior Business Development Executive",
+        "Business Development Executive",
+        "Business Development Executive",
         "Business Development Executive",
         "Key Account Manager",
         "Account Executive",
         "Business Development Manager",
-        "Manager / Sr. Manager - Business Development",
-        "Senior Business Development Executive"
+        "Business Development Manager"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 15,
+        "precision_guarded_candidates": 17,
         "exact_backup_candidates": 2,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 19,
+        "upstream_family_safe_count": 21,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -8776,7 +8624,7 @@
         "company_cap": 0,
         "company_title_cap": 2,
         "similarity_cap": 0,
-        "source_cap": 0,
+        "source_cap": 2,
         "post_selection_final_guard": 0
       }
     },
@@ -8785,7 +8633,7 @@
       "normalized_role": "customer success manager",
       "family_role": "customer success manager",
       "domain": "customer",
-      "elapsed_ms": 14844.68,
+      "elapsed_ms": 7933.26,
       "min_live": 10,
       "provider_plan": {
         "family_group": "customer",
@@ -8891,8 +8739,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 10262.63,
-          "avg_elapsed_ms": 10262.63,
+          "max_elapsed_ms": 5693.13,
+          "avg_elapsed_ms": 5693.13,
           "attempts": 1
         },
         "jooble": {
@@ -8904,16 +8752,16 @@
           "raw_returned": 80,
           "queries": [
             "account manager",
+            "customer success associate",
             "client success manager",
-            "customer success manager",
-            "customer success associate"
+            "customer success manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3901.79,
-          "avg_elapsed_ms": 2856.33,
+          "max_elapsed_ms": 2999.18,
+          "avg_elapsed_ms": 1889.07,
           "attempts": 4
         }
       },
@@ -9015,7 +8863,7 @@
       "normalized_role": "customer support specialist",
       "family_role": "customer support specialist",
       "domain": "customer",
-      "elapsed_ms": 18248.45,
+      "elapsed_ms": 7354.79,
       "min_live": 10,
       "provider_plan": {
         "family_group": "customer",
@@ -9121,8 +8969,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 13905.33,
-          "avg_elapsed_ms": 13905.33,
+          "max_elapsed_ms": 5160.74,
+          "avg_elapsed_ms": 5160.74,
           "attempts": 1
         },
         "jooble": {
@@ -9133,17 +8981,17 @@
           "errors": 0,
           "raw_returned": 80,
           "queries": [
+            "customer support specialist",
             "customer support executive",
             "customer support",
-            "customer support specialist",
             "customer care"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 7827.66,
-          "avg_elapsed_ms": 4383.73,
+          "max_elapsed_ms": 2204.53,
+          "avg_elapsed_ms": 1841.48,
           "attempts": 4
         }
       },
@@ -9177,7 +9025,7 @@
           "requests": 4,
           "raw_returned": 80,
           "precision_guarded": 5,
-          "exact_backup": 12,
+          "exact_backup": 11,
           "same_family_recovery": 0,
           "family_safe": 5,
           "selected_live": 5,
@@ -9193,7 +9041,7 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 83,
+          "collected_candidates": 81,
           "selected_live": 15,
           "precision_guarded_candidates": 29,
           "upstream_family_safe_count": 27,
@@ -9226,7 +9074,7 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 29,
-        "exact_backup_candidates": 12,
+        "exact_backup_candidates": 11,
         "same_family_recovery_candidates": 0,
         "upstream_family_safe_count": 27,
         "selected_count": 15
@@ -9245,7 +9093,7 @@
       "normalized_role": "support engineer",
       "family_role": "support engineer",
       "domain": "software",
-      "elapsed_ms": 7768.23,
+      "elapsed_ms": 5224.78,
       "min_live": 10,
       "provider_plan": {
         "family_group": "infra",
@@ -9349,8 +9197,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5170.6,
-          "avg_elapsed_ms": 5170.6,
+          "max_elapsed_ms": 3941.56,
+          "avg_elapsed_ms": 3941.56,
           "attempts": 1
         },
         "jooble": {
@@ -9368,8 +9216,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1349.78,
-          "avg_elapsed_ms": 1144.09,
+          "max_elapsed_ms": 1632.74,
+          "avg_elapsed_ms": 1329.26,
           "attempts": 2
         }
       },
@@ -9470,7 +9318,7 @@
       "normalized_role": "recruiter",
       "family_role": "recruiter",
       "domain": "people",
-      "elapsed_ms": 8386.41,
+      "elapsed_ms": 3776.16,
       "min_live": 10,
       "provider_plan": {
         "family_group": "people",
@@ -9572,15 +9420,15 @@
           "queries": [
             "talent acquisition recruiter",
             "recruiter",
-            "sourcing specialist",
-            "technical recruiter"
+            "technical recruiter",
+            "sourcing specialist"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4080.8,
-          "avg_elapsed_ms": 2707.22,
+          "max_elapsed_ms": 1683.53,
+          "avg_elapsed_ms": 1298.82,
           "attempts": 4
         }
       },
@@ -9596,7 +9444,7 @@
         "jooble": {
           "requests": 4,
           "raw_returned": 63,
-          "precision_guarded": 46,
+          "precision_guarded": 45,
           "exact_backup": 0,
           "same_family_recovery": 0,
           "family_safe": 16,
@@ -9622,9 +9470,9 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 46,
+          "collected_candidates": 45,
           "selected_live": 13,
-          "precision_guarded_candidates": 46,
+          "precision_guarded_candidates": 45,
           "upstream_family_safe_count": 16,
           "underfill_reason": "sufficient_live_supply"
         }
@@ -9647,13 +9495,13 @@
         "HR IT Recruiter",
         "HR Recruiter & Admin Manager",
         "HR Generalist",
+        "HR executive",
         "HR Executive",
         "HR Executive",
-        "HR Executive",
-        "HR executive"
+        "HR Executive"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 46,
+        "precision_guarded_candidates": 45,
         "exact_backup_candidates": 0,
         "same_family_recovery_candidates": 0,
         "upstream_family_safe_count": 16,
@@ -9673,7 +9521,7 @@
       "normalized_role": "recruiter",
       "family_role": "recruiter",
       "domain": "people",
-      "elapsed_ms": 4825.94,
+      "elapsed_ms": 5145.56,
       "min_live": 10,
       "provider_plan": {
         "family_group": "people",
@@ -9766,40 +9614,43 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 1,
-          "successes": 1,
+          "requests": 4,
+          "successes": 4,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 20,
+          "raw_returned": 80,
           "queries": [
-            "talent acquisition specialist"
+            "sourcing specialist",
+            "recruiter",
+            "talent acquisition specialist",
+            "recruitment specialist"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2124.55,
-          "avg_elapsed_ms": 2124.55,
-          "attempts": 1
+          "max_elapsed_ms": 3015.45,
+          "avg_elapsed_ms": 1880.22,
+          "attempts": 4
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 4,
+          "raw_returned": 80,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 4,
+          "raw_returned": 80,
           "precision_guarded": 0,
-          "exact_backup": 16,
+          "exact_backup": 18,
           "same_family_recovery": 0,
-          "family_safe": 15,
+          "family_safe": 22,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -9808,11 +9659,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 4,
+          "cancelled_pending_tasks": 1,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
+          "cancelled_and_drained_tasks": 1
         }
       ],
       "stage_results": [
@@ -9822,10 +9673,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 20,
+          "collected_candidates": 50,
           "selected_live": 13,
           "precision_guarded_candidates": 0,
-          "upstream_family_safe_count": 15,
+          "upstream_family_safe_count": 22,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -9833,7 +9684,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 22,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -9843,20 +9694,20 @@
       "top_selected_titles": [
         "Healthcare Recruiter",
         "Healthcare Recruiter",
-        "US IT Recruiter",
         "HR IT Recruiter",
+        "US IT Recruiter",
         "HR Recruiter & Admin Manager",
+        "HR IT Recruiter",
+        "HR Generalist",
         "HR Executive",
         "HR Executive",
-        "HR Executive",
-        "HR Executive",
-        "HR Executive"
+        "HR executive"
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 0,
-        "exact_backup_candidates": 16,
+        "exact_backup_candidates": 18,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 22,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -9864,7 +9715,7 @@
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 2,
+        "source_cap": 4,
         "post_selection_final_guard": 0
       }
     },
@@ -9873,7 +9724,7 @@
       "normalized_role": "hr manager",
       "family_role": "hr manager",
       "domain": "people",
-      "elapsed_ms": 4961.48,
+      "elapsed_ms": 3483.33,
       "min_live": 10,
       "provider_plan": {
         "family_group": "people",
@@ -9966,240 +9817,42 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 1,
-          "successes": 1,
+          "requests": 3,
+          "successes": 3,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 20,
+          "raw_returned": 60,
           "queries": [
-            "hr business partner"
+            "hr business partner",
+            "human resources manager",
+            "people operations manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 957.12,
-          "avg_elapsed_ms": 957.12,
-          "attempts": 1
+          "max_elapsed_ms": 1197.48,
+          "avg_elapsed_ms": 991.2,
+          "attempts": 3
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 3,
+          "raw_returned": 60,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "precision_guarded": 1,
-          "exact_backup": 10,
-          "same_family_recovery": 0,
-          "family_safe": 11,
-          "selected_live": 11,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 4,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
-        }
-      ],
-      "stage_results": [
-        {
-          "stage": "primary",
-          "sources": [
-            "adzuna",
-            "jooble"
-          ],
-          "collected_candidates": 20,
-          "selected_live": 11,
-          "precision_guarded_candidates": 1,
-          "upstream_family_safe_count": 11,
-          "underfill_reason": "sufficient_live_supply"
-        }
-      ],
-      "underfill": {
-        "reason": "sufficient_live_supply",
-        "required_live_floor": 10,
-        "selected_live_count": 11,
-        "upstream_family_safe_count": 11,
-        "timeout_sources": []
-      },
-      "selected_live_sources": {
-        "jooble": 11
-      },
-      "final_live_count": 11,
-      "top_selected_titles": [
-        "HR Manager",
-        "HR Executive",
-        "HR Executive",
-        "HR Executive",
-        "HR Executive",
-        "HR executive",
-        "HR Executive",
-        "HR Executive",
-        "HR Executive",
-        "HR Executive"
-      ],
-      "selection_debug_snapshot": {
-        "precision_guarded_candidates": 1,
-        "exact_backup_candidates": 10,
-        "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 11,
-        "selected_count": 11
-      },
-      "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 0,
-        "company_title_cap": 0,
-        "similarity_cap": 0,
-        "source_cap": 0,
-        "post_selection_final_guard": 0
-      }
-    },
-    {
-      "query": "HR Generalist",
-      "normalized_role": "hr manager",
-      "family_role": "hr manager",
-      "domain": "people",
-      "elapsed_ms": 4682.4,
-      "min_live": 10,
-      "provider_plan": {
-        "family_group": "people",
-        "dense_family": false,
-        "india_focused_location": true,
-        "active_sources": [
-          "adzuna",
-          "greenhouse",
-          "jobicy",
-          "jooble",
-          "lever",
-          "remotive",
-          "themuse"
-        ],
-        "primary_sources": [
-          "adzuna",
-          "jooble"
-        ],
-        "supplemental_sources": [
-          "jobicy",
-          "remotive",
-          "themuse",
-          "greenhouse"
-        ],
-        "fallback_sources": [
-          "lever"
-        ]
-      },
-      "provider_availability": [
-        {
-          "source": "jobicy",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "remotive",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "themuse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "greenhouse",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "lever",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "jooble",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "adzuna",
-          "status": "active",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "usajobs",
-          "status": "missing_credentials",
-          "selected_by_source": true,
-          "available": false
-        },
-        {
-          "source": "remoteok",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        },
-        {
-          "source": "arbeitnow",
-          "status": "inactive",
-          "selected_by_source": true,
-          "available": true
-        }
-      ],
-      "provider_attempts": {
-        "jooble": {
-          "requests": 1,
-          "successes": 1,
-          "skipped_budget": 0,
-          "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 20,
-          "queries": [
-            "hr manager"
-          ],
-          "stages": [
-            "primary"
-          ],
-          "error_samples": [],
-          "max_elapsed_ms": 1787.37,
-          "avg_elapsed_ms": 1787.37,
-          "attempts": 1
-        }
-      },
-      "provider_request_summary": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
-          "timeouts": 0,
-          "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 1,
-          "raw_returned": 20,
+          "requests": 3,
+          "raw_returned": 60,
           "precision_guarded": 2,
-          "exact_backup": 14,
+          "exact_backup": 24,
           "same_family_recovery": 0,
-          "family_safe": 15,
+          "family_safe": 26,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -10208,11 +9861,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 4,
+          "cancelled_pending_tasks": 2,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 4
+          "cancelled_and_drained_tasks": 2
         }
       ],
       "stage_results": [
@@ -10222,10 +9875,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 20,
+          "collected_candidates": 40,
           "selected_live": 13,
           "precision_guarded_candidates": 2,
-          "upstream_family_safe_count": 15,
+          "upstream_family_safe_count": 26,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -10233,7 +9886,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 26,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -10245,7 +9898,7 @@
         "HR Generalist",
         "HR Executive",
         "HR Executive",
-        "HR executive",
+        "HR Executive",
         "HR Executive",
         "HR Executive",
         "HR Executive",
@@ -10254,17 +9907,220 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 2,
-        "exact_backup_candidates": 14,
+        "exact_backup_candidates": 24,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 26,
         "selected_count": 13
       },
       "selection_rejections": {
         "final_guard": 0,
         "company_cap": 0,
-        "company_title_cap": 0,
+        "company_title_cap": 10,
         "similarity_cap": 0,
         "source_cap": 2,
+        "post_selection_final_guard": 0
+      }
+    },
+    {
+      "query": "HR Generalist",
+      "normalized_role": "hr manager",
+      "family_role": "hr manager",
+      "domain": "people",
+      "elapsed_ms": 4683.2,
+      "min_live": 10,
+      "provider_plan": {
+        "family_group": "people",
+        "dense_family": false,
+        "india_focused_location": true,
+        "active_sources": [
+          "adzuna",
+          "greenhouse",
+          "jobicy",
+          "jooble",
+          "lever",
+          "remotive",
+          "themuse"
+        ],
+        "primary_sources": [
+          "adzuna",
+          "jooble"
+        ],
+        "supplemental_sources": [
+          "jobicy",
+          "remotive",
+          "themuse",
+          "greenhouse"
+        ],
+        "fallback_sources": [
+          "lever"
+        ]
+      },
+      "provider_availability": [
+        {
+          "source": "jobicy",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "remotive",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "themuse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "greenhouse",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "lever",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "jooble",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "adzuna",
+          "status": "active",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "usajobs",
+          "status": "missing_credentials",
+          "selected_by_source": true,
+          "available": false
+        },
+        {
+          "source": "remoteok",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        },
+        {
+          "source": "arbeitnow",
+          "status": "inactive",
+          "selected_by_source": true,
+          "available": true
+        }
+      ],
+      "provider_attempts": {
+        "jooble": {
+          "requests": 4,
+          "successes": 4,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 80,
+          "queries": [
+            "people operations specialist",
+            "hr manager",
+            "hr specialist",
+            "hr generalist"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 2207.86,
+          "avg_elapsed_ms": 1696.51,
+          "attempts": 4
+        }
+      },
+      "provider_request_summary": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "provider_match_counts": {
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 80,
+          "precision_guarded": 3,
+          "exact_backup": 28,
+          "same_family_recovery": 0,
+          "family_safe": 29,
+          "selected_live": 13,
+          "timeouts": 0,
+          "errors": 0
+        }
+      },
+      "stage_short_circuits": [
+        {
+          "stage": "primary",
+          "cancelled_pending_tasks": 1,
+          "soft_timeout_seconds": 15.5,
+          "reason": "floor_reached",
+          "detached_pending_tasks": 0,
+          "cancelled_and_drained_tasks": 1
+        }
+      ],
+      "stage_results": [
+        {
+          "stage": "primary",
+          "sources": [
+            "adzuna",
+            "jooble"
+          ],
+          "collected_candidates": 56,
+          "selected_live": 13,
+          "precision_guarded_candidates": 3,
+          "upstream_family_safe_count": 29,
+          "underfill_reason": "sufficient_live_supply"
+        }
+      ],
+      "underfill": {
+        "reason": "sufficient_live_supply",
+        "required_live_floor": 10,
+        "selected_live_count": 13,
+        "upstream_family_safe_count": 29,
+        "timeout_sources": []
+      },
+      "selected_live_sources": {
+        "jooble": 13
+      },
+      "final_live_count": 13,
+      "top_selected_titles": [
+        "HR Manager",
+        "HR Generalist",
+        "HR Generalist",
+        "HR Executive",
+        "HR Executive",
+        "HR executive",
+        "HR Executive",
+        "HR Executive",
+        "HR Executive",
+        "HR Executive"
+      ],
+      "selection_debug_snapshot": {
+        "precision_guarded_candidates": 3,
+        "exact_backup_candidates": 28,
+        "same_family_recovery_candidates": 0,
+        "upstream_family_safe_count": 29,
+        "selected_count": 13
+      },
+      "selection_rejections": {
+        "final_guard": 0,
+        "company_cap": 0,
+        "company_title_cap": 8,
+        "similarity_cap": 0,
+        "source_cap": 4,
         "post_selection_final_guard": 0
       }
     },
@@ -10273,7 +10129,7 @@
       "normalized_role": "financial analyst",
       "family_role": "financial analyst",
       "domain": "finance",
-      "elapsed_ms": 9817.77,
+      "elapsed_ms": 5083.29,
       "min_live": 10,
       "provider_plan": {
         "family_group": "finance",
@@ -10379,8 +10235,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6657.61,
-          "avg_elapsed_ms": 6657.61,
+          "max_elapsed_ms": 3567.08,
+          "avg_elapsed_ms": 3567.08,
           "attempts": 1
         },
         "jooble": {
@@ -10393,15 +10249,15 @@
           "queries": [
             "fp&a analyst",
             "investment analyst",
-            "financial analyst",
-            "finance analyst"
+            "finance analyst",
+            "financial analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3099.03,
-          "avg_elapsed_ms": 2244.35,
+          "max_elapsed_ms": 1798.04,
+          "avg_elapsed_ms": 1378.67,
           "attempts": 4
         }
       },
@@ -10435,9 +10291,9 @@
           "requests": 4,
           "raw_returned": 66,
           "precision_guarded": 0,
-          "exact_backup": 7,
+          "exact_backup": 8,
           "same_family_recovery": 0,
-          "family_safe": 8,
+          "family_safe": 9,
           "selected_live": 0,
           "timeouts": 0,
           "errors": 0
@@ -10451,10 +10307,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 54,
+          "collected_candidates": 55,
           "selected_live": 13,
           "precision_guarded_candidates": 24,
-          "upstream_family_safe_count": 31,
+          "upstream_family_safe_count": 32,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -10462,7 +10318,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 31,
+        "upstream_family_safe_count": 32,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -10483,9 +10339,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 24,
-        "exact_backup_candidates": 7,
+        "exact_backup_candidates": 8,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 31,
+        "upstream_family_safe_count": 32,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -10502,7 +10358,7 @@
       "normalized_role": "accountant",
       "family_role": "accountant",
       "domain": "finance",
-      "elapsed_ms": 12007.9,
+      "elapsed_ms": 5951.38,
       "min_live": 10,
       "provider_plan": {
         "family_group": "finance",
@@ -10608,8 +10464,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 8840.98,
-          "avg_elapsed_ms": 8840.98,
+          "max_elapsed_ms": 4391.46,
+          "avg_elapsed_ms": 4391.46,
           "attempts": 1
         },
         "jooble": {
@@ -10621,16 +10477,16 @@
           "raw_returned": 74,
           "queries": [
             "bookkeeper",
-            "accountant",
             "tax accountant",
-            "staff accountant"
+            "staff accountant",
+            "accountant"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4202.69,
-          "avg_elapsed_ms": 3189.56,
+          "max_elapsed_ms": 2152.85,
+          "avg_elapsed_ms": 1644.52,
           "attempts": 4
         }
       },
@@ -10732,7 +10588,7 @@
       "normalized_role": "operations manager",
       "family_role": "operations manager",
       "domain": "operations",
-      "elapsed_ms": 7388.36,
+      "elapsed_ms": 4919.87,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -10825,42 +10681,43 @@
       ],
       "provider_attempts": {
         "jooble": {
-          "requests": 3,
-          "successes": 3,
+          "requests": 4,
+          "successes": 4,
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 60,
+          "raw_returned": 80,
           "queries": [
+            "operations coordinator",
             "operations manager",
             "operations lead",
-            "operations coordinator"
+            "business operations manager"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2176.68,
-          "avg_elapsed_ms": 1513.51,
-          "attempts": 3
+          "max_elapsed_ms": 2262.79,
+          "avg_elapsed_ms": 1741.44,
+          "attempts": 4
         }
       },
       "provider_request_summary": {
         "jooble": {
-          "requests": 3,
-          "raw_returned": 60,
+          "requests": 4,
+          "raw_returned": 80,
           "timeouts": 0,
           "errors": 0
         }
       },
       "provider_match_counts": {
         "jooble": {
-          "requests": 3,
-          "raw_returned": 60,
-          "precision_guarded": 2,
+          "requests": 4,
+          "raw_returned": 80,
+          "precision_guarded": 3,
           "exact_backup": 11,
           "same_family_recovery": 0,
-          "family_safe": 15,
+          "family_safe": 20,
           "selected_live": 13,
           "timeouts": 0,
           "errors": 0
@@ -10869,11 +10726,11 @@
       "stage_short_circuits": [
         {
           "stage": "primary",
-          "cancelled_pending_tasks": 2,
+          "cancelled_pending_tasks": 1,
           "soft_timeout_seconds": 15.5,
           "reason": "floor_reached",
           "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 2
+          "cancelled_and_drained_tasks": 1
         }
       ],
       "stage_results": [
@@ -10883,10 +10740,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 50,
+          "collected_candidates": 64,
           "selected_live": 13,
-          "precision_guarded_candidates": 2,
-          "upstream_family_safe_count": 15,
+          "precision_guarded_candidates": 3,
+          "upstream_family_safe_count": 20,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -10894,7 +10751,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 20,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -10905,27 +10762,27 @@
         "Business Operations Manager",
         "Business Operations Manager",
         "Manager Operations Excellence",
+        "Business Operations Manager",
         "Project Manager",
         "Project Manager",
         "IT Project Manager",
         "Junior Project Manager",
-        "Project Coordinator",
         "QA cum IT Project Coordinator",
         "Project Coordinator / Junior Project Manager"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 2,
+        "precision_guarded_candidates": 3,
         "exact_backup_candidates": 11,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 15,
+        "upstream_family_safe_count": 20,
         "selected_count": 13
       },
       "selection_rejections": {
         "final_guard": 0,
-        "company_cap": 0,
+        "company_cap": 1,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 0,
+        "source_cap": 1,
         "post_selection_final_guard": 0
       }
     },
@@ -10934,7 +10791,7 @@
       "normalized_role": "operations analyst",
       "family_role": "operations analyst",
       "domain": "operations",
-      "elapsed_ms": 9498.75,
+      "elapsed_ms": 4974.57,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -11040,8 +10897,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 6212.21,
-          "avg_elapsed_ms": 6212.21,
+          "max_elapsed_ms": 3333.84,
+          "avg_elapsed_ms": 3333.84,
           "attempts": 1
         },
         "jooble": {
@@ -11054,15 +10911,15 @@
           "queries": [
             "operations analyst",
             "strategy operations analyst",
-            "process analyst",
-            "business operations analyst"
+            "business operations analyst",
+            "process analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2473.37,
-          "avg_elapsed_ms": 2081.73,
+          "max_elapsed_ms": 1552.74,
+          "avg_elapsed_ms": 1259.53,
           "attempts": 4
         }
       },
@@ -11163,7 +11020,7 @@
       "normalized_role": "operations analyst",
       "family_role": "operations analyst",
       "domain": "operations",
-      "elapsed_ms": 6602.33,
+      "elapsed_ms": 5888.83,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -11255,6 +11112,24 @@
         }
       ],
       "provider_attempts": {
+        "adzuna": {
+          "requests": 1,
+          "successes": 1,
+          "skipped_budget": 0,
+          "timeouts": 0,
+          "errors": 0,
+          "raw_returned": 24,
+          "queries": [
+            "business operations analyst"
+          ],
+          "stages": [
+            "primary"
+          ],
+          "error_samples": [],
+          "max_elapsed_ms": 4353.15,
+          "avg_elapsed_ms": 4353.15,
+          "attempts": 1
+        },
         "jooble": {
           "requests": 4,
           "successes": 4,
@@ -11263,17 +11138,17 @@
           "errors": 0,
           "raw_returned": 58,
           "queries": [
+            "strategy operations analyst",
             "process analyst",
-            "business operations analyst",
             "operations analyst",
-            "strategy operations analyst"
+            "business operations analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2175.37,
-          "avg_elapsed_ms": 1564.48,
+          "max_elapsed_ms": 2901.7,
+          "avg_elapsed_ms": 1930.21,
           "attempts": 4
         }
       },
@@ -11283,31 +11158,39 @@
           "raw_returned": 58,
           "timeouts": 0,
           "errors": 0
-        }
-      },
-      "provider_match_counts": {
-        "jooble": {
-          "requests": 4,
-          "raw_returned": 58,
-          "precision_guarded": 0,
-          "exact_backup": 12,
-          "same_family_recovery": 0,
-          "family_safe": 27,
-          "selected_live": 11,
+        },
+        "adzuna": {
+          "requests": 1,
+          "raw_returned": 24,
           "timeouts": 0,
           "errors": 0
         }
       },
-      "stage_short_circuits": [
-        {
-          "stage": "primary",
-          "cancelled_pending_tasks": 1,
-          "soft_timeout_seconds": 15.5,
-          "reason": "floor_reached",
-          "detached_pending_tasks": 0,
-          "cancelled_and_drained_tasks": 1
+      "provider_match_counts": {
+        "adzuna": {
+          "requests": 1,
+          "raw_returned": 24,
+          "precision_guarded": 23,
+          "exact_backup": 1,
+          "same_family_recovery": 0,
+          "family_safe": 22,
+          "selected_live": 13,
+          "timeouts": 0,
+          "errors": 0
+        },
+        "jooble": {
+          "requests": 4,
+          "raw_returned": 58,
+          "precision_guarded": 0,
+          "exact_backup": 6,
+          "same_family_recovery": 0,
+          "family_safe": 22,
+          "selected_live": 0,
+          "timeouts": 0,
+          "errors": 0
         }
-      ],
+      },
+      "stage_short_circuits": [],
       "stage_results": [
         {
           "stage": "primary",
@@ -11315,49 +11198,49 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 35,
-          "selected_live": 11,
-          "precision_guarded_candidates": 0,
-          "upstream_family_safe_count": 27,
+          "collected_candidates": 59,
+          "selected_live": 13,
+          "precision_guarded_candidates": 23,
+          "upstream_family_safe_count": 44,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
       "underfill": {
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
-        "selected_live_count": 11,
-        "upstream_family_safe_count": 27,
+        "selected_live_count": 13,
+        "upstream_family_safe_count": 44,
         "timeout_sources": []
       },
       "selected_live_sources": {
-        "jooble": 11
+        "adzuna": 13
       },
-      "final_live_count": 11,
+      "final_live_count": 13,
       "top_selected_titles": [
-        "IT Business Analyst II",
-        "IT Business Analyst II",
-        "Business Development Executive",
-        "Business Analyst",
-        "Senior Business Analyst",
-        "Business Analyst",
-        "Business Analyst",
-        "Business Analyst (Pre Sales)",
-        "Sr. Business Analyst",
-        "Business Analyst"
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst",
+        "Business Operations Analyst"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 0,
-        "exact_backup_candidates": 12,
+        "precision_guarded_candidates": 23,
+        "exact_backup_candidates": 7,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 27,
-        "selected_count": 11
+        "upstream_family_safe_count": 44,
+        "selected_count": 13
       },
       "selection_rejections": {
-        "final_guard": 0,
-        "company_cap": 0,
-        "company_title_cap": 2,
+        "final_guard": 1,
+        "company_cap": 1,
+        "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 0,
+        "source_cap": 7,
         "post_selection_final_guard": 0
       }
     },
@@ -11366,7 +11249,7 @@
       "normalized_role": "operations analyst",
       "family_role": "operations analyst",
       "domain": "operations",
-      "elapsed_ms": 11001.43,
+      "elapsed_ms": 6291.09,
       "min_live": 10,
       "provider_plan": {
         "family_group": "operations",
@@ -11472,8 +11355,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 7355.42,
-          "avg_elapsed_ms": 7355.42,
+          "max_elapsed_ms": 4563.07,
+          "avg_elapsed_ms": 4563.07,
           "attempts": 1
         },
         "jooble": {
@@ -11484,8 +11367,8 @@
           "errors": 0,
           "raw_returned": 69,
           "queries": [
-            "operations analyst",
             "business operations analyst",
+            "operations analyst",
             "process analyst",
             "supply chain analyst"
           ],
@@ -11493,8 +11376,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2897.09,
-          "avg_elapsed_ms": 2071.29,
+          "max_elapsed_ms": 2419.92,
+          "avg_elapsed_ms": 1843.55,
           "attempts": 4
         }
       },
@@ -11528,9 +11411,9 @@
           "requests": 4,
           "raw_returned": 69,
           "precision_guarded": 0,
-          "exact_backup": 4,
+          "exact_backup": 9,
           "same_family_recovery": 0,
-          "family_safe": 5,
+          "family_safe": 10,
           "selected_live": 0,
           "timeouts": 0,
           "errors": 0
@@ -11547,7 +11430,7 @@
           "collected_candidates": 69,
           "selected_live": 13,
           "precision_guarded_candidates": 22,
-          "upstream_family_safe_count": 25,
+          "upstream_family_safe_count": 30,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -11555,7 +11438,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 13,
-        "upstream_family_safe_count": 25,
+        "upstream_family_safe_count": 30,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -11576,9 +11459,9 @@
       ],
       "selection_debug_snapshot": {
         "precision_guarded_candidates": 22,
-        "exact_backup_candidates": 4,
+        "exact_backup_candidates": 9,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 25,
+        "upstream_family_safe_count": 30,
         "selected_count": 13
       },
       "selection_rejections": {
@@ -11595,7 +11478,7 @@
       "normalized_role": "solutions architect",
       "family_role": "solutions architect",
       "domain": "software",
-      "elapsed_ms": 7348.53,
+      "elapsed_ms": 4189.93,
       "min_live": 10,
       "provider_plan": {
         "family_group": "infra",
@@ -11699,8 +11582,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 3597.9,
-          "avg_elapsed_ms": 3597.9,
+          "max_elapsed_ms": 2394.27,
+          "avg_elapsed_ms": 2394.27,
           "attempts": 1
         },
         "jooble": {
@@ -11718,8 +11601,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 1333.71,
-          "avg_elapsed_ms": 1258.65,
+          "max_elapsed_ms": 964.84,
+          "avg_elapsed_ms": 954.87,
           "attempts": 2
         }
       },
@@ -11821,7 +11704,7 @@
       "normalized_role": "enterprise applications engineer",
       "family_role": "enterprise applications engineer",
       "domain": "software",
-      "elapsed_ms": 17132.92,
+      "elapsed_ms": 7035.53,
       "min_live": 10,
       "provider_plan": {
         "family_group": "enterprise",
@@ -11915,22 +11798,24 @@
       "provider_attempts": {
         "adzuna": {
           "requests": 3,
-          "successes": 3,
+          "successes": 2,
           "skipped_budget": 0,
           "timeouts": 0,
-          "errors": 0,
-          "raw_returned": 72,
+          "errors": 1,
+          "raw_returned": 48,
           "queries": [
             "salesforce business analyst",
-            "salesforce consultant",
-            "salesforce admin"
+            "salesforce admin",
+            "salesforce consultant"
           ],
           "stages": [
             "primary"
           ],
-          "error_samples": [],
-          "max_elapsed_ms": 7240.24,
-          "avg_elapsed_ms": 6807.88,
+          "error_samples": [
+            "Client error '429 Too Many Requests' for url 'https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=4145db51&app_key=f4db8ea08c027d823734a6086b3d3dd4&results_per_page=24&what=salesforce+business+analyst&content-type=application%2Fjson'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+          ],
+          "max_elapsed_ms": 3795.23,
+          "avg_elapsed_ms": 3594.55,
           "attempts": 3
         },
         "jooble": {
@@ -11942,16 +11827,16 @@
           "raw_returned": 65,
           "queries": [
             "salesforce functional consultant",
+            "salesforce admin",
             "salesforce consultant",
-            "salesforce business analyst",
-            "salesforce admin"
+            "salesforce business analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2705.56,
-          "avg_elapsed_ms": 1941.51,
+          "max_elapsed_ms": 1626.46,
+          "avg_elapsed_ms": 1269.05,
           "attempts": 4
         }
       },
@@ -11964,22 +11849,22 @@
         },
         "adzuna": {
           "requests": 3,
-          "raw_returned": 72,
+          "raw_returned": 48,
           "timeouts": 0,
-          "errors": 0
+          "errors": 1
         }
       },
       "provider_match_counts": {
         "adzuna": {
           "requests": 3,
-          "raw_returned": 72,
-          "precision_guarded": 43,
-          "exact_backup": 11,
+          "raw_returned": 48,
+          "precision_guarded": 25,
+          "exact_backup": 9,
           "same_family_recovery": 0,
-          "family_safe": 54,
+          "family_safe": 37,
           "selected_live": 14,
           "timeouts": 0,
-          "errors": 0
+          "errors": 1
         },
         "jooble": {
           "requests": 4,
@@ -12001,10 +11886,10 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 105,
+          "collected_candidates": 85,
           "selected_live": 15,
-          "precision_guarded_candidates": 44,
-          "upstream_family_safe_count": 55,
+          "precision_guarded_candidates": 26,
+          "upstream_family_safe_count": 38,
           "underfill_reason": "sufficient_live_supply"
         }
       ],
@@ -12012,7 +11897,7 @@
         "reason": "sufficient_live_supply",
         "required_live_floor": 10,
         "selected_live_count": 15,
-        "upstream_family_safe_count": 55,
+        "upstream_family_safe_count": 38,
         "timeout_sources": []
       },
       "selected_live_sources": {
@@ -12021,30 +11906,30 @@
       },
       "final_live_count": 15,
       "top_selected_titles": [
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst",
-        "Salesforce Business Analyst"
+        "Salesforce Administrator & CPQ Specialist",
+        "Salesforce Admin",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant",
+        "Salesforce Consultant"
       ],
       "selection_debug_snapshot": {
-        "precision_guarded_candidates": 44,
-        "exact_backup_candidates": 11,
+        "precision_guarded_candidates": 26,
+        "exact_backup_candidates": 9,
         "same_family_recovery_candidates": 0,
-        "upstream_family_safe_count": 55,
+        "upstream_family_safe_count": 38,
         "selected_count": 15
       },
       "selection_rejections": {
-        "final_guard": 8,
+        "final_guard": 2,
         "company_cap": 0,
         "company_title_cap": 0,
         "similarity_cap": 0,
-        "source_cap": 143,
+        "source_cap": 68,
         "post_selection_final_guard": 0
       }
     },
@@ -12053,7 +11938,7 @@
       "normalized_role": "enterprise applications engineer",
       "family_role": "enterprise applications engineer",
       "domain": "software",
-      "elapsed_ms": 14618.77,
+      "elapsed_ms": 9368.58,
       "min_live": 10,
       "provider_plan": {
         "family_group": "enterprise",
@@ -12154,15 +12039,15 @@
           "raw_returned": 72,
           "queries": [
             "salesforce consultant",
-            "enterprise applications engineer",
-            "salesforce administrator"
+            "salesforce administrator",
+            "enterprise applications engineer"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5847.24,
-          "avg_elapsed_ms": 5412.82,
+          "max_elapsed_ms": 5937.32,
+          "avg_elapsed_ms": 5713.44,
           "attempts": 3
         },
         "jooble": {
@@ -12182,8 +12067,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 4643.08,
-          "avg_elapsed_ms": 3569.7,
+          "max_elapsed_ms": 3500.17,
+          "avg_elapsed_ms": 2072.85,
           "attempts": 4
         }
       },
@@ -12283,57 +12168,52 @@
   ],
   "summary": {
     "query_count": 56,
-    "avg_elapsed_ms": 9100.17,
-    "avg_final_live_count": 13.68,
+    "avg_elapsed_ms": 4709.79,
+    "avg_final_live_count": 13.73,
     "below_min_live_queries": [],
-    "underfilled_queries": [
-      "Database Engineer"
-    ],
-    "timeout_queries": [
-      "Database Engineer",
-      "Product Manager"
-    ],
+    "underfilled_queries": [],
+    "timeout_queries": [],
     "selector_over_pruning_queries": [],
     "provider_rollup": {
       "adzuna": {
-        "attempts": 36,
-        "successes": 34,
+        "attempts": 34,
+        "successes": 33,
         "skipped_budget": 0,
-        "timeouts": 2,
-        "errors": 2,
-        "raw_returned": 812
+        "timeouts": 0,
+        "errors": 1,
+        "raw_returned": 788
       },
       "jobicy": {
-        "attempts": 4,
+        "attempts": 3,
         "successes": 3,
-        "skipped_budget": 0,
-        "timeouts": 1,
-        "errors": 1,
-        "raw_returned": 18
-      },
-      "jooble": {
-        "attempts": 131,
-        "successes": 131,
         "skipped_budget": 0,
         "timeouts": 0,
         "errors": 0,
-        "raw_returned": 2364
+        "raw_returned": 18
+      },
+      "jooble": {
+        "attempts": 143,
+        "successes": 143,
+        "skipped_budget": 0,
+        "timeouts": 0,
+        "errors": 0,
+        "raw_returned": 2631
       },
       "remotive": {
-        "attempts": 10,
-        "successes": 6,
+        "attempts": 7,
+        "successes": 7,
         "skipped_budget": 0,
-        "timeouts": 4,
-        "errors": 4,
-        "raw_returned": 126
+        "timeouts": 0,
+        "errors": 0,
+        "raw_returned": 147
       },
       "themuse": {
-        "attempts": 2,
+        "attempts": 1,
         "successes": 1,
         "skipped_budget": 0,
-        "timeouts": 1,
-        "errors": 1,
-        "raw_returned": 19
+        "timeouts": 0,
+        "errors": 0,
+        "raw_returned": 0
       }
     }
   }
