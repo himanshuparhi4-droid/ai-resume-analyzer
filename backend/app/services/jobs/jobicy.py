@@ -127,20 +127,31 @@ class JobicyProvider:
             }
             jobs.append(item)
 
-        ranked = sorted(
-            jobs,
-            key=lambda item: (
-                role_title_alignment_score(
-                    query,
-                    str(item.get("title", "")),
-                    description=str(item.get("description", "")),
-                    tags=item.get("tags") or [],
+        if settings.environment == "production":
+            ranked = sorted(
+                jobs,
+                key=lambda item: (
+                    float((item.get("normalized_data") or {}).get("title_alignment_score") or 0.0),
+                    float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0),
+                    self._location_score(location, item.get("location", "")),
                 ),
-                role_fit_score(query, item),
-                self._location_score(location, item.get("location", "")),
-            ),
-            reverse=True,
-        )
+                reverse=True,
+            )
+        else:
+            ranked = sorted(
+                jobs,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    ),
+                    role_fit_score(query, item),
+                    self._location_score(location, item.get("location", "")),
+                ),
+                reverse=True,
+            )
         return ranked[: max(limit * 2, 20)]
 
     def _parse_datetime(self, value: str | None) -> datetime | None:

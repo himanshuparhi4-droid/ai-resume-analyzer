@@ -78,13 +78,17 @@ class USAJobsProvider:
         return sorted(
             ranked_pool,
             key=lambda item: (
-                role_title_alignment_score(
+                float((item.get("normalized_data") or {}).get("title_alignment_score") or 0.0)
+                if settings.environment == "production"
+                else role_title_alignment_score(
                     query,
                     str(item.get("title", "")),
                     description=str(item.get("description", "")),
                     tags=item.get("tags") or [],
                 ),
-                role_fit_score(query, item),
+                float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0)
+                if settings.environment == "production"
+                else role_fit_score(query, item),
             ),
             reverse=True,
         )[:limit]

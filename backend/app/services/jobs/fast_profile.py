@@ -45,6 +45,7 @@ def build_fast_requirement_profile(
 
     tag_list = [str(tag).strip() for tag in tags if str(tag).strip()]
     title_alignment = role_title_alignment_score(query, title, description=description[:500], tags=tag_list)
+    fast_role_fit = round(max(0.0, min(14.0, title_alignment / 2.8)), 2)
     requirement_quality = 18.0 if title_alignment > 0 else 10.0
     if not ordered_skills:
         requirement_quality = 6.0
@@ -71,6 +72,8 @@ def build_fast_requirement_profile(
         "skill_weights": skill_weights,
         "skill_evidence": skill_evidence,
         "skill_extraction_mode": "production-fast-role-prior",
+        "title_alignment_score": title_alignment,
+        "role_fit_score": fast_role_fit,
         "requirement_quality": requirement_quality,
         "normalization_version": JOB_REQUIREMENT_PROFILE_VERSION,
     }

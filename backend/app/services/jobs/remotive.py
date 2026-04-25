@@ -106,6 +106,16 @@ class RemotiveProvider:
             }
             jobs.append(item)
 
+        if settings.environment == "production":
+            return sorted(
+                jobs,
+                key=lambda item: (
+                    float((item.get("normalized_data") or {}).get("title_alignment_score") or 0.0),
+                    float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0),
+                    1 if item.get("remote") else 0,
+                ),
+                reverse=True,
+            )[:request_limit]
         return sorted(
             jobs,
             key=lambda item: (

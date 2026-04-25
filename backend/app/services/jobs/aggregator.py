@@ -260,13 +260,25 @@ class JobAggregator:
 
     def _annotate_item_scores(self, *, query: str, location: str, item: dict) -> None:
         normalized = item.setdefault("normalized_data", {})
-        normalized["title_alignment_score"] = role_title_alignment_score(
-            query,
-            str(item.get("title", "")),
-            description=str(item.get("description", "")),
-            tags=item.get("tags") or [],
-        )
-        normalized["role_fit_score"] = role_fit_score(query, item)
+        scoring_item = item
+        scoring_description = str(item.get("description", ""))
+        if settings.environment == "production" and len(scoring_description) > 700:
+            scoring_description = scoring_description[:700]
+            scoring_item = {**item, "description": scoring_description}
+        if normalized.get("title_alignment_score") is None:
+            normalized["title_alignment_score"] = role_title_alignment_score(
+                query,
+                str(item.get("title", "")),
+                description=scoring_description,
+                tags=item.get("tags") or [],
+            )
+        cached_role_fit = normalized.get("role_fit_score")
+        try:
+            cached_role_fit_value = float(cached_role_fit)
+        except (TypeError, ValueError):
+            cached_role_fit_value = 0.0
+        if cached_role_fit is None or (settings.environment == "production" and cached_role_fit_value < 1.5):
+            normalized["role_fit_score"] = role_fit_score(query, scoring_item)
         normalized["location_alignment_score"] = self._location_alignment_score(location, item)
         normalized["listing_quality_score"] = self._listing_quality_score(query, item)
         normalized["market_quality_score"] = self._market_quality_score(query, location, item)
@@ -493,7 +505,9 @@ class JobAggregator:
                 return 3 if india_focused_location else 2
             if canonical_query_role == "database engineer":
                 return 4 if india_focused_location else 3
-            if security_analyst_style or generic_security_query or weak_software_family:
+            if security_analyst_style or generic_security_query:
+                return 3 if india_focused_location else 1
+            if weak_software_family:
                 return 2 if india_focused_location else 1
             if family_group in {"software", "security", "infra"} and not india_focused_location:
                 return 1

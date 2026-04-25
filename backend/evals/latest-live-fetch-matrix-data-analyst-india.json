@@ -8,7 +8,7 @@
       "normalized_role": "data analyst",
       "family_role": "data analyst",
       "domain": "data",
-      "elapsed_ms": 9128.98,
+      "elapsed_ms": 10928.29,
       "min_live": 7,
       "provider_plan": {
         "family_group": "data",
@@ -111,8 +111,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5628.25,
-          "avg_elapsed_ms": 5628.25,
+          "max_elapsed_ms": 5546.14,
+          "avg_elapsed_ms": 5546.14,
           "attempts": 1
         },
         "jooble": {
@@ -130,8 +130,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 2038.27,
-          "avg_elapsed_ms": 1829.88,
+          "max_elapsed_ms": 5025.57,
+          "avg_elapsed_ms": 3382.73,
           "attempts": 2
         }
       },
@@ -231,7 +231,7 @@
   ],
   "summary": {
     "query_count": 1,
-    "avg_elapsed_ms": 9128.98,
+    "avg_elapsed_ms": 10928.29,
     "avg_final_live_count": 18.0,
     "below_min_live_queries": [],
     "underfilled_queries": [],

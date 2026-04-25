@@ -191,21 +191,33 @@ class TheMuseProvider:
             }
             enriched_jobs.append(item)
 
-        ranked = sorted(
-            enriched_jobs,
-            key=lambda item: (
-                role_title_alignment_score(
-                    query,
-                    str(item.get("title", "")),
-                    description=str(item.get("description", "")),
-                    tags=item.get("tags") or [],
+        if settings.environment == "production":
+            ranked = sorted(
+                enriched_jobs,
+                key=lambda item: (
+                    float((item.get("normalized_data") or {}).get("title_alignment_score") or 0.0),
+                    float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0),
+                    self._location_score(location_value, item.get("location", "")),
+                    1 if item.get("remote") else 0,
                 ),
-                role_fit_score(query, item),
-                self._location_score(location_value, item.get("location", "")),
-                1 if item.get("remote") else 0,
-            ),
-            reverse=True,
-        )
+                reverse=True,
+            )
+        else:
+            ranked = sorted(
+                enriched_jobs,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    ),
+                    role_fit_score(query, item),
+                    self._location_score(location_value, item.get("location", "")),
+                    1 if item.get("remote") else 0,
+                ),
+                reverse=True,
+            )
         return ranked[: max(limit * 2, 16 if settings.environment == "production" else 32)]
 
     def _parse_datetime(self, value: str | None) -> datetime | None:

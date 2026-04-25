@@ -77,7 +77,9 @@ class RemoteOKProvider:
         ranked = sorted(
             jobs,
             key=lambda item: (
-                role_fit_score(query, item),
+                float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0)
+                if settings.environment == "production"
+                else role_fit_score(query, item),
                 self._tag_overlap(query, item.get("tags", [])),
                 self._location_score(location, item.get("location", "")),
             ),

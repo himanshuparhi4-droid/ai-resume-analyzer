@@ -88,7 +88,9 @@ class ArbeitnowProvider:
         ranked = sorted(
             collected,
             key=lambda item: (
-                role_fit_score(query, item),
+                float((item.get("normalized_data") or {}).get("role_fit_score") or 0.0)
+                if settings.environment == "production"
+                else role_fit_score(query, item),
                 self._location_score(location, item.get("location", "")),
                 1 if item.get("remote") else 0,
             ),
