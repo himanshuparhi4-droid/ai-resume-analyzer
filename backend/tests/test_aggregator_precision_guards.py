@@ -298,7 +298,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "greenhouse", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["remotive", "greenhouse", "themuse", "jobicy"])
         self.assertEqual(plan["fallback_sources"], [])
 
     def test_soc_analyst_global_search_caps_slow_primary_fanout(self) -> None:
@@ -329,8 +330,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "jobicy", "jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["remotive", "jobicy", "greenhouse", "themuse"])
 
     def test_data_analyst_provider_plan_prioritizes_fast_high_yield_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -339,8 +340,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
-        self.assertEqual(plan["supplemental_sources"], ["jooble"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["remotive", "themuse", "jobicy", "greenhouse"])
 
     def test_data_analyst_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -351,7 +352,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         )
 
         self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
 
     def test_cybersecurity_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -361,8 +362,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
 
-        self.assertEqual(plan["primary_sources"], ["jooble", "adzuna", "remotive", "jobicy"])
-        self.assertEqual(plan["supplemental_sources"], ["themuse", "greenhouse"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -371,8 +372,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"], ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"])
-        self.assertEqual(plan["supplemental_sources"], ["jooble"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["remotive", "themuse", "jobicy", "greenhouse"])
 
     def test_frontend_developer_global_caps_jooble_to_single_query(self) -> None:
         provider = type("Provider", (), {"source_name": "jooble", "supports_query_variations": True})()
@@ -687,7 +688,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="India",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][:4], ["greenhouse", "remotive", "jobicy", "jooble"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
         self.assertNotIn("indianapi", plan["primary_sources"])
         self.assertNotIn("indianapi", plan["supplemental_sources"])
 
@@ -706,6 +708,34 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertIn("themuse", plan["supplemental_sources"])
         self.assertNotIn("themuse", plan["primary_sources"])
 
+    def test_enterprise_india_provider_plan_prioritizes_location_aware_sources(self) -> None:
+        source_groups = {
+            "adzuna": [object()],
+            "greenhouse": [object()],
+            "jobicy": [object()],
+            "jooble": [object()],
+            "remotive": [object()],
+            "themuse": [object()],
+        }
+        plan = self.aggregator._build_production_provider_plan(
+            query="Salesforce Admin",
+            location="India",
+            source_groups=source_groups,
+        )
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["jobicy", "remotive", "themuse", "greenhouse"])
+
+    def test_enterprise_india_allows_extra_adzuna_variation_for_platform_supply(self) -> None:
+        provider = type("Provider", (), {"source_name": "adzuna", "supports_query_variations": True})()
+        previous_environment = settings.environment
+        settings.environment = "production"
+        try:
+            queries = self.aggregator._search_queries(provider, "Enterprise Applications Engineer", "India")
+        finally:
+            settings.environment = previous_environment
+        self.assertGreaterEqual(len(queries), 3)
+        self.assertIn("salesforce administrator", queries)
+
     def test_web_developer_prioritizes_fast_frontend_sources(self) -> None:
         source_groups = {
             "adzuna": [object()],
@@ -720,9 +750,9 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
         self.assertGreaterEqual(len(plan["supplemental_sources"]), 1)
-        self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
+        self.assertEqual(plan["supplemental_sources"], ["remotive", "jobicy", "greenhouse", "themuse"])
         self.assertEqual(plan["fallback_sources"], [])
 
     def test_web_developer_uses_lever_as_late_recovery_source_when_available(self) -> None:
@@ -739,8 +769,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             location="Global",
             source_groups=source_groups,
         )
-        self.assertEqual(plan["primary_sources"][:3], ["remotive", "jobicy", "jooble"])
-        self.assertEqual(plan["supplemental_sources"][:2], ["greenhouse", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["jooble"])
+        self.assertEqual(plan["supplemental_sources"][:3], ["remotive", "jobicy", "greenhouse"])
         self.assertEqual(plan["fallback_sources"], ["lever"])
 
     def test_dense_underfill_grace_window_extends_underfilled_primary_stage(self) -> None:
@@ -1172,7 +1202,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             12,
         )
 
-    def test_dense_india_role_can_fill_requested_eighteen_from_distinct_live_matches(self) -> None:
+    def test_dense_india_role_can_fill_capped_fifteen_from_distinct_live_matches(self) -> None:
         jobs = []
         sources = ["jooble", "adzuna", "jobicy", "remotive", "themuse", "greenhouse"]
         for index in range(1, 19):
@@ -1202,13 +1232,13 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             limit=18,
         )
 
-        self.assertEqual(len(selected), 18)
+        self.assertEqual(len(selected), 15)
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
-        self.assertEqual(debug["target_live_count"], 18)
-        self.assertEqual(debug["underfill"]["required_live_floor"], 18)
+        self.assertEqual(debug["target_live_count"], 15)
+        self.assertEqual(debug["underfill"]["required_live_floor"], 12)
         self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
 
-    def test_generic_cybersecurity_india_can_fill_requested_eighteen_from_security_matches(self) -> None:
+    def test_generic_cybersecurity_india_can_fill_capped_fifteen_from_security_matches(self) -> None:
         jobs = []
         titles = [
             "Security Analyst",
@@ -1256,7 +1286,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             limit=18,
         )
 
-        self.assertEqual(len(selected), 18)
+        self.assertEqual(len(selected), 15)
         self.assertTrue(
             all(
                 any(token in item["title"].lower() for token in {"cybersecurity", "security", "soc", "vulnerability"})
@@ -1264,7 +1294,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             )
         )
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
-        self.assertEqual(debug["selected_count"], 18)
+        self.assertEqual(debug["selected_count"], 15)
         self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
 
     def test_dense_india_role_can_overflow_source_cap_after_clean_floor(self) -> None:
@@ -1315,10 +1345,76 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             limit=18,
         )
 
-        self.assertEqual(len(selected), 18)
+        self.assertEqual(len(selected), 15)
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
-        self.assertEqual(debug["selected_sources"], {"jooble": 18})
-        self.assertEqual(debug["india_target_fill_candidates"], 18)
+        self.assertEqual(debug["selected_sources"], {"jooble": 15})
+        self.assertGreaterEqual(debug["india_target_fill_candidates"], 15)
+
+    def test_placeholder_company_names_do_not_collapse_distinct_live_listings(self) -> None:
+        jobs = []
+        for index in range(1, 16):
+            jobs.append(
+                {
+                    "title": "SQL Developer",
+                    "company": "Unknown Company",
+                    "source": "jooble",
+                    "external_id": f"https://example.test/sql-developer/{index}",
+                    "url": f"https://example.test/sql-developer/{index}",
+                    "description": "Build SQL queries, database procedures, reporting views, and performance tuning workflows.",
+                    "location": "India",
+                    "tags": ["sql developer", "database developer"],
+                    "normalized_data": {
+                        "skills": ["sql", "postgresql", "mysql", "database design", "performance tuning"],
+                        "title_alignment_score": 22.0,
+                        "role_fit_score": 15.0,
+                        "market_quality_score": 28.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="SQL Developer",
+            location="India",
+            jobs=jobs,
+            limit=15,
+        )
+
+        self.assertEqual(len(selected), 15)
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertEqual(debug["selected_sources"], {"jooble": 15})
+
+    def test_trusted_distinct_feed_titles_can_fill_floor_for_database_aliases(self) -> None:
+        jobs = []
+        for index in range(1, 13):
+            jobs.append(
+                {
+                    "title": "Database Developer",
+                    "company": f"Database Co {index % 3}",
+                    "source": "jooble",
+                    "external_id": f"https://example.test/database-developer/{index}",
+                    "url": f"https://example.test/database-developer/{index}",
+                    "description": "Build SQL queries, database procedures, reporting views, and performance tuning workflows.",
+                    "location": "India",
+                    "tags": ["database developer", "sql developer"],
+                    "normalized_data": {
+                        "skills": ["sql", "postgresql", "mysql", "database design", "performance tuning"],
+                        "title_alignment_score": 20.0,
+                        "role_fit_score": 12.0,
+                        "market_quality_score": 28.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="SQL Developer",
+            location="India",
+            jobs=jobs,
+            limit=15,
+        )
+
+        self.assertGreaterEqual(len(selected), 10)
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
 
     def test_india_search_prefers_india_aligned_live_cards_before_global_fill(self) -> None:
         jobs = []

@@ -410,6 +410,12 @@ async def main() -> int:
     )
     parser.add_argument("--query", action="append", dest="queries", help="Optional role query to run. Repeat for multiple queries.")
     parser.add_argument(
+        "--inter-query-delay-ms",
+        type=int,
+        default=0,
+        help="Optional pause between role checks to avoid local DNS/API burst failures during large matrices.",
+    )
+    parser.add_argument(
         "--format",
         choices=("json", "pretty"),
         default="json",
@@ -422,7 +428,11 @@ async def main() -> int:
     settings.llm_provider = "disabled"
 
     queries = args.queries or PRESET_ROLE_MATRICES[args.preset]
-    results = [await run_case(query=query, location=args.location, limit=args.limit, min_live=args.min_live) for query in queries]
+    results = []
+    for index, query in enumerate(queries):
+        if index and args.inter_query_delay_ms > 0:
+            await asyncio.sleep(args.inter_query_delay_ms / 1000)
+        results.append(await run_case(query=query, location=args.location, limit=args.limit, min_live=args.min_live))
     summary = _summarize_results(results)
     payload = {
         "preset": args.preset,

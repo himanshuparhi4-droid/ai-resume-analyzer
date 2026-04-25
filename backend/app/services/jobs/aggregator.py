@@ -482,6 +482,8 @@ class JobAggregator:
         if source_name == "themuse" and family_group in {"data", "software", "security"}:
             return 1
         if source_name in {"adzuna", "jooble"}:
+            if india_focused_location and family_group in {"software", "infra", "security"}:
+                return 1 if source_name == "adzuna" else 2
             if data_analyst_style:
                 if india_focused_location and source_name == "adzuna":
                     return 1
@@ -498,10 +500,14 @@ class JobAggregator:
                 if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                     if family_group == "docs" and india_focused_location:
                         return 1
+                    if family_group == "enterprise" and india_focused_location:
+                        return 3
                     return 2 if india_focused_location else 1
                 if canonical_query_role == "database engineer":
                     return 2 if india_focused_location else 1
             if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                if family_group == "enterprise" and india_focused_location and source_name == "jooble":
+                    return 4
                 return 3 if india_focused_location else 2
             if canonical_query_role == "database engineer":
                 return 4 if india_focused_location else 3
@@ -562,50 +568,35 @@ class JobAggregator:
             supplemental_order: list[str] = []
         elif dense_family:
             if india_focused_location:
-                if security_analyst_style or generic_security_query:
-                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
-                    supplemental_order = ["themuse", "greenhouse"]
-                elif support_engineer_style:
-                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
-                    supplemental_order = ["themuse", "greenhouse"]
-                elif family_group == "data":
-                    # India data-role coverage is strongest from location-aware
-                    # sources. Keep the primary stage focused so Render free
-                    # instances spend their first budget where India jobs exist.
+                if family_group in {"data", "software", "infra", "security"}:
+                    # India coverage is strongest from location-aware sources.
+                    # Keep the first stage focused so Render free instances
+                    # spend their first budget where India jobs actually exist.
                     primary_order = ["adzuna", "jooble"]
-                    supplemental_order = ["jobicy", "remotive", "themuse"]
-                elif weak_software_family:
-                    primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
-                    supplemental_order = ["themuse", "adzuna"]
-                elif family_group in {"software", "infra"}:
-                    primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
-                    supplemental_order = ["themuse", "adzuna"]
-                elif family_group == "security":
-                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
-                    supplemental_order = ["themuse", "greenhouse"]
+                    supplemental_order = ["greenhouse", "jobicy", "remotive", "themuse"]
                 else:
                     primary_order = ["greenhouse", "jooble", "remotive"]
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
             elif family_group == "data":
                 if data_analyst_style:
-                    primary_order = ["remotive", "themuse", "jobicy", "adzuna", "greenhouse"]
-                    supplemental_order = ["jooble"]
+                    primary_order = ["adzuna", "jooble"]
+                    supplemental_order = ["remotive", "themuse", "jobicy", "greenhouse"]
                 else:
-                    primary_order = ["greenhouse", "remotive", "jobicy"]
-                    supplemental_order = ["themuse", "jooble", "adzuna"]
+                    primary_order = ["adzuna", "jooble"]
+                    supplemental_order = ["greenhouse", "remotive", "jobicy", "themuse"]
             elif security_analyst_style:
-                primary_order = ["remotive", "greenhouse", "themuse"]
-                supplemental_order = ["jobicy", "jooble", "adzuna"]
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["remotive", "greenhouse", "themuse", "jobicy"]
             elif weak_software_family:
-                primary_order = ["remotive", "jobicy", "jooble"]
-                supplemental_order = ["greenhouse", "themuse"]
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["remotive", "jobicy", "greenhouse", "themuse"]
                 fallback_order = ["lever"]
             elif family_group in {"software", "infra"}:
-                primary_order = ["remotive", "jobicy", "greenhouse"]
-                supplemental_order = ["jooble", "themuse", "adzuna"]
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["remotive", "jobicy", "greenhouse", "themuse"]
             elif family_group == "security":
-                primary_order = ["remotive", "greenhouse", "jobicy"]
-                supplemental_order = ["themuse", "jooble", "adzuna"]
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["remotive", "greenhouse", "jobicy", "themuse"]
             else:
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
@@ -625,7 +616,7 @@ class JobAggregator:
             supplemental_order = ["greenhouse"]
             fallback_order = ["lever"]
         elif family_group in {"enterprise", "docs", "leadership"}:
-            if india_focused_location and family_group == "docs":
+            if india_focused_location and family_group in {"docs", "enterprise"}:
                 primary_order = ["adzuna", "jooble"]
                 supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
             else:
@@ -1522,7 +1513,7 @@ class JobAggregator:
                 if provider_results:
                     absorb_results(provider_results)
                 preferred_live = self._select_production_live_jobs(query=query, location=location, jobs=collected, limit=limit)
-                stage_completion_floor = target_live_count if dense_role else live_floor
+                stage_completion_floor = live_floor
                 if len(preferred_live) >= stage_completion_floor:
                     if pending:
                         await _cancel_pending_tasks(
@@ -1601,7 +1592,7 @@ class JobAggregator:
         should_continue_after_primary = (
             dense_role
             and not sparse_role
-            and len(preferred_live) < target_live_count
+            and len(preferred_live) < live_floor
             and bool(supplemental_sources or fallback_sources)
             and _remaining_runtime_budget(reserve_seconds=2.0) > 1.5
         )
@@ -1647,7 +1638,7 @@ class JobAggregator:
                 bool(fallback_sources)
                 and dense_role
                 and not sparse_role
-                and len(preferred_live) < target_live_count
+                and len(preferred_live) < live_floor
                 and _remaining_runtime_budget(reserve_seconds=1.0) > 2.5
             )
             if len(preferred_live) >= live_floor and (supplemental_target_reached or not should_try_fallback_for_more):
@@ -1814,6 +1805,7 @@ class JobAggregator:
         query_profile = role_profile(query)
         exact_precision_query = self._uses_strict_precision_guard(query)
         target_live_count = self._production_live_target(query=query, limit=limit)
+        selection_limit = min(limit, settings.production_live_fetch_maximum)
         display_floor = self._production_display_floor(query=query, limit=limit)
         partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
         india_focused_location = self._is_india_focused_location(location)
@@ -1932,6 +1924,8 @@ class JobAggregator:
                     continue
                 source = str(item.get("source", "unknown")).lower()
                 company = self._query_signature(str(item.get("company", ""))) or "unknown"
+                if company in {"unknown", "unknown company", "confidential", "not specified", "n/a", "na"}:
+                    company = "unknown"
                 title_key = self._query_signature(str(item.get("title", ""))) or "unknown"
                 similarity_signature = self._job_similarity_signature(item)
                 if company == "unknown":
@@ -1965,6 +1959,18 @@ class JobAggregator:
                         )
                     )
                 )
+                trusted_distinct_feed_listing = (
+                    has_distinct_listing_id
+                    and source in {"adzuna", "jooble"}
+                    and len(selected) < display_floor
+                    and self._canonical_role_alignment(query, item) >= 0
+                    and (
+                        item in exact_backup_candidates
+                        or self._title_precision_score(query, item) >= 1
+                        or self._title_hint_overlap(query, item) >= 1
+                        or self._role_domain_match_score(query, item) >= 2
+                    )
+                )
                 if (
                     not india_focused_selection
                     and has_distinct_listing_id
@@ -1972,6 +1978,8 @@ class JobAggregator:
                     and len(selected) < display_floor
                 ):
                     company_title_limit = 3
+                elif trusted_distinct_feed_listing:
+                    company_title_limit = 4
                 elif strong_distinct_india_listing and len(selected) < display_floor:
                     company_title_limit = 3
                 elif (
@@ -2028,7 +2036,7 @@ class JobAggregator:
                 company_title_counts[company_title_key] = company_title_counts.get(company_title_key, 0) + 1
                 source_counts[source] = source_counts.get(source, 0) + 1
                 selected_signatures.add(similarity_signature)
-                if len(selected) >= limit:
+                if len(selected) >= selection_limit:
                     break
 
         strong_candidates = [item for item in ranked if self._is_production_live_candidate(query, location, item, strict=True)]
@@ -2148,8 +2156,8 @@ class JobAggregator:
                 post_filter_selected.append(item)
             elif isinstance(rejection_counts, dict):
                 rejection_counts["post_selection_final_guard"] += 1
-        selected = post_filter_selected
-        self.last_live_job_snapshot = copy.deepcopy(selected[:limit])
+        selected = post_filter_selected[:selection_limit]
+        self.last_live_job_snapshot = copy.deepcopy(selected[:selection_limit])
 
         filtered_source_counts: dict[str, int] = {}
         for item in selected:
@@ -2191,7 +2199,7 @@ class JobAggregator:
                 "errors": int(request_summary.get("errors", 0)),
             }
         timeout_sources = self._timeout_sources()
-        required_live_floor = target_live_count if self._is_dense_production_family(query) else min(display_floor, target_live_count)
+        required_live_floor = min(display_floor, target_live_count)
         if len(selected) >= required_live_floor:
             underfill_reason = "sufficient_live_supply"
         elif len(family_safe_candidates) >= required_live_floor:
@@ -2228,7 +2236,7 @@ class JobAggregator:
                 query,
                 selection_debug,
             )
-        return selected[:limit]
+        return selected[:selection_limit]
 
     def _passes_final_live_guard(self, query: str, item: dict) -> bool:
         query_domain = role_domain(query)
@@ -3027,7 +3035,7 @@ class JobAggregator:
         if is_sparse_live_market_role(query):
             return min(limit, 4)
         if self._is_dense_production_family(query):
-            return min(limit, settings.production_live_fetch_maximum)
+            return min(limit, 15, settings.production_live_fetch_maximum)
         return min(limit, max(PRODUCTION_MIN_LIVE_TARGET, settings.production_live_display_minimum, settings.production_live_fetch_minimum))
 
     def _production_display_floor(self, *, query: str, limit: int) -> int:
