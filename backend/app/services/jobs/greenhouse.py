@@ -38,22 +38,41 @@ _CURATED_GREENHOUSE_BOARDS = {
         "instacart",
     ],
     "software": [
+        "stripe",
+        "anthropic",
+        "cloudflare",
+        "datadog",
+        "mongodb",
+        "gitlab",
         "discord",
         "okta",
+        "zscaler",
         "asana",
+        "samsara",
         "robinhood",
+        "coinbase",
         "instacart",
         "affirm",
         "rubrik",
         "figma",
     ],
     "security": [
+        "stripe",
+        "anthropic",
+        "cloudflare",
         "okta",
+        "zscaler",
+        "datadog",
+        "gitlab",
+        "wizinc",
         "asana",
         "discord",
         "rubrik",
+        "samsara",
         "robinhood",
         "affirm",
+        "coinbase",
+        "mongodb",
         "lyft",
     ],
     "product": [
@@ -101,11 +120,11 @@ _ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
     "data analyst": ["yipitdata", "instacart", "affirm", "robinhood", "asana", "discord"],
     "data scientist": ["yipitdata", "asana", "affirm", "instacart", "robinhood", "discord"],
     "data engineer": ["yipitdata", "instacart", "asana", "affirm", "robinhood", "okta"],
-    "software engineer": ["okta", "discord", "asana", "figma", "robinhood", "affirm"],
+    "software engineer": ["stripe", "anthropic", "cloudflare", "datadog", "mongodb", "gitlab", "okta", "discord", "asana", "figma", "robinhood", "affirm"],
     "full stack developer": ["okta", "discord", "asana", "figma", "robinhood"],
     "frontend developer": ["figma", "discord", "asana", "okta", "robinhood"],
     "devops engineer": ["okta", "affirm", "instacart", "rubrik", "asana"],
-    "cybersecurity engineer": ["okta", "asana", "discord", "rubrik", "robinhood", "affirm", "lyft", "instacart"],
+    "cybersecurity engineer": ["stripe", "anthropic", "cloudflare", "okta", "zscaler", "datadog", "gitlab", "wizinc", "asana", "discord", "rubrik", "samsara", "robinhood", "affirm", "coinbase", "mongodb", "lyft", "instacart"],
     "solutions architect": ["okta", "rubrik", "affirm", "asana", "robinhood"],
     "support engineer": ["okta", "asana", "robinhood", "affirm"],
 }
@@ -218,10 +237,13 @@ class GreenhouseProvider:
                 board_budget = 1
             elif security_analyst_style:
                 # Analyst-shaped security searches usually get more value from
-                # one fast ATS-backed candidate than from broad board hydration.
-                detail_fetch_budget = min(max(limit // 2 + 1, 3), 4)
-                board_budget = 1
-            elif domain in {"software", "security"} or family_role in {"devops engineer", "qa engineer", "solutions architect"}:
+                # broad, index-only ATS coverage than from slow detail hydration.
+                detail_fetch_budget = min(max(limit + 5, 18), 24)
+                board_budget = 3
+            elif domain == "security":
+                detail_fetch_budget = min(max(limit + 5, 18), 24)
+                board_budget = 3
+            elif domain == "software" or family_role in {"devops engineer", "qa engineer", "solutions architect"}:
                 detail_fetch_budget = min(max(limit + 2, 10), 14)
                 board_budget = 2
             elif domain == "data" or family_role in {
@@ -418,15 +440,15 @@ class GreenhouseProvider:
             family_domain = role_domain(query) or role_domain(normalized)
             board_limit = {
                 "data": 5,
-                "software": 6,
-                "security": 7,
+                "software": 8,
+                "security": 8,
                 "product": 4,
                 "design": 3,
             }.get(family_domain, len(boards))
             if normalized in {"frontend developer", "mobile developer", "embedded engineer"}:
                 board_limit = min(board_limit, 2)
             if normalized == "cybersecurity engineer" and "analyst" in profile.head_terms:
-                board_limit = min(board_limit, 2)
+                board_limit = min(board_limit, 6)
             if india_focused_location:
                 board_limit = max(board_limit, 6)
             boards = boards[:board_limit]

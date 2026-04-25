@@ -355,7 +355,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
         self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
 
-    def test_cybersecurity_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
+    def test_cybersecurity_india_provider_plan_keeps_exact_pass_short(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
         plan = self.aggregator._build_production_provider_plan(
             query="cybersecurity",
@@ -363,8 +363,16 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
 
-        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
-        self.assertEqual(plan["supplemental_sources"], ["greenhouse", "jobicy", "remotive", "themuse"])
+        self.assertEqual(plan["primary_sources"], ["jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["adzuna", "greenhouse", "jobicy", "remotive", "themuse"])
+        self.assertEqual(
+            self.aggregator._production_search_query_cap(
+                source_name="jooble",
+                query="cybersecurity",
+                location="India",
+            ),
+            1,
+        )
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -1413,7 +1421,7 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertEqual(len(selected), 15)
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertEqual(debug["target_live_count"], 15)
-        self.assertEqual(debug["underfill"]["required_live_floor"], 12)
+        self.assertEqual(debug["underfill"]["required_live_floor"], 10)
         self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
 
     def test_generic_cybersecurity_india_can_fill_capped_fifteen_from_security_matches(self) -> None:
@@ -1474,6 +1482,59 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertEqual(debug["selected_count"], 15)
         self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
+
+    def test_security_aliases_recover_broader_security_family_without_sales_noise(self) -> None:
+        safe_titles = [
+            "Cloud Security Analyst",
+            "Application Security Engineer",
+            "Cyber Resilience Architect",
+            "Enterprise IAM Software Engineer",
+            "Security GRC Lead",
+            "Threat Detection Engineer",
+            "Vulnerability Management Specialist",
+            "Information Security Manager",
+            "SOC Analyst",
+            "Incident Response Engineer",
+            "Product Security Researcher",
+            "Privacy Security Engineer",
+        ]
+        noisy_titles = [
+            "Security Account Executive",
+            "Product Marketing Manager - Security",
+            "Legal Counsel, Privacy",
+        ]
+        jobs = []
+        for index, title in enumerate([*safe_titles, *noisy_titles], start=1):
+            jobs.append(
+                {
+                    "title": title,
+                    "company": f"Market Co {index}",
+                    "source": "greenhouse",
+                    "external_id": f"security-family-{index}",
+                    "url": f"https://example.test/security-family/{index}",
+                    "description": "Work across IAM, SIEM, incident response, vulnerability management, and security operations.",
+                    "location": "Global",
+                    "tags": ["security", "cybersecurity"],
+                    "normalized_data": {
+                        "skills": ["iam", "siem", "incident response", "vulnerability management"],
+                        "title_alignment_score": 12.0,
+                        "role_fit_score": 5.0,
+                        "market_quality_score": 120.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="Security Analyst",
+            location="Global",
+            jobs=jobs,
+            limit=15,
+        )
+
+        selected_titles = {item["title"] for item in selected}
+        self.assertGreaterEqual(len(selected), 10)
+        self.assertFalse(selected_titles & set(noisy_titles))
+        self.assertIn("security_recovery_candidates", self.aggregator.last_fetch_diagnostics["selection_debug"])
 
     def test_dense_india_role_can_overflow_source_cap_after_clean_floor(self) -> None:
         jobs = []

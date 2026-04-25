@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 import logging
 import re
@@ -49,13 +50,32 @@ class AdzunaProvider:
                 "ui/ux designer",
             }
         )
+        dense_tech_role = query_domain in {"data", "software", "security", "infra"} or canonical_query in {
+            "data analyst",
+            "software engineer",
+            "frontend developer",
+            "backend developer",
+            "web developer",
+            "devops engineer",
+            "security analyst",
+            "cybersecurity engineer",
+        }
 
         if settings.environment == "production":
             analyst_style = normalized_query == "data analyst"
-            results_per_page = min(max(limit * 2, 16), 20 if analyst_style else 24)
-            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 2, 20), 24)
+            if analyst_style:
+                target_candidates = min(max(limit * 2, 16), 20)
+                results_per_page = min(max(limit * 2, 16), 20)
+                extraction_limit = 750
+            elif dense_tech_role:
+                target_candidates = min(max(limit, 12), 15)
+                results_per_page = min(max(target_candidates, 12), 18)
+                extraction_limit = 650
+            else:
+                target_candidates = min(max(limit * 2, 20), 24)
+                results_per_page = min(max(limit * 2, 16), 24)
+                extraction_limit = 900
             page_count = 1
-            extraction_limit = 750 if analyst_style else 900
             enrichment_budget = target_candidates
         else:
             results_per_page = min(max(limit * 4, settings.production_live_candidate_fetch), 50)
@@ -171,7 +191,7 @@ class AdzunaProvider:
             )[:enrichment_budget]
 
         jobs = []
-        for item in ranked_seed:
+        for index, item in enumerate(ranked_seed, start=1):
             if settings.environment == "production":
                 requirement_profile = build_fast_requirement_profile(
                     query=query,
@@ -191,6 +211,8 @@ class AdzunaProvider:
                 **requirement_profile,
             }
             jobs.append(item)
+            if settings.environment == "production" and index % 4 == 0:
+                await asyncio.sleep(0)
 
         if settings.environment == "production":
             ranked = sorted(

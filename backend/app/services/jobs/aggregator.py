@@ -505,9 +505,11 @@ class JobAggregator:
         if source_name in {"adzuna", "jooble"}:
             if security_analyst_style or generic_security_query:
                 if india_focused_location:
-                    return 1 if source_name == "adzuna" else 2
+                    return 1
                 return 1
             if india_focused_location and family_group in {"software", "infra", "security"}:
+                if family_group == "security":
+                    return 1
                 return 1 if source_name == "adzuna" else 2
             if data_analyst_style:
                 if india_focused_location and source_name == "adzuna":
@@ -591,7 +593,14 @@ class JobAggregator:
             supplemental_order: list[str] = []
         elif dense_family:
             if india_focused_location:
-                if family_group in {"data", "software", "infra", "security"}:
+                if family_group == "security":
+                    # Security searches in India often return only one or two
+                    # exact-country jobs. Let Jooble prove that quickly, then
+                    # move to the role-accurate global fill before Render's
+                    # request budget is spent.
+                    primary_order = ["jooble"]
+                    supplemental_order = ["adzuna", "greenhouse", "jobicy", "remotive", "themuse"]
+                elif family_group in {"data", "software", "infra"}:
                     # India coverage is strongest from location-aware sources.
                     # Keep the first stage focused so Render free instances
                     # spend their first budget where India jobs actually exist.
@@ -2229,6 +2238,12 @@ class JobAggregator:
             family_candidates = [item for item in ranked if self._is_family_live_candidate(query, location, item)]
             selection_debug["family_candidates"] = len(family_candidates)
             maybe_add(family_candidates, cap_per_company=4)
+        if len(selected) < target_live_count and role_domain(query) == "security":
+            security_recovery_candidates = [
+                item for item in ranked if self._passes_security_family_recovery_guard(query, item)
+            ]
+            selection_debug["security_recovery_candidates"] = len(security_recovery_candidates)
+            maybe_add(security_recovery_candidates, cap_per_company=5, allow_source_overflow=True)
         if len(selected) < target_live_count:
             dense_jobicy_candidates = [
                 item
@@ -2336,17 +2351,33 @@ class JobAggregator:
             elif isinstance(rejection_counts, dict):
                 rejection_counts["post_selection_final_guard"] += 1
         selected = post_filter_selected[:selection_limit]
+        family_safe_candidates = [
+            item
+            for item in live_jobs
+            if not self._is_location_hard_mismatch(location, item) and self._passes_final_live_guard(query, item)
+        ]
+        if len(selected) < display_floor and len(family_safe_candidates) >= display_floor:
+            selected_keys = {
+                self._query_signature(item.get("external_id") or item.get("url") or self._job_similarity_signature(item))
+                for item in selected
+            }
+            safe_fill_added = 0
+            for item in family_safe_candidates:
+                fill_key = self._query_signature(item.get("external_id") or item.get("url") or self._job_similarity_signature(item))
+                if fill_key in selected_keys:
+                    continue
+                selected.append(item)
+                selected_keys.add(fill_key)
+                safe_fill_added += 1
+                if len(selected) >= min(selection_limit, display_floor):
+                    break
+            selection_debug["selector_safe_fill_candidates"] = safe_fill_added
         self.last_live_job_snapshot = copy.deepcopy(selected[:selection_limit])
 
         filtered_source_counts: dict[str, int] = {}
         for item in selected:
             source = str(item.get("source", "unknown")).lower()
             filtered_source_counts[source] = filtered_source_counts.get(source, 0) + 1
-        family_safe_candidates = [
-            item
-            for item in live_jobs
-            if not self._is_location_hard_mismatch(location, item) and self._passes_final_live_guard(query, item)
-        ]
         raw_source_counts = self._count_items_by_source(live_jobs)
         precision_source_counts = self._count_items_by_source(precision_guarded)
         backup_source_counts = self._count_items_by_source(exact_backup_candidates)
@@ -2437,6 +2468,8 @@ class JobAggregator:
             return False
         if self._passes_family_bridge_guard(query, item):
             return True
+        if self._passes_security_family_recovery_guard(query, item):
+            return True
         if normalized_query == "embedded engineer":
             has_embedded_signal = (
                 self._contains_phrase(title_text, "embedded engineer")
@@ -2515,6 +2548,55 @@ class JobAggregator:
         if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
             return False
         return True
+
+    def _passes_security_family_recovery_guard(self, query: str, item: dict) -> bool:
+        if role_domain(query) != "security":
+            return False
+        title_text = self._expanded_title_query_text(item)
+        if not title_text:
+            return False
+        if re.search(
+            r"\b(account executive|sales|marketing|product marketing|counsel|legal|driver|treasury)\b",
+            title_text,
+        ):
+            return False
+        security_signal = any(
+            self._contains_phrase(title_text, token)
+            for token in {
+                "application security",
+                "cloud security",
+                "cyber",
+                "cybersecurity",
+                "detection",
+                "grc",
+                "iam",
+                "identity",
+                "incident response",
+                "information security",
+                "privacy",
+                "security",
+                "soc",
+                "threat",
+                "trust",
+                "vulnerability",
+            }
+        )
+        role_signal = bool(
+            re.search(
+                r"\b(analyst|architect|consultant|director|engineer|hunter|lead|manager|operator|researcher|responder|specialist|tester)\b",
+                title_text,
+            )
+        )
+        if not (security_signal and role_signal):
+            return False
+        canonical_alignment = self._canonical_role_alignment(query, item)
+        title_overlap = self._title_hint_overlap(query, item)
+        domain_score = self._role_domain_match_score(query, item)
+        role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
+        market_quality = float((item.get("normalized_data") or {}).get("market_quality_score", 0.0))
+        if canonical_alignment < 0 and title_overlap == 0 and domain_score < 2:
+            return False
+        return domain_score >= 2 and (title_overlap >= 1 or role_fit >= 3.0 or market_quality >= 90.0)
 
     def _passes_family_bridge_guard(self, query: str, item: dict) -> bool:
         profile = role_profile(query)
@@ -2665,6 +2747,8 @@ class JobAggregator:
         if self._is_location_hard_mismatch(location, item):
             return False
         if self._passes_family_bridge_guard(query, item):
+            return True
+        if self._passes_security_family_recovery_guard(query, item):
             return True
         if canonical_alignment < 0:
             return False
@@ -3221,7 +3305,7 @@ class JobAggregator:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
         if self._is_dense_production_family(query):
-            return min(limit, max(6, settings.production_live_display_minimum))
+            return min(limit, PRODUCTION_MIN_LIVE_TARGET)
         return min(limit, max(PRODUCTION_MIN_LIVE_TARGET, min(settings.production_live_display_minimum, settings.production_live_fetch_minimum)))
 
     def _production_partial_live_floor(self, *, query: str, limit: int) -> int:
