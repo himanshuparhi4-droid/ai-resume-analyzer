@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,7 +17,17 @@ from app.models import analysis, job, resume, user  # noqa: F401
 from app.services.jobs.sync import JobSyncService
 
 scheduler = AsyncIOScheduler()
-BUILD_TAG = "2026-04-20-livefetch-debug-19"
+
+
+def _build_tag() -> str:
+    for env_name in ("RENDER_GIT_COMMIT", "GIT_COMMIT", "APP_BUILD_TAG"):
+        value = os.getenv(env_name, "").strip()
+        if value:
+            return value[:12] if env_name.endswith("COMMIT") else value
+    return "local-dev"
+
+
+BUILD_TAG = _build_tag()
 
 
 async def _scheduled_sync() -> None:
