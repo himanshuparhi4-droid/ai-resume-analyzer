@@ -177,6 +177,11 @@ class JobAggregator:
         self.providers = []
         self.last_fetch_diagnostics: dict = {}
         self.last_live_job_snapshot: list[dict] = []
+        self._query_signature_cache: dict[str, str] = {}
+        self._expanded_title_cache: dict[str, str] = {}
+        self._contains_phrase_cache: dict[tuple[str, str], bool] = {}
+        self._strict_precision_guard_cache: dict[str, bool] = {}
+        self._specialty_guard_cache: dict[str, bool] = {}
         if (settings.default_job_source or "").strip().lower() == "indianapi":
             logger.info("IndianAPI source is disabled for this build; falling back to the auto provider mix.")
         if settings.environment == "production":
@@ -212,6 +217,13 @@ class JobAggregator:
             self.providers.append(ArbeitnowProvider())
         if not self.providers:
             self.providers = [TheMuseProvider(), RemotiveProvider(), RemoteOKProvider(), ArbeitnowProvider()]
+
+    def _reset_request_memoization(self) -> None:
+        self._query_signature_cache.clear()
+        self._expanded_title_cache.clear()
+        self._contains_phrase_cache.clear()
+        self._strict_precision_guard_cache.clear()
+        self._specialty_guard_cache.clear()
 
     def _production_cache_key(self, *, query: str, location: str, limit: int) -> str:
         query_profile = role_profile(query)
@@ -1201,10 +1213,17 @@ class JobAggregator:
         return live_jobs
 
     def _query_signature(self, value: str) -> str:
-        raw_text = str(value or "").strip()
+        cache_key = str(value or "")
+        cached = self._query_signature_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        raw_text = cache_key.strip()
         raw_text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", raw_text)
         raw_text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", raw_text)
-        return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+ ]+", " ", raw_text.lower())).strip()
+        signature = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9+ ]+", " ", raw_text.lower())).strip()
+        if len(self._query_signature_cache) < 10000:
+            self._query_signature_cache[cache_key] = signature
+        return signature
 
     def _cache_query_bucket(self, query: str, item: dict) -> str:
         query_signature = self._query_signature(query)
@@ -1246,6 +1265,7 @@ class JobAggregator:
         location: str,
         limit: int,
     ) -> list[dict]:
+        self._reset_request_memoization()
         query_domain = role_domain(query)
         query_profile = role_profile(query)
         weak_software_family = self._is_weak_software_live_family(query)
@@ -1435,10 +1455,11 @@ class JobAggregator:
                     collected.append(item)
 
         def _selected_live_sources(selected_live: list[dict]) -> dict[str, int]:
-            return {
-                source: len([item for item in selected_live if item.get("source") == source])
-                for source in sorted({item.get("source", "unknown") for item in selected_live})
-            }
+            counts: dict[str, int] = {}
+            for item in selected_live:
+                source = str(item.get("source", "unknown"))
+                counts[source] = counts.get(source, 0) + 1
+            return dict(sorted(counts.items()))
 
         def _live_result_strength(selected_live: list[dict]) -> tuple[int, int, float]:
             if not selected_live:
@@ -3083,35 +3104,53 @@ class JobAggregator:
         return False
 
     def _uses_strict_precision_guard(self, query: str) -> bool:
+        cache_key = str(query or "")
+        cached = self._strict_precision_guard_cache.get(cache_key)
+        if cached is not None:
+            return cached
         profile = role_profile(query)
+        result: bool
         if profile.cleaned_query == profile.normalized_role:
-            return True
-        if len(profile.cleaned_query.split()) < 2:
-            return False
-        if profile.normalized_role == "frontend developer":
-            return False
-        alias_target = profile.family_role or profile.normalized_role
-        if not alias_target:
-            return False
-        known_aliases = {
-            self._query_signature(alias)
-            for alias in (
-                provider_query_variations(alias_target, "jobicy", production=True)
-                + production_query_variations(alias_target)
-            )
-            if alias
-        }
-        return profile.cleaned_query in known_aliases or profile.cleaned_query in {
-            self._query_signature(hint) for hint in role_title_hints(query)
-        }
+            result = True
+        elif len(profile.cleaned_query.split()) < 2:
+            result = False
+        elif profile.normalized_role == "frontend developer":
+            result = False
+        else:
+            alias_target = profile.family_role or profile.normalized_role
+            if not alias_target:
+                result = False
+            else:
+                known_aliases = {
+                    self._query_signature(alias)
+                    for alias in (
+                        provider_query_variations(alias_target, "jobicy", production=True)
+                        + production_query_variations(alias_target)
+                    )
+                    if alias
+                }
+                result = profile.cleaned_query in known_aliases or profile.cleaned_query in {
+                    self._query_signature(hint) for hint in role_title_hints(query)
+                }
+        if len(self._strict_precision_guard_cache) < 512:
+            self._strict_precision_guard_cache[cache_key] = result
+        return result
 
     def _expanded_title_query_text(self, item: dict) -> str:
         raw_title = str(item.get("title", "") or "")
+        cached = self._expanded_title_cache.get(raw_title)
+        if cached is not None:
+            return cached
         cleaned_title = self._query_signature(raw_title)
         expanded_title = self._query_signature(role_profile(raw_title).cleaned_query)
+        result: str
         if expanded_title and expanded_title != cleaned_title:
-            return f"{cleaned_title} {expanded_title}".strip()
-        return cleaned_title
+            result = f"{cleaned_title} {expanded_title}".strip()
+        else:
+            result = cleaned_title
+        if len(self._expanded_title_cache) < 5000:
+            self._expanded_title_cache[raw_title] = result
+        return result
 
     def _matched_title_hints(self, query: str, item: dict) -> set[str]:
         title = self._expanded_title_query_text(item)
@@ -3130,23 +3169,38 @@ class JobAggregator:
         return any(token in title_text for token in mobile_tokens) and not any(token in title_text for token in web_tokens)
 
     def _contains_phrase(self, haystack: str, needle: str) -> bool:
-        cleaned_haystack = re.sub(r"[^a-z0-9+ ]+", " ", str(haystack).lower()).strip()
+        haystack_text = str(haystack)
+        needle_text = str(needle)
+        cache_key: tuple[str, str] | None = None
+        if len(haystack_text) + len(needle_text) <= 600:
+            cache_key = (haystack_text, needle_text)
+            cached = self._contains_phrase_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        cleaned_haystack = re.sub(r"[^a-z0-9+ ]+", " ", haystack_text.lower()).strip()
         cleaned_haystack = re.sub(r"\s+", " ", cleaned_haystack)
-        cleaned_needle = re.sub(r"[^a-z0-9+ ]+", " ", str(needle).lower()).strip()
+        cleaned_needle = re.sub(r"[^a-z0-9+ ]+", " ", needle_text.lower()).strip()
         cleaned_needle = re.sub(r"\s+", " ", cleaned_needle)
         if not cleaned_haystack or not cleaned_needle:
-            return False
-        if " " in cleaned_needle:
+            result = False
+        elif " " in cleaned_needle:
             if cleaned_needle in cleaned_haystack:
-                return True
+                result = True
+            else:
+                compact_haystack = re.sub(r"[^a-z0-9+]+", "", cleaned_haystack)
+                compact_needle = re.sub(r"[^a-z0-9+]+", "", cleaned_needle)
+                result = bool(compact_needle and compact_needle in compact_haystack)
+        elif re.search(rf"\b{re.escape(cleaned_needle)}\b", cleaned_haystack):
+            result = True
+        else:
             compact_haystack = re.sub(r"[^a-z0-9+]+", "", cleaned_haystack)
             compact_needle = re.sub(r"[^a-z0-9+]+", "", cleaned_needle)
-            return bool(compact_needle and compact_needle in compact_haystack)
-        if re.search(rf"\b{re.escape(cleaned_needle)}\b", cleaned_haystack):
-            return True
-        compact_haystack = re.sub(r"[^a-z0-9+]+", "", cleaned_haystack)
-        compact_needle = re.sub(r"[^a-z0-9+]+", "", cleaned_needle)
-        return bool(len(compact_needle) >= 8 and compact_needle in compact_haystack)
+            result = bool(len(compact_needle) >= 8 and compact_needle in compact_haystack)
+
+        if cache_key is not None and len(self._contains_phrase_cache) < 10000:
+            self._contains_phrase_cache[cache_key] = result
+        return result
 
     def _job_similarity_signature(self, item: dict) -> str:
         company = normalize_role(str(item.get("company", "")).lower()) or "unknown"
@@ -3160,22 +3214,30 @@ class JobAggregator:
         return f"{company}::{title}::{' '.join(desc_tokens[:10])}"
 
     def _requires_specialty_guard(self, query: str) -> bool:
+        cache_key = str(query or "")
+        cached = self._specialty_guard_cache.get(cache_key)
+        if cached is not None:
+            return cached
         profile = role_profile(query)
         canonical_role = profile.family_role or profile.normalized_role
         if profile.domain in BUSINESS_PRODUCTION_DOMAINS:
-            return False
-        if canonical_role in {"devops engineer", "support engineer", "technical writer", "ui/ux designer"}:
-            return False
-        if profile.normalized_role == "frontend developer":
-            return False
-        if self._is_generic_security_search_query(query):
-            return False
-        if self._is_security_analyst_style_query(query):
-            return False
-        return bool(profile.specialty_tokens) and (
-            profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
-            or profile.cleaned_query != profile.normalized_role
-        )
+            result = False
+        elif canonical_role in {"devops engineer", "support engineer", "technical writer", "ui/ux designer"}:
+            result = False
+        elif profile.normalized_role == "frontend developer":
+            result = False
+        elif self._is_generic_security_search_query(query):
+            result = False
+        elif self._is_security_analyst_style_query(query):
+            result = False
+        else:
+            result = bool(profile.specialty_tokens) and (
+                profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES
+                or profile.cleaned_query != profile.normalized_role
+            )
+        if len(self._specialty_guard_cache) < 512:
+            self._specialty_guard_cache[cache_key] = result
+        return result
 
     def _specialty_token_overlap(self, query: str, item: dict) -> int:
         profile = role_profile(query)
