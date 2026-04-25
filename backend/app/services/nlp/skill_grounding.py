@@ -32,7 +32,7 @@ except Exception:
     OpenAI = None  # type: ignore
 
 
-MIN_PRODUCTION_MARKET_SAMPLE_SIZE = 7
+MIN_PRODUCTION_MARKET_SAMPLE_SIZE = 10
 
 
 GENERIC_DYNAMIC_SKILLS = {
@@ -298,6 +298,8 @@ class SkillGroundingService:
             f"{role_title} Specialist",
             f"{role_title} Coordinator",
             f"Early Career {role_title}",
+            f"{role_title} Associate",
+            f"{role_title} Trainee",
         ]:
             if title not in titles:
                 titles.append(title)

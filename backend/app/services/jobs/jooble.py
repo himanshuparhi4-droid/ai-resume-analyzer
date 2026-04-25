@@ -54,7 +54,7 @@ class JoobleProvider:
 
         if settings.environment == "production":
             analyst_style = normalized_query == "data analyst"
-            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 3, 24), 36)
+            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 2, 20), 24)
             page_size = min(max(limit * 2, 16), 24 if analyst_style else 30)
             page_count = 1
             extraction_limit = 750 if analyst_style else 900

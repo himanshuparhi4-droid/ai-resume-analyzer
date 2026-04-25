@@ -363,9 +363,26 @@ class JobAggregator:
     def _is_dense_production_family(self, query: str) -> bool:
         return self._production_family_group(query) in DENSE_PRODUCTION_FAMILY_GROUPS
 
-    def _production_stage_soft_timeout(self, *, stage: str, query: str, sparse_role: bool) -> float:
+    def _production_stage_soft_timeout(
+        self,
+        *,
+        stage: str,
+        query: str,
+        sparse_role: bool,
+        india_focused_location: bool = False,
+    ) -> float:
         if sparse_role:
             return 5.0 if stage == "primary" else 3.5
+        family_group = self._production_family_group(query)
+        dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
+        if india_focused_location and dense_family:
+            # India-specific supply can be thin for dense tech roles. Keep exact
+            # India fetches short so the broader role-accurate fill can run
+            # before Render's request window is gone.
+            if stage == "primary":
+                return 7.0
+            if stage == "supplemental":
+                return 5.5
         if self._is_data_analyst_style_query(query):
             if stage == "primary":
                 return 13.0
@@ -377,8 +394,6 @@ class JobAggregator:
                 return 24.0
             if stage == "supplemental":
                 return 9.5
-        family_group = self._production_family_group(query)
-        dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
             if dense_family:
                 return 12.5
@@ -490,7 +505,7 @@ class JobAggregator:
         if source_name in {"adzuna", "jooble"}:
             if security_analyst_style or generic_security_query:
                 if india_focused_location:
-                    return 1 if source_name == "adzuna" else 3
+                    return 1 if source_name == "adzuna" else 2
                 return 1
             if india_focused_location and family_group in {"software", "infra", "security"}:
                 return 1 if source_name == "adzuna" else 2
@@ -1247,6 +1262,8 @@ class JobAggregator:
                     provider_timeout = 6.0
             elif source_name == "jooble":
                 provider_timeout = 10.0 if india_focused_location else 6.0
+                if india_focused_location and family_group in {"data", "software", "infra", "security"}:
+                    provider_timeout = 6.0
                 if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
                     provider_timeout = 12.0
                 if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
@@ -1261,6 +1278,8 @@ class JobAggregator:
                     provider_timeout = min(provider_timeout, 5.25)
             elif source_name == "adzuna":
                 provider_timeout = 10.5 if india_focused_location else 5.5
+                if india_focused_location and family_group in {"data", "software", "infra", "security"}:
+                    provider_timeout = 6.0
                 if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
                     provider_timeout = 14.0
                 if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
@@ -1339,11 +1358,12 @@ class JobAggregator:
         partial_live_floor = self._production_partial_live_floor(query=query, limit=limit)
         target_live_count = self._production_live_target(query=query, limit=limit)
         selection_limit = min(limit, settings.production_live_fetch_maximum)
+        production_family_group = self._production_family_group(query)
         dense_role = self._is_dense_production_family(query)
         best_live: list[dict] = []
         best_live_stage = ""
 
-        def absorb_results(provider_results: list[list[dict]]) -> None:
+        def absorb_results(provider_results: list[list[dict]], *, scoring_location: str = location) -> None:
             for items in provider_results:
                 for item in items:
                     key = dedupe_key(item)
@@ -1357,7 +1377,7 @@ class JobAggregator:
                     self._prepare_listing_text(item)
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
-                    self._annotate_item_scores(query=query, location=location, item=item)
+                    self._annotate_item_scores(query=query, location=scoring_location, item=item)
                     collected.append(item)
 
         def _selected_live_sources(selected_live: list[dict]) -> dict[str, int]:
@@ -1483,6 +1503,7 @@ class JobAggregator:
                 stage=stage,
                 query=query,
                 sparse_role=sparse_role,
+                india_focused_location=self._is_india_focused_location(stage_search_location),
             )
             if stage == "primary":
                 reserve_seconds = 8.0 if not sparse_role else 4.0
@@ -1541,16 +1562,17 @@ class JobAggregator:
                         grace_applied = True
                         continue
                     break
+                wait_slice = min(max(remaining, 0.0), 0.75)
                 done, pending = await asyncio.wait(
                     pending,
-                    timeout=remaining,
+                    timeout=wait_slice,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if not done:
-                    break
+                    continue
                 provider_results = [task.result() for task in done if not task.cancelled()]
                 if provider_results:
-                    absorb_results(provider_results)
+                    absorb_results(provider_results, scoring_location=stage_selection_location)
                 preferred_live = self._select_production_live_jobs(
                     query=query,
                     location=stage_selection_location,
@@ -1616,6 +1638,100 @@ class JobAggregator:
             supplemental_sources,
             fallback_sources,
         )
+
+        global_fallback_attempted = False
+
+        async def maybe_run_india_global_fill(
+            current_live: list[dict],
+            *,
+            trigger_stage: str,
+            india_first_live_count: int,
+        ) -> tuple[list[dict], bool]:
+            nonlocal global_fallback_attempted
+            if (
+                global_fallback_attempted
+                or not india_focused_location
+                or not dense_role
+                or sparse_role
+                or len(current_live) >= partial_live_floor
+                or _remaining_runtime_budget(reserve_seconds=1.0) <= 2.25
+            ):
+                return current_live, False
+
+            if production_family_group == "security":
+                ordered_sources = ("adzuna", "jooble", "greenhouse", "themuse", "jobicy")
+            elif production_family_group in {"data", "software", "infra"}:
+                ordered_sources = ("adzuna", "jooble", "greenhouse", "themuse", "jobicy", "remotive")
+            else:
+                ordered_sources = ("jooble", "adzuna", "greenhouse", "themuse", "jobicy", "remotive")
+
+            global_fallback_sources = [source for source in ordered_sources if source in source_groups]
+            global_fallback_providers = [
+                provider
+                for source in global_fallback_sources
+                for provider in source_groups.get(source, [])
+            ]
+            if not global_fallback_providers:
+                return current_live, False
+
+            global_fallback_attempted = True
+            global_live = await run_stage(
+                "global_fallback",
+                global_fallback_providers,
+                search_location="Global",
+                selection_location="Global",
+            )
+            global_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
+            blended_live = _merge_live_results(current_live, global_live)
+            stage_results.append(
+                {
+                    "stage": "global_fallback",
+                    "trigger_stage": trigger_stage,
+                    "sources": global_fallback_sources,
+                    "search_location": "Global",
+                    "collected_candidates": len(collected),
+                    "selected_live": len(global_live),
+                    "blended_selected_live": len(blended_live),
+                    "precision_guarded_candidates": int(global_selection.get("precision_guarded_candidates", 0) or 0),
+                    "upstream_family_safe_count": int(global_selection.get("upstream_family_safe_count", 0) or 0),
+                    "underfill_reason": str((global_selection.get("underfill") or {}).get("reason") or "none"),
+                }
+            )
+            logger.info(
+                "Production stage result for query=%s: stage=global_fallback trigger=%s candidates=%s selected=%s blended=%s",
+                query,
+                trigger_stage,
+                len(collected),
+                len(global_live),
+                len(blended_live),
+            )
+            if len(blended_live) > len(current_live):
+                current_live = blended_live
+                _remember_best_live("global_fallback_blended", current_live)
+            acceptable_fill_floor = max(7, partial_live_floor - 1)
+            if len(current_live) >= acceptable_fill_floor:
+                _store_selected_live(
+                    current_live,
+                    partial_live_return={
+                        "stage": "global_fallback",
+                        "trigger_stage": trigger_stage,
+                        "selected_live": len(current_live),
+                        "india_first_live_count": india_first_live_count,
+                        "acceptable_fill_floor": acceptable_fill_floor,
+                        "partial_live_floor": partial_live_floor,
+                        "live_floor": live_floor,
+                        "elapsed_seconds": round(time.perf_counter() - fetch_started_at, 2),
+                        "reason": "india_underfill_role_accurate_global_fallback",
+                    },
+                )
+                logger.info(
+                    "Production live selection filled India underflow with %s blended jobs for query=%s",
+                    len(current_live),
+                    query,
+                )
+                return current_live, True
+            return current_live, False
+
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
         preferred_live = await run_stage("primary", primary_providers)
         primary_selected_count = len(preferred_live)
@@ -1638,6 +1754,13 @@ class JobAggregator:
             len(preferred_live),
         )
         _remember_best_live("primary", preferred_live)
+        preferred_live, return_after_global_fill = await maybe_run_india_global_fill(
+            preferred_live,
+            trigger_stage="primary",
+            india_first_live_count=primary_selected_count,
+        )
+        if return_after_global_fill:
+            return preferred_live
         should_continue_after_primary = (
             dense_role
             and not sparse_role
@@ -1700,76 +1823,13 @@ class JobAggregator:
                 )
                 return preferred_live
             elapsed_after_supplemental = time.perf_counter() - fetch_started_at
-            if (
-                india_focused_location
-                and dense_role
-                and len(preferred_live) < live_floor
-                and _remaining_runtime_budget(reserve_seconds=1.0) > 2.5
-            ):
-                # India stays the first market. When exact India supply is too
-                # thin or a location-aware provider stalls, fill the remaining
-                # slots from role-accurate global sources instead of timing out
-                # or returning 1-3 jobs. The merge keeps India matches first.
-                global_fallback_sources = [
-                    source
-                    for source in ("jooble", "greenhouse", "themuse", "jobicy", "remotive")
-                    if source in source_groups
-                ]
-                global_fallback_providers = [
-                    provider
-                    for source in global_fallback_sources
-                    for provider in source_groups.get(source, [])
-                ]
-                if global_fallback_providers:
-                    global_live = await run_stage(
-                        "global_fallback",
-                        global_fallback_providers,
-                        search_location="Global",
-                        selection_location="Global",
-                    )
-                    global_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
-                    blended_live = _merge_live_results(preferred_live, global_live)
-                    stage_results.append(
-                        {
-                            "stage": "global_fallback",
-                            "sources": global_fallback_sources,
-                            "search_location": "Global",
-                            "collected_candidates": len(collected),
-                            "selected_live": len(global_live),
-                            "blended_selected_live": len(blended_live),
-                            "precision_guarded_candidates": int(global_selection.get("precision_guarded_candidates", 0) or 0),
-                            "upstream_family_safe_count": int(global_selection.get("upstream_family_safe_count", 0) or 0),
-                            "underfill_reason": str((global_selection.get("underfill") or {}).get("reason") or "none"),
-                        }
-                    )
-                    logger.info(
-                        "Production stage result for query=%s: stage=global_fallback candidates=%s selected=%s blended=%s",
-                        query,
-                        len(collected),
-                        len(global_live),
-                        len(blended_live),
-                    )
-                    if len(blended_live) > len(preferred_live):
-                        preferred_live = blended_live
-                        _remember_best_live("global_fallback_blended", preferred_live)
-                    if len(preferred_live) >= live_floor:
-                        _store_selected_live(
-                            preferred_live,
-                            partial_live_return={
-                                "stage": "global_fallback",
-                                "selected_live": len(preferred_live),
-                                "india_first_live_count": primary_selected_count,
-                                "live_floor": live_floor,
-                                "elapsed_seconds": round(time.perf_counter() - fetch_started_at, 2),
-                                "reason": "india_underfill_role_accurate_global_fallback",
-                            },
-                        )
-                        logger.info(
-                            "Production live selection filled India underflow with %s blended jobs for query=%s",
-                            len(preferred_live),
-                            query,
-                        )
-                        return preferred_live
+            preferred_live, return_after_global_fill = await maybe_run_india_global_fill(
+                preferred_live,
+                trigger_stage="supplemental",
+                india_first_live_count=primary_selected_count,
+            )
+            if return_after_global_fill:
+                return preferred_live
             allow_weak_software_fallback = (
                 weak_software_family
                 and bool(fallback_sources)

@@ -53,7 +53,7 @@ class AdzunaProvider:
         if settings.environment == "production":
             analyst_style = normalized_query == "data analyst"
             results_per_page = min(max(limit * 2, 16), 20 if analyst_style else 24)
-            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 3, 24), 36)
+            target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 2, 20), 24)
             page_count = 1
             extraction_limit = 750 if analyst_style else 900
             enrichment_budget = target_candidates

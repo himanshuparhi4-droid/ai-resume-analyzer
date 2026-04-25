@@ -19,7 +19,7 @@ from app.services.analysis.insights import InsightGenerator
 from app.services.analysis.scoring import ScoringEngine
 from app.services.jobs.aggregator import JobAggregator
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints, role_recommendation_skills
-from app.services.nlp.skill_grounding import SkillGroundingService
+from app.services.nlp.skill_grounding import MIN_PRODUCTION_MARKET_SAMPLE_SIZE, SkillGroundingService
 from app.services.nlp.skill_extractor import (
     augment_missing_skills,
     canonical_skill_label,
@@ -109,7 +109,12 @@ class AnalysisOrchestrator:
                     round((time.perf_counter() - started) * 1000, 2),
                 )
             else:
-                jobs = await self.skill_grounding.build_fallback_jobs(role_query=role_query, location=location, resume_data=resume_data)
+                jobs = await self.skill_grounding.build_fallback_jobs(
+                    role_query=role_query,
+                    location=location,
+                    resume_data=resume_data,
+                    count=max(settings.production_live_fetch_minimum, MIN_PRODUCTION_MARKET_SAMPLE_SIZE),
+                )
                 logger.info(
                     "Analysis step: fallback baseline built with %s jobs in %sms",
                     len(jobs),

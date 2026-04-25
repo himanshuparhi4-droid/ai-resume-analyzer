@@ -105,7 +105,7 @@ _ROLE_SPECIFIC_GREENHOUSE_BOARDS = {
     "full stack developer": ["okta", "discord", "asana", "figma", "robinhood"],
     "frontend developer": ["figma", "discord", "asana", "okta", "robinhood"],
     "devops engineer": ["okta", "affirm", "instacart", "rubrik", "asana"],
-    "cybersecurity engineer": ["okta", "asana", "discord", "rubrik", "robinhood", "affirm"],
+    "cybersecurity engineer": ["okta", "asana", "discord", "rubrik", "robinhood", "affirm", "lyft", "instacart"],
     "solutions architect": ["okta", "rubrik", "affirm", "asana", "robinhood"],
     "support engineer": ["okta", "asana", "robinhood", "affirm"],
 }
@@ -417,9 +417,9 @@ class GreenhouseProvider:
         if settings.environment == "production":
             family_domain = role_domain(query) or role_domain(normalized)
             board_limit = {
-                "data": 4,
-                "software": 5,
-                "security": 4,
+                "data": 5,
+                "software": 6,
+                "security": 7,
                 "product": 4,
                 "design": 3,
             }.get(family_domain, len(boards))
