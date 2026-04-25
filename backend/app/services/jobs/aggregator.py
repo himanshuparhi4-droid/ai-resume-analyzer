@@ -471,6 +471,8 @@ class JobAggregator:
             return 1
         if source_name in {"adzuna", "jooble"}:
             if data_analyst_style:
+                if india_focused_location and source_name == "adzuna":
+                    return 1
                 return 1 if not india_focused_location else 2
             if support_engineer_style:
                 return 4 if india_focused_location else 2
@@ -553,8 +555,12 @@ class JobAggregator:
                     primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
                     supplemental_order = ["themuse", "greenhouse"]
                 elif data_analyst_style:
-                    primary_order = ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
-                    supplemental_order = ["greenhouse"]
+                    # India Data Analyst coverage comes mostly from location-aware
+                    # sources. Keep the primary stage narrow so Adzuna is not
+                    # starved by global providers, and avoid slow Greenhouse as
+                    # the only supplemental stage on Render free instances.
+                    primary_order = ["adzuna", "jooble"]
+                    supplemental_order = ["jobicy", "remotive", "themuse"]
                 elif weak_software_family:
                     primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
                     supplemental_order = ["themuse", "adzuna"]

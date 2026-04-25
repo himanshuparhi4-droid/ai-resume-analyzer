@@ -134,30 +134,36 @@ class GreenhouseProvider:
         )
         async def fetch_board_batch(client: httpx.AsyncClient, board_batch: list[str]) -> list[object]:
             board_tasks = [asyncio.create_task(self._fetch_board_index(board, client=client)) for board in board_batch]
-            if settings.environment == "production":
-                # The board request itself can legitimately take connect + read time
-                # on Render. A shorter batch timeout was racing successful HTTP 200s
-                # and turning useful board indexes into false Greenhouse timeouts.
-                if india_focused_location:
-                    batch_timeout = min(9.0, max(6.75, settings.job_request_timeout_seconds - 4.0))
-                else:
-                    batch_timeout = min(6.25, max(4.75, settings.job_request_timeout_seconds - 7.0))
-                done, pending = await asyncio.wait(board_tasks, timeout=batch_timeout)
-                for task in pending:
-                    task.cancel()
-                if pending:
-                    await asyncio.gather(*pending, return_exceptions=True)
-                batch_results: list[object] = []
+            try:
+                if settings.environment == "production":
+                    # The board request itself can legitimately take connect + read time
+                    # on Render. A shorter batch timeout was racing successful HTTP 200s
+                    # and turning useful board indexes into false Greenhouse timeouts.
+                    if india_focused_location:
+                        batch_timeout = min(9.0, max(6.75, settings.job_request_timeout_seconds - 4.0))
+                    else:
+                        batch_timeout = min(6.25, max(4.75, settings.job_request_timeout_seconds - 7.0))
+                    done, pending = await asyncio.wait(board_tasks, timeout=batch_timeout)
+                    for task in pending:
+                        task.cancel()
+                    if pending:
+                        await asyncio.gather(*pending, return_exceptions=True)
+                    batch_results: list[object] = []
+                    for task in board_tasks:
+                        if task not in done or task.cancelled():
+                            batch_results.append(TimeoutError("greenhouse board index timeout"))
+                            continue
+                        try:
+                            batch_results.append(task.result())
+                        except Exception as exc:
+                            batch_results.append(exc)
+                    return batch_results
+                return list(await asyncio.gather(*board_tasks, return_exceptions=True))
+            except asyncio.CancelledError:
                 for task in board_tasks:
-                    if task not in done or task.cancelled():
-                        batch_results.append(TimeoutError("greenhouse board index timeout"))
-                        continue
-                    try:
-                        batch_results.append(task.result())
-                    except Exception as exc:
-                        batch_results.append(exc)
-                return batch_results
-            return list(await asyncio.gather(*board_tasks, return_exceptions=True))
+                    task.cancel()
+                await asyncio.gather(*board_tasks, return_exceptions=True)
+                raise
 
         def absorb_board_results(board_batch: list[str], board_results: list[object]) -> None:
             for board, items in zip(board_batch, board_results):

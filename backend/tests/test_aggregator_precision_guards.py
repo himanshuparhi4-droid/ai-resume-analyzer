@@ -350,8 +350,8 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
             source_groups=source_groups,
         )
 
-        self.assertEqual(plan["primary_sources"], ["jooble", "adzuna", "jobicy", "remotive", "themuse"])
-        self.assertEqual(plan["supplemental_sources"], ["greenhouse"])
+        self.assertEqual(plan["primary_sources"], ["adzuna", "jooble"])
+        self.assertEqual(plan["supplemental_sources"], ["jobicy", "remotive", "themuse"])
 
     def test_cybersecurity_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}

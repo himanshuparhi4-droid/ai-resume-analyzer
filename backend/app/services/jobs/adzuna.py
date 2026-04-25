@@ -56,7 +56,11 @@ class AdzunaProvider:
             page_count = 1
             extraction_limit = 750 if analyst_style else 900
             if analyst_style:
-                enrichment_budget = min(max(limit // 2 + 2, 6), 10)
+                enrichment_budget = (
+                    min(max(limit // 2 + 5, 12), 14)
+                    if india_focused_location
+                    else min(max(limit // 2 + 2, 6), 10)
+                )
             elif india_focused_location and high_recall_role:
                 enrichment_budget = min(max(limit // 2 + 5, 12), 14)
             else:
