@@ -128,33 +128,49 @@ class TheMuseProvider:
                 if len(collected) >= max(limit * 4, 40):
                     break
 
-        positively_aligned = [
-            item
-            for item in collected
-            if role_title_alignment_score(
-                query,
-                str(item.get("title", "")),
-                description=str(item.get("description", "")),
-                tags=item.get("tags") or [],
+        if settings.environment == "production":
+            ranked_seed = sorted(
+                collected,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description="",
+                        tags=item.get("tags") or [],
+                    ),
+                    self._location_score(location_value, item.get("location", "")),
+                    1 if item.get("remote") else 0,
+                ),
+                reverse=True,
             )
-            > 0
-        ]
-        ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 10) else collected
-        ranked_seed = sorted(
-            ranked_pool,
-            key=lambda item: (
-                role_title_alignment_score(
+        else:
+            positively_aligned = [
+                item
+                for item in collected
+                if role_title_alignment_score(
                     query,
                     str(item.get("title", "")),
                     description=str(item.get("description", "")),
                     tags=item.get("tags") or [],
+                )
+                > 0
+            ]
+            ranked_pool = positively_aligned if len(positively_aligned) >= max(limit * 2, 10) else collected
+            ranked_seed = sorted(
+                ranked_pool,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    ),
+                    role_fit_score(query, item),
+                    self._location_score(location_value, item.get("location", "")),
+                    1 if item.get("remote") else 0,
                 ),
-                role_fit_score(query, item),
-                self._location_score(location_value, item.get("location", "")),
-                1 if item.get("remote") else 0,
-            ),
-            reverse=True,
-        )
+                reverse=True,
+            )
         if settings.environment == "production":
             dense_data_role = normalized_role in {
                 "data analyst",
@@ -173,7 +189,7 @@ class TheMuseProvider:
                 requirement_profile = build_fast_requirement_profile(
                     query=query,
                     title=str(item.get("title", "")),
-                    description=truncate(str(item.get("description", "")), 500),
+                    description=truncate(str(item.get("description", "")), 240),
                     tags=item.get("tags") or [],
                     source=self.source_name,
                 )

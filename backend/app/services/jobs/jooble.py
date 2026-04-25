@@ -123,31 +123,46 @@ class JoobleProvider:
                 if len(seed_jobs) >= target_candidates:
                     break
 
-        positively_aligned = [
-            item
-            for item in seed_jobs
-            if role_title_alignment_score(
-                query,
-                str(item.get("title", "")),
-                description=str(item.get("description", "")),
-                tags=item.get("tags") or [],
-            )
-            > 0
-        ]
-        ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(4, min(limit, 6)) else seed_jobs
-        ranked_seed = sorted(
-            ranked_seed_pool,
-            key=lambda item: (
-                role_title_alignment_score(
+        if settings.environment == "production":
+            ranked_seed = sorted(
+                seed_jobs,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description="",
+                        tags=item.get("tags") or [],
+                    ),
+                    1 if item.get("remote") else 0,
+                ),
+                reverse=True,
+            )[:enrichment_budget]
+        else:
+            positively_aligned = [
+                item
+                for item in seed_jobs
+                if role_title_alignment_score(
                     query,
                     str(item.get("title", "")),
                     description=str(item.get("description", "")),
                     tags=item.get("tags") or [],
+                )
+                > 0
+            ]
+            ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(4, min(limit, 6)) else seed_jobs
+            ranked_seed = sorted(
+                ranked_seed_pool,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    ),
+                    1 if item.get("remote") else 0,
                 ),
-                1 if item.get("remote") else 0,
-            ),
-            reverse=True,
-        )[:enrichment_budget]
+                reverse=True,
+            )[:enrichment_budget]
 
         jobs: list[dict] = []
         for item in ranked_seed:
@@ -155,7 +170,7 @@ class JoobleProvider:
                 requirement_profile = build_fast_requirement_profile(
                     query=query,
                     title=str(item.get("title", "")),
-                    description=truncate(str(item.get("description", "")), 500),
+                    description=truncate(str(item.get("description", "")), 240),
                     tags=item.get("tags") or [],
                     source=self.source_name,
                 )

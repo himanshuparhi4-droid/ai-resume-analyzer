@@ -78,31 +78,46 @@ class JobicyProvider:
                 }
             )
 
-        positively_aligned = [
-            item
-            for item in seed_jobs
-            if role_title_alignment_score(
-                query,
-                str(item.get("title", "")),
-                description=str(item.get("description", "")),
-                tags=item.get("tags") or [],
-            )
-            > 0
-        ]
-        ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(3, min(limit, 5)) else seed_jobs
-        ranked_seed = sorted(
-            ranked_seed_pool,
-            key=lambda item: (
-                role_title_alignment_score(
+        if settings.environment == "production":
+            ranked_seed = sorted(
+                seed_jobs,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description="",
+                        tags=item.get("tags") or [],
+                    ),
+                    self._location_score(location, item.get("location", "")),
+                ),
+                reverse=True,
+            )[:enrichment_budget]
+        else:
+            positively_aligned = [
+                item
+                for item in seed_jobs
+                if role_title_alignment_score(
                     query,
                     str(item.get("title", "")),
                     description=str(item.get("description", "")),
                     tags=item.get("tags") or [],
+                )
+                > 0
+            ]
+            ranked_seed_pool = positively_aligned if len(positively_aligned) >= max(3, min(limit, 5)) else seed_jobs
+            ranked_seed = sorted(
+                ranked_seed_pool,
+                key=lambda item: (
+                    role_title_alignment_score(
+                        query,
+                        str(item.get("title", "")),
+                        description=str(item.get("description", "")),
+                        tags=item.get("tags") or [],
+                    ),
+                    self._location_score(location, item.get("location", "")),
                 ),
-                self._location_score(location, item.get("location", "")),
-            ),
-            reverse=True,
-        )[:enrichment_budget]
+                reverse=True,
+            )[:enrichment_budget]
 
         jobs: list[dict] = []
         for item in ranked_seed:
@@ -110,7 +125,7 @@ class JobicyProvider:
                 requirement_profile = build_fast_requirement_profile(
                     query=query,
                     title=str(item.get("title", "")),
-                    description=truncate(str(item.get("description", "")), 500),
+                    description=truncate(str(item.get("description", "")), 240),
                     tags=item.get("tags") or [],
                     source=self.source_name,
                 )

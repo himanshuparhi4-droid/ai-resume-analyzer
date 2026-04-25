@@ -8,7 +8,7 @@
       "normalized_role": "data analyst",
       "family_role": "data analyst",
       "domain": "data",
-      "elapsed_ms": 10928.29,
+      "elapsed_ms": 10763.82,
       "min_live": 7,
       "provider_plan": {
         "family_group": "data",
@@ -111,8 +111,8 @@
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5546.14,
-          "avg_elapsed_ms": 5546.14,
+          "max_elapsed_ms": 6772.64,
+          "avg_elapsed_ms": 6772.64,
           "attempts": 1
         },
         "jooble": {
@@ -121,24 +121,24 @@
           "skipped_budget": 0,
           "timeouts": 0,
           "errors": 0,
-          "raw_returned": 30,
+          "raw_returned": 40,
           "queries": [
-            "reporting analyst",
-            "data analyst"
+            "data analyst",
+            "reporting analyst"
           ],
           "stages": [
             "primary"
           ],
           "error_samples": [],
-          "max_elapsed_ms": 5025.57,
-          "avg_elapsed_ms": 3382.73,
+          "max_elapsed_ms": 2048.43,
+          "avg_elapsed_ms": 1853.23,
           "attempts": 2
         }
       },
       "provider_request_summary": {
         "jooble": {
           "requests": 2,
-          "raw_returned": 30,
+          "raw_returned": 40,
           "timeouts": 0,
           "errors": 0
         },
@@ -163,7 +163,7 @@
         },
         "jooble": {
           "requests": 2,
-          "raw_returned": 30,
+          "raw_returned": 40,
           "precision_guarded": 6,
           "exact_backup": 11,
           "same_family_recovery": 0,
@@ -181,7 +181,7 @@
             "adzuna",
             "jooble"
           ],
-          "collected_candidates": 46,
+          "collected_candidates": 56,
           "selected_live": 18,
           "precision_guarded_candidates": 26,
           "upstream_family_safe_count": 24,
@@ -231,7 +231,7 @@
   ],
   "summary": {
     "query_count": 1,
-    "avg_elapsed_ms": 10928.29,
+    "avg_elapsed_ms": 10763.82,
     "avg_final_live_count": 18.0,
     "below_min_live_queries": [],
     "underfilled_queries": [],
@@ -252,7 +252,7 @@
         "skipped_budget": 0,
         "timeouts": 0,
         "errors": 0,
-        "raw_returned": 30
+        "raw_returned": 40
       }
     }
   }
