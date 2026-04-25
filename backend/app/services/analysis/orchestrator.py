@@ -1112,26 +1112,55 @@ class AnalysisOrchestrator:
 
     def _build_component_feedback(self, *, breakdown: dict, analysis: AnalysisRun, resume_data: dict, analysis_context: dict) -> dict[str, list[str]]:
         parse_signals = resume_data.get("parse_signals", {})
+        sections = resume_data.get("sections", {}) or {}
         missing_skills = analysis.missing_skills or []
-        matched_skills = analysis.matched_skills or []
+        matched_skills = [canonical_skill_label(str(skill)) for skill in (analysis.matched_skills or []) if canonical_skill_label(str(skill))]
         role_query = analysis.role_query.lower()
         experience_years = float(resume_data.get("experience_years", 0) or 0)
         archetype_type = resume_data.get("resume_archetype", {}).get("type", "general_resume")
         archetype_label = resume_data.get("resume_archetype", {}).get("label", "Resume")
-        market_skill_names = [item["skill"] for item in missing_skills[:3]]
+        market_skill_names = [canonical_skill_label(str(item.get("skill", ""))) for item in missing_skills[:3] if isinstance(item, dict) and item.get("skill")]
         if not market_skill_names and role_query == "data analyst":
             market_skill_names = ["excel", "power bi", "tableau"]
+        role_skill_pool = role_market_hints(role_query) | role_primary_hints(role_query)
+        resume_skill_pool = {
+            canonical_skill_label(str(skill))
+            for skill in resume_data.get("skills", []) or []
+            if canonical_skill_label(str(skill))
+        }
+        support_levels = resume_skill_support_levels(
+            resume_sections=sections,
+            skills=sorted(set(matched_skills) | set(market_skill_names) | role_skill_pool | resume_skill_pool),
+        )
+        strong_skill_proofs = [skill for skill in matched_skills if support_levels.get(skill) == "strong"]
+        medium_skill_proofs = [skill for skill in matched_skills if support_levels.get(skill) == "medium"]
+        weak_list_only_matches = [skill for skill in matched_skills if support_levels.get(skill) == "weak"]
+        required_sections = {"experience", "education", "skills"}
+        present_required_sections = required_sections & set(sections.keys())
+        role_language_coverage = self.scoring_engine._role_language_coverage(resume_data, role_query=role_query)
+        action_line_count = int(parse_signals.get("experience_action_line_count", 0) or 0) + int(parse_signals.get("projects_action_line_count", 0) or 0)
+        quantified_line_count = int(parse_signals.get("experience_quantified_line_count", 0) or 0) + int(parse_signals.get("projects_quantified_line_count", 0) or 0)
+        explicit_header_count = int(parse_signals.get("explicit_header_count", 0) or 0)
+        date_range_count = int(parse_signals.get("date_range_count", 0) or 0)
 
         feedback = {
             "skill_match": [
-                (
-                    "Strong overlap with the sampled market set."
-                    if not market_skill_names
-                    else f"Biggest remaining tool gaps: {', '.join(market_skill_names)}."
-                )
+                f"{len(matched_skills)} market skills matched; {len(strong_skill_proofs)} have project/experience-level proof and {len(medium_skill_proofs)} have medium proof.",
+                f"Biggest remaining tool gaps: {', '.join(market_skill_names)}."
+                if market_skill_names
+                else (
+                    f"Move list-only skills into project or experience bullets: {', '.join(weak_list_only_matches[:3])}."
+                    if weak_list_only_matches
+                    else "Matched skills are backed by resume evidence rather than only a keyword list."
+                ),
             ],
             "semantic_match": [
-                "Semantic fit is driven by how closely your summary, project titles, and bullet language mirror the target role."
+                f"Role-language coverage is {round(role_language_coverage)}% across summary, projects, experience, and certifications.",
+                (
+                    f"Use the exact target phrase '{analysis.role_query}' and related role terms in the summary and strongest project bullets."
+                    if float(breakdown.get("semantic_match", 0) or 0) < 65
+                    else "Summary and evidence language are reasonably aligned with the target role."
+                ),
             ],
             "experience_match": [
                 self._describe_experience_signal(experience_years)
@@ -1148,10 +1177,20 @@ class AnalysisOrchestrator:
                 )
             ],
             "resume_quality": [
-                f"{archetype_label} quality is judged on clean sections, quantified outcomes, and readable evidence instead of keyword stuffing."
+                f"{archetype_label} quality uses evidence strength: {action_line_count} action-led lines and {quantified_line_count} quantified result lines detected.",
+                (
+                    "Add metrics to at least two bullets so impact is concrete."
+                    if quantified_line_count < 2
+                    else "Quantified impact is present; keep each bullet focused on action, scope, and result."
+                ),
             ],
             "ats_compliance": [
-                "ATS checks focus on parseability: clear headings, stable links, dedicated skills blocks, and a stable export layout."
+                f"Parser found {len(present_required_sections)}/3 core sections, {explicit_header_count} explicit headings, and {date_range_count} date ranges.",
+                (
+                    "ATS risk is mainly layout/parseability, not job-market matching."
+                    if parse_signals.get("multi_column_detected") or parse_signals.get("merged_header_count", 0) or parse_signals.get("section_leakage_count", 0)
+                    else "Core ATS structure is readable; keep headings, dates, contact, and skills in plain text."
+                ),
             ],
         }
 

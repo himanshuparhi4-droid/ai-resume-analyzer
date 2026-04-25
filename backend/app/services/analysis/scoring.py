@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from app.schemas.common import ScoreBreakdown
 from app.services.jobs.taxonomy import role_baseline_skills, role_market_hints, role_primary_hints
@@ -17,7 +18,48 @@ from app.services.nlp.skill_extractor import (
 from app.utils.text import normalize_whitespace, truncate
 
 JOB_YEARS_RE = re.compile(r"(\d{1,2})\+?\s+years")
-ACTION_VERBS = {"built", "led", "designed", "implemented", "optimized", "delivered", "improved", "launched"}
+ACTION_VERBS = {
+    "achieved",
+    "analyzed",
+    "automated",
+    "built",
+    "created",
+    "delivered",
+    "deployed",
+    "designed",
+    "developed",
+    "diagnosed",
+    "drove",
+    "implemented",
+    "improved",
+    "increased",
+    "launched",
+    "led",
+    "managed",
+    "migrated",
+    "optimized",
+    "reduced",
+    "resolved",
+    "shipped",
+    "streamlined",
+}
+SEMANTIC_STOPWORDS = {
+    "and",
+    "are",
+    "for",
+    "from",
+    "job",
+    "role",
+    "the",
+    "this",
+    "that",
+    "with",
+    "your",
+}
+IMPACT_RE = re.compile(
+    r"\b(?:\d+%|\d+\s*(?:x|k|m|hours?|days?|weeks?|months?|users?|customers?|tickets?|alerts?|reports?|dashboards?|apis?|models?|projects?))\b",
+    re.IGNORECASE,
+)
 
 
 class ScoringEngine:
@@ -330,7 +372,58 @@ class ScoringEngine:
             return []
         resume_profile = self._build_resume_semantic_profile(resume_data, role_query=role_query)
         job_profiles = [self._build_job_semantic_profile(item, role_query=role_query) for item in jobs]
-        return self.embedding_service.similarities_to_many(resume_profile, job_profiles)
+        base_scores = self.embedding_service.similarities_to_many(resume_profile, job_profiles)
+        if not base_scores:
+            return []
+
+        resume_skills = {
+            canonical_skill_label(str(skill))
+            for skill in resume_data.get("skills", []) or []
+            if canonical_skill_label(str(skill))
+        }
+        role_skills = role_market_hints(role_query or "") | role_primary_hints(role_query or "")
+        job_skill_pool = {
+            canonical_skill_label(str(skill))
+            for job in jobs
+            for skill in (job.get("normalized_data", {}) or {}).get("skills", []) or []
+            if canonical_skill_label(str(skill))
+        }
+        support_levels = resume_skill_support_levels(
+            resume_sections=resume_data.get("sections", {}),
+            skills=sorted(resume_skills | role_skills | job_skill_pool),
+        )
+        role_language_score = self._role_language_coverage(resume_data, role_query=role_query)
+
+        blended_scores: list[float] = []
+        for base_score, job in zip(base_scores, jobs):
+            normalized = job.get("normalized_data", {}) or {}
+            job_skills = {
+                canonical_skill_label(str(skill))
+                for skill in normalized.get("skills", []) or []
+                if canonical_skill_label(str(skill))
+            }
+            role_relevant_job_skills = job_skills & (role_skills | resume_skills)
+            scoring_skills = role_relevant_job_skills or job_skills
+            if scoring_skills:
+                proof_alignment = (
+                    sum(
+                        resume_skill_proof_weight(
+                            skill=skill,
+                            resume_skills=resume_skills,
+                            support_levels=support_levels,
+                        )
+                        for skill in scoring_skills
+                    )
+                    / len(scoring_skills)
+                ) * 100
+            else:
+                proof_alignment = 0.0
+            title_alignment = float(normalized.get("title_alignment_score", 0.0) or 0.0)
+            role_fit = float(normalized.get("role_fit_score", 0.0) or 0.0)
+            alignment_bonus = min(6.0, (title_alignment / 24.0) * 3.0 + (role_fit / 12.0) * 3.0)
+            blended = (float(base_score) * 0.58) + (proof_alignment * 0.30) + (role_language_score * 0.12) + alignment_bonus
+            blended_scores.append(round(max(0.0, min(100.0, blended)), 2))
+        return blended_scores
 
     def _semantic_score(self, resume_data: dict, jobs: list[dict], *, role_query: str | None = None) -> float:
         scores = self.semantic_relevance_scores(resume_data, jobs[:5], role_query=role_query)
@@ -378,6 +471,38 @@ class ScoringEngine:
                 if part
             )
         )
+
+    def _role_language_coverage(self, resume_data: dict, *, role_query: str | None = None) -> float:
+        if not role_query:
+            return 0.0
+        sections = resume_data.get("sections", {}) or {}
+        evidence_text = normalize_whitespace(
+            " ".join(
+                str(sections.get(name, ""))
+                for name in ("summary", "experience", "projects", "research", "certifications")
+                if sections.get(name)
+            )
+        ).lower()
+        if not evidence_text:
+            evidence_text = normalize_whitespace(str(resume_data.get("raw_text", ""))).lower()
+        role_terms = self._important_terms(role_query)
+        role_skill_terms = {
+            term
+            for skill in role_primary_hints(role_query) | role_market_hints(role_query)
+            for term in self._important_terms(skill)
+        }
+        expected_terms = set(sorted(role_terms)[:6]) | set(sorted(role_skill_terms)[:10])
+        if not expected_terms:
+            return 0.0
+        hits = sum(1 for term in expected_terms if term in evidence_text)
+        return round((hits / len(expected_terms)) * 100, 2)
+
+    def _important_terms(self, text: str) -> set[str]:
+        return {
+            token
+            for token in re.split(r"[^a-z0-9+#.]+", normalize_whitespace(text).lower())
+            if len(token) >= 3 and token not in SEMANTIC_STOPWORDS
+        }
 
     def _experience_score(self, candidate_years: float, jobs: list[dict]) -> float:
         if not jobs:
@@ -561,6 +686,8 @@ class ScoringEngine:
         base += min(8, verb_hits * 1.5)
         quantified_hits = len(re.findall(r"\b\d+%|\b\d+[kKmM]?\b", text))
         base += min(10, quantified_hits * 1.4)
+        impact_hits = len(IMPACT_RE.findall(text))
+        base += min(8, impact_hits * 1.2)
         summary_word_count = len(sections.get("summary", "").split())
         if 12 <= summary_word_count <= 70:
             base += 5
@@ -625,6 +752,7 @@ class ScoringEngine:
             base -= 4
         if parse_signals.get("first_person_pronoun_count", 0) >= 2:
             base -= 3
+        base -= self._repetition_penalty(text)
 
         penalties = (
             min(4, parse_signals.get("merged_header_count", 0) * 2)
@@ -673,6 +801,29 @@ class ScoringEngine:
             quality_cap = min(quality_cap, 62.0)
         return float(max(18, min(score, quality_cap)))
 
+    def _repetition_penalty(self, text: str) -> float:
+        lines = [normalize_whitespace(line).lower() for line in text.splitlines() if normalize_whitespace(line)]
+        if len(lines) < 6:
+            return 0.0
+        first_words = []
+        repeated_lines = 0
+        seen_lines: set[str] = set()
+        for line in lines:
+            normalized_line = re.sub(r"^[\-*\u2022\s]+", "", line)
+            key = normalized_line[:80]
+            if len(key) >= 35 and key in seen_lines:
+                repeated_lines += 1
+            seen_lines.add(key)
+            first_word = re.split(r"[^a-z]+", normalized_line, maxsplit=1)[0]
+            if first_word in ACTION_VERBS:
+                first_words.append(first_word)
+        penalty = min(4.0, repeated_lines * 1.5)
+        if len(first_words) >= 4:
+            most_common_count = Counter(first_words).most_common(1)[0][1]
+            if most_common_count / len(first_words) >= 0.55:
+                penalty += 2.0
+        return min(6.0, penalty)
+
     def _ats_score(self, resume_data: dict) -> float:
         sections = resume_data.get("sections", {})
         text = resume_data.get("raw_text", "")
@@ -680,7 +831,10 @@ class ScoringEngine:
         archetype = resume_data.get("resume_archetype", {}).get("type", "general_resume")
         score = 18
         required_sections = {"experience", "education", "skills"}
-        score += len(required_sections & set(sections.keys())) * 7
+        present_required_sections = required_sections & set(sections.keys())
+        score += len(present_required_sections) * 7
+        if present_required_sections == required_sections:
+            score += 4
         if resume_data.get("contact", {}).get("email"):
             score += 6
         if resume_data.get("contact", {}).get("phone"):
@@ -725,6 +879,8 @@ class ScoringEngine:
             score += 3
         if not parse_signals.get("suspicious_url_count", 0) and not parse_signals.get("suspicious_token_count", 0):
             score += 3
+        if resume_data.get("contact", {}).get("email") and resume_data.get("contact", {}).get("phone"):
+            score += 2
 
         merged_header_penalty = min(16, parse_signals.get("merged_header_count", 0) * 5)
         inline_header_penalty = min(12, parse_signals.get("inline_header_count", 0) * 2.5)
@@ -767,6 +923,11 @@ class ScoringEngine:
             ats_cap = min(ats_cap, 74.0)
         if parse_signals.get("suspicious_token_count", 0) >= 2 or parse_signals.get("suspicious_url_count", 0) >= 1:
             ats_cap = min(ats_cap, 68.0)
+        missing_required_sections = required_sections - set(sections.keys())
+        if len(missing_required_sections) >= 2:
+            ats_cap = min(ats_cap, 72.0)
+        if not resume_data.get("contact", {}).get("email") and not resume_data.get("contact", {}).get("phone"):
+            ats_cap = min(ats_cap, 76.0)
         if (
             sections.get("experience")
             and parse_signals.get("date_range_count", 0) == 0
