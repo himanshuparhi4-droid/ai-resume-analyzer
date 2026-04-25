@@ -377,9 +377,13 @@ class JobAggregator:
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "global_fallback_fast":
             if dense_family:
+                if family_group == "security":
+                    return 9.0
                 return 7.5 if family_group in {"data", "software", "security", "infra"} else 5.5
             return 4.5
         if stage == "global_fallback_slow":
+            if family_group == "security":
+                return 6.0
             return 2.75
         if stage == "global_fallback":
             return 5.5 if dense_family else 4.5
@@ -388,9 +392,16 @@ class JobAggregator:
             # India fetches short so the broader role-accurate fill can run
             # before Render's request window is gone.
             if stage == "primary":
+                if family_group == "security":
+                    return 4.5
                 return 7.0
             if stage == "supplemental":
                 return 5.5
+        if india_focused_location and family_group == "finance":
+            if stage == "primary":
+                return 8.0
+            if stage == "supplemental":
+                return 7.0
         if self._is_data_analyst_style_query(query):
             if stage == "primary":
                 return 13.0
@@ -530,6 +541,8 @@ class JobAggregator:
                     return 1
                 if source_name == "jooble" and india_focused_location:
                     return 4
+                if source_name in {"adzuna", "jooble"}:
+                    return 1
                 return 3 if india_focused_location else 2
             if source_name == "adzuna":
                 if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
@@ -543,6 +556,8 @@ class JobAggregator:
             if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                 if family_group == "enterprise" and india_focused_location and source_name == "jooble":
                     return 4
+                if family_group == "enterprise" and not india_focused_location and source_name in {"adzuna", "jooble"}:
+                    return 1
                 return 3 if india_focused_location else 2
             if canonical_query_role == "database engineer":
                 return 4 if india_focused_location else 3
@@ -626,8 +641,8 @@ class JobAggregator:
                     primary_order = ["adzuna", "jooble"]
                     supplemental_order = ["greenhouse", "remotive", "jobicy", "themuse"]
             elif security_analyst_style:
-                primary_order = ["adzuna", "jooble"]
-                supplemental_order = ["remotive", "greenhouse", "themuse", "jobicy"]
+                primary_order = ["jooble"]
+                supplemental_order = ["remotive", "greenhouse", "themuse", "jobicy", "adzuna"]
             elif weak_software_family:
                 primary_order = ["adzuna", "jooble"]
                 supplemental_order = ["remotive", "jobicy", "greenhouse", "themuse"]
@@ -636,21 +651,30 @@ class JobAggregator:
                 primary_order = ["adzuna", "jooble"]
                 supplemental_order = ["remotive", "jobicy", "greenhouse", "themuse"]
             elif family_group == "security":
-                primary_order = ["adzuna", "jooble"]
-                supplemental_order = ["remotive", "greenhouse", "jobicy", "themuse"]
+                primary_order = ["jooble"]
+                supplemental_order = ["remotive", "greenhouse", "jobicy", "themuse", "adzuna"]
             else:
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
         elif family_group in BUSINESS_PRODUCTION_DOMAINS:
             if india_focused_location:
                 # Adzuna is the strongest India-specific source for business
-                # families; keep the primary stage narrow so Render does not
-                # overload it with several simultaneous searches.
-                primary_order = ["adzuna", "jooble"]
-                supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
+                # families; finance needs a particularly narrow exact pass
+                # because Jooble often broadens "financial analyst" into
+                # accountant roles and consumes the request window.
+                if family_group == "finance":
+                    primary_order = ["adzuna"]
+                    supplemental_order = ["jooble", "jobicy", "remotive", "themuse", "greenhouse"]
+                else:
+                    primary_order = ["adzuna", "jooble"]
+                    supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
             else:
-                primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
-                supplemental_order = ["greenhouse"]
+                # Global business searches get the best precision from one
+                # exact Jooble query. Fanning out alias queries across Jooble
+                # and Adzuna at the same time caused transient timeouts and
+                # stale underfills even though the exact query had enough jobs.
+                primary_order = ["jooble"]
+                supplemental_order = ["adzuna", "jobicy", "remotive", "themuse", "greenhouse"]
             fallback_order = ["lever"]
         elif family_group in {"product", "design"}:
             primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
@@ -660,6 +684,9 @@ class JobAggregator:
             if india_focused_location and family_group in {"docs", "enterprise"}:
                 primary_order = ["adzuna", "jooble"]
                 supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
+            elif family_group == "enterprise":
+                primary_order = ["jooble"]
+                supplemental_order = ["adzuna", "jobicy", "remotive", "themuse", "greenhouse"]
             else:
                 primary_order = (
                     ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
@@ -1283,7 +1310,7 @@ class JobAggregator:
                 if india_focused_location and family_group in {"data", "software", "infra", "security"}:
                     provider_timeout = 6.0
                 if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
-                    provider_timeout = 12.0
+                    provider_timeout = 5.5 if family_group == "finance" else 12.0
                 if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                     provider_timeout = 12.0
                 if india_focused_location and support_engineer_style:
@@ -1299,7 +1326,7 @@ class JobAggregator:
                 if india_focused_location and family_group in {"data", "software", "infra", "security"}:
                     provider_timeout = 6.0
                 if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
-                    provider_timeout = 14.0
+                    provider_timeout = 8.0 if family_group == "finance" else 14.0
                 if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                     provider_timeout = 14.0
                 if india_focused_location and support_engineer_style:
@@ -1312,8 +1339,12 @@ class JobAggregator:
                     provider_timeout = min(provider_timeout, 5.0)
             elif source_name == "remotive":
                 provider_timeout = 9.0
+                if india_focused_location and family_group == "finance":
+                    provider_timeout = 6.0
             elif source_name == "themuse":
                 provider_timeout = 6.5 if query_domain in {"data", "software", "security"} else 5.5
+                if india_focused_location and family_group == "finance":
+                    provider_timeout = 5.0
                 if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
                     provider_timeout = 8.0
             elif source_name == "findwork":
@@ -1388,10 +1419,15 @@ class JobAggregator:
                     if key in seen:
                         continue
                     similarity_signature = self._job_similarity_signature(item)
-                    if similarity_signature in near_seen:
+                    exact_india_listing = (
+                        self._is_india_focused_location(scoring_location)
+                        and self._location_match_tier(scoring_location, item) == "india"
+                    )
+                    if similarity_signature in near_seen and not exact_india_listing:
                         continue
                     seen.add(key)
-                    near_seen.add(similarity_signature)
+                    if not exact_india_listing:
+                        near_seen.add(similarity_signature)
                     self._prepare_listing_text(item)
                     item.setdefault("normalized_data", {})
                     item.setdefault("preview", truncate(str(item.get("description", "")), 260))
@@ -1463,6 +1499,60 @@ class JobAggregator:
             *,
             partial_live_return: dict[str, object] | None = None,
         ) -> None:
+            selection_debug = self.last_fetch_diagnostics.get("selection_debug")
+            if len(selected_live) >= live_floor:
+                patched_debug = dict(selection_debug) if isinstance(selection_debug, dict) else {}
+                patched_debug["selected_count"] = len(selected_live)
+                patched_debug["selected_titles"] = [str(item.get("title", "")) for item in selected_live[:8]]
+                patched_debug["selected_locations"] = [str(item.get("location", "")) for item in selected_live[:8]]
+                patched_debug["selected_location_tiers"] = [
+                    str((item.get("normalized_data") or {}).get("location_match_tier") or self._location_match_tier(location, item))
+                    for item in selected_live[:8]
+                ]
+                patched_debug["selected_sources"] = _selected_live_sources(selected_live)
+                underfill = {
+                    "reason": "sufficient_live_supply",
+                    "required_live_floor": live_floor,
+                    "selected_live_count": len(selected_live),
+                    "upstream_family_safe_count": max(
+                        int(patched_debug.get("upstream_family_safe_count", 0) or 0),
+                        len(selected_live),
+                    ),
+                    "timeout_sources": [],
+                }
+                patched_debug["underfill"] = underfill
+                self.last_fetch_diagnostics["selection_debug"] = patched_debug
+                self.last_fetch_diagnostics["underfill"] = underfill
+            elif not self.last_fetch_diagnostics.get("underfill"):
+                provider_summary = self._aggregate_provider_request_counts()
+                timeout_sources = self._timeout_sources()
+                error_sources = sorted(
+                    source
+                    for source, payload in provider_summary.items()
+                    if int(payload.get("errors", 0) or 0) > 0 and source not in timeout_sources
+                )
+                if timeout_sources:
+                    underfill_reason = "provider_timeout_or_upstream_scarcity"
+                elif error_sources:
+                    underfill_reason = "provider_error_or_upstream_scarcity"
+                else:
+                    underfill_reason = "upstream_scarcity"
+                underfill = {
+                    "reason": underfill_reason,
+                    "required_live_floor": live_floor,
+                    "selected_live_count": len(selected_live),
+                    "upstream_family_safe_count": 0,
+                    "timeout_sources": timeout_sources,
+                    "error_sources": error_sources,
+                }
+                patched_debug = dict(selection_debug) if isinstance(selection_debug, dict) else {}
+                patched_debug.setdefault("selected_count", len(selected_live))
+                patched_debug.setdefault("selected_titles", [str(item.get("title", "")) for item in selected_live[:8]])
+                patched_debug.setdefault("selected_locations", [str(item.get("location", "")) for item in selected_live[:8]])
+                patched_debug.setdefault("selected_sources", _selected_live_sources(selected_live))
+                patched_debug["underfill"] = underfill
+                self.last_fetch_diagnostics["selection_debug"] = patched_debug
+                self.last_fetch_diagnostics["underfill"] = underfill
             self.last_fetch_diagnostics["stage_results"] = stage_results
             self.last_fetch_diagnostics["collected_candidate_count"] = len(collected)
             self.last_fetch_diagnostics["selected_live_count"] = len(selected_live)
@@ -1677,7 +1767,7 @@ class JobAggregator:
                 return current_live, False
 
             if production_family_group == "security":
-                fast_ordered_sources = ("greenhouse", "themuse", "jobicy", "remotive")
+                fast_ordered_sources = ("greenhouse", "themuse", "remotive")
             elif production_family_group in {"data", "software", "infra"}:
                 fast_ordered_sources = ("greenhouse", "jobicy", "remotive", "themuse")
             else:
@@ -1719,7 +1809,11 @@ class JobAggregator:
                         "blended_selected_live": len(blended_live),
                         "precision_guarded_candidates": int(global_selection.get("precision_guarded_candidates", 0) or 0),
                         "upstream_family_safe_count": int(global_selection.get("upstream_family_safe_count", 0) or 0),
-                        "underfill_reason": str((global_selection.get("underfill") or {}).get("reason") or "none"),
+                        "underfill_reason": (
+                            "sufficient_live_supply"
+                            if len(blended_live) >= live_floor
+                            else str((global_selection.get("underfill") or {}).get("reason") or "none")
+                        ),
                     }
                 )
                 logger.info(
@@ -1775,9 +1869,22 @@ class JobAggregator:
                 return current_live, True
             return current_live, False
 
+        pre_primary_global_live: list[dict] = []
+        if india_focused_location and production_family_group == "security" and dense_role and not sparse_role:
+            pre_primary_global_live, _ = await maybe_run_india_global_fill(
+                [],
+                trigger_stage="pre_primary",
+                india_first_live_count=0,
+            )
+
         primary_providers = [provider for source in primary_sources for provider in source_groups.get(source, [])]
-        preferred_live = await run_stage("primary", primary_providers)
-        primary_selected_count = len(preferred_live)
+        primary_live = await run_stage("primary", primary_providers)
+        primary_selected_count = len(primary_live)
+        preferred_live = (
+            _merge_live_results(primary_live, pre_primary_global_live)
+            if pre_primary_global_live
+            else primary_live
+        )
         primary_selection = self.last_fetch_diagnostics.get("selection_debug", {}) or {}
         stage_results.append(
             {
@@ -1785,9 +1892,14 @@ class JobAggregator:
                 "sources": primary_sources,
                 "collected_candidates": len(collected),
                 "selected_live": len(preferred_live),
+                "india_selected_live": primary_selected_count,
                 "precision_guarded_candidates": int(primary_selection.get("precision_guarded_candidates", 0) or 0),
                 "upstream_family_safe_count": int(primary_selection.get("upstream_family_safe_count", 0) or 0),
-                "underfill_reason": str((primary_selection.get("underfill") or {}).get("reason") or "none"),
+                "underfill_reason": (
+                    "sufficient_live_supply"
+                    if len(preferred_live) >= live_floor
+                    else str((primary_selection.get("underfill") or {}).get("reason") or "none")
+                ),
             }
         )
         logger.info(
@@ -2500,6 +2612,8 @@ class JobAggregator:
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
             return False
+        if self._is_financial_analyst_title_mismatch(query, item):
+            return False
         if self._passes_family_bridge_guard(query, item):
             return True
         if self._passes_security_family_recovery_guard(query, item):
@@ -2582,6 +2696,46 @@ class JobAggregator:
         if role_fit < 1.0 and title_precision <= 0 and core_title_overlap == 0:
             return False
         return True
+
+    def _is_financial_analyst_title_mismatch(self, query: str, item: dict) -> bool:
+        profile = role_profile(query)
+        canonical_query_role = profile.family_role or profile.normalized_role
+        if canonical_query_role != "financial analyst":
+            return False
+
+        title_text = self._expanded_title_query_text(item)
+        if not title_text:
+            return False
+
+        accepted_analyst_signal = any(
+            self._contains_phrase(title_text, token)
+            for token in {
+                "business finance analyst",
+                "budget analyst",
+                "financial analyst",
+                "finance analyst",
+                "fp&a analyst",
+                "fpa analyst",
+                "investment analyst",
+                "pricing analyst",
+                "revenue analyst",
+                "treasury analyst",
+            }
+        )
+        if accepted_analyst_signal:
+            return False
+
+        accountant_or_tax_signal = bool(
+            re.search(
+                r"\b(accountant|accounting|accounts payable|accounts receivable|bookkeeper|payroll|tax)\b",
+                title_text,
+            )
+        )
+        finance_without_analyst = bool(
+            re.search(r"\b(finance|financial|treasury|revenue|budget|investment)\b", title_text)
+            and not re.search(r"\banalyst\b", title_text)
+        )
+        return accountant_or_tax_signal or finance_without_analyst
 
     def _passes_security_family_recovery_guard(self, query: str, item: dict) -> bool:
         if role_domain(query) != "security":
@@ -2779,6 +2933,8 @@ class JobAggregator:
         role_fit = float((item.get("normalized_data") or {}).get("role_fit_score", 0.0))
 
         if self._is_location_hard_mismatch(location, item):
+            return False
+        if self._is_financial_analyst_title_mismatch(query, item):
             return False
         if self._passes_family_bridge_guard(query, item):
             return True
@@ -3140,6 +3296,8 @@ class JobAggregator:
         if self._is_location_hard_mismatch(location, item):
             return False
         if self._requires_specialty_guard(query) and specialty_overlap == 0:
+            return False
+        if self._is_financial_analyst_title_mismatch(query, item):
             return False
         if canonical_alignment < 0 and title_overlap == 0 and core_title_overlap == 0:
             return False
