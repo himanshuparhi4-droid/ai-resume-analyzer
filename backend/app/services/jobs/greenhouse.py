@@ -145,6 +145,8 @@ class GreenhouseProvider:
                 done, pending = await asyncio.wait(board_tasks, timeout=batch_timeout)
                 for task in pending:
                     task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
                 batch_results: list[object] = []
                 for task in board_tasks:
                     if task not in done or task.cancelled():

@@ -8,7 +8,13 @@ from math import ceil
 import httpx
 
 from app.core.config import settings
-from app.services.jobs.taxonomy import normalize_role, role_fit_score, role_title_alignment_score
+from app.services.jobs.taxonomy import (
+    normalize_role,
+    role_domain,
+    role_family,
+    role_fit_score,
+    role_title_alignment_score,
+)
 from app.services.nlp.job_requirements import extract_job_requirement_profile
 from app.utils.text import strip_html, truncate
 
@@ -29,6 +35,19 @@ class AdzunaProvider:
         location_filter = ""
         if normalized_location not in {"", "india", "remote", "worldwide", "global"}:
             location_filter = location
+        query_domain = role_domain(query)
+        canonical_query = role_family(query)
+        india_focused_location = normalized_location == "india" or "india" in normalized_location
+        high_recall_role = (
+            query_domain in {"marketing", "sales", "customer", "people", "finance", "operations"}
+            or canonical_query
+            in {
+                "devops engineer",
+                "support engineer",
+                "technical writer",
+                "ui/ux designer",
+            }
+        )
 
         if settings.environment == "production":
             analyst_style = normalized_query == "data analyst"
@@ -36,7 +55,12 @@ class AdzunaProvider:
             target_candidates = min(max(limit * 2, 16), 20) if analyst_style else min(max(limit * 3, 24), 36)
             page_count = 1
             extraction_limit = 750 if analyst_style else 900
-            enrichment_budget = min(max(limit // 2 + 2, 6), 10) if analyst_style else min(max(limit // 2 + 2, 6), 9)
+            if analyst_style:
+                enrichment_budget = min(max(limit // 2 + 2, 6), 10)
+            elif india_focused_location and high_recall_role:
+                enrichment_budget = min(max(limit // 2 + 5, 12), 14)
+            else:
+                enrichment_budget = min(max(limit // 2 + 2, 6), 9)
         else:
             results_per_page = min(max(limit * 4, settings.production_live_candidate_fetch), 50)
             target_candidates = max(limit * 6, settings.production_live_candidate_fetch)

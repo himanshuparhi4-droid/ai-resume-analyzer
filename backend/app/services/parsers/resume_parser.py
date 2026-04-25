@@ -734,23 +734,27 @@ class ResumeParser:
         project_section_intervals: list[tuple[date, date]] = []
         weighted_project_months = 0.0
 
-        for key, section_text in sections.items():
-            if key not in focus_keys:
-                continue
+        section_items = [
+            (key, section_text)
+            for key, section_text in sections.items()
+            if key in focus_keys
+        ] or [("unsectioned", relevant_text)]
+
+        for key, section_text in section_items:
             normalized_section = normalize_whitespace(section_text).replace("\u2013", "-").replace("\u2014", "-")
             if not normalized_section:
                 continue
 
-            target_bucket = primary_section_intervals
-            if key in {"projects", "summary"}:
-                target_bucket = project_section_intervals
-
             for match in DATE_RANGE_RE.finditer(normalized_section):
                 context = normalized_section[max(0, match.start() - 120): min(len(normalized_section), match.end() + 120)]
+                before_context = normalized_section[max(0, match.start() - 90): match.start()]
                 has_work_signal = key in {"experience", "teaching", "research"} or bool(WORK_CONTEXT_RE.search(context))
                 has_project_signal = key == "projects" or bool(PROJECT_CONTEXT_RE.search(context))
                 has_education_signal = bool(EDUCATION_CONTEXT_RE.search(context))
+                education_marker_before_date = bool(EDUCATION_CONTEXT_RE.search(before_context))
                 if not (has_work_signal or has_project_signal):
+                    continue
+                if education_marker_before_date and key not in {"projects"}:
                     continue
                 if has_education_signal and key not in {"projects", "summary"} and not has_work_signal:
                     continue
@@ -759,6 +763,9 @@ class ResumeParser:
                 start_date = self._parse_resume_date(start_raw)
                 end_date = self._parse_resume_date(end_raw)
                 if start_date and end_date and start_date <= end_date:
+                    target_bucket = primary_section_intervals
+                    if key == "projects" or (key == "summary" and not has_work_signal):
+                        target_bucket = project_section_intervals
                     target_bucket.append((start_date, end_date))
 
         if project_section_intervals:

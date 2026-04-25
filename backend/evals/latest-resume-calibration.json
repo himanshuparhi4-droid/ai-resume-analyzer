@@ -1,0 +1,81 @@
+{
+  "schema_version": "resume-calibration-summary-v1",
+  "dataset": "Majinuub/Resume_Parsing",
+  "config": "default",
+  "split": "train",
+  "limit": 50,
+  "notes": "Aggregate calibration summary only. It contains parser/ATS/skill signal distributions and no raw resume text, contact data, or model fine-tuning weights.",
+  "summary": {
+    "signal_count": 50,
+    "avg_parser_confidence": 87.0,
+    "avg_ats_score": 44.36,
+    "avg_resume_quality_score": 33.096,
+    "parser_confidence_distribution": {
+      "high": 50
+    },
+    "ats_band_distribution": {
+      "high_risk": 50
+    },
+    "resume_quality_band_distribution": {
+      "high_risk": 50
+    },
+    "review_priority_distribution": {
+      "manual_review": 50
+    },
+    "skill_extraction_status_distribution": {
+      "complete": 50
+    },
+    "manual_review_rows": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49
+    ]
+  }
+}

@@ -69,6 +69,65 @@ UNIVERSAL_ALIAS_ROLE_MATRIX = [
     "DataScientist",
 ]
 
+BROAD_50_ROLE_MATRIX = [
+    "Software Engineer",
+    "Backend Developer",
+    "Frontend Developer",
+    "Full Stack Developer",
+    "Web Developer",
+    "Mobile Developer",
+    "Android Developer",
+    "iOS Developer",
+    "React Native Developer",
+    "DevOps Engineer",
+    "Cloud Engineer",
+    "Site Reliability Engineer",
+    "QA Engineer",
+    "SDET",
+    "Data Analyst",
+    "Business Analyst",
+    "Data Scientist",
+    "Machine Learning Engineer",
+    "AI Engineer",
+    "Data Engineer",
+    "Database Engineer",
+    "SQL Developer",
+    "Cybersecurity",
+    "SOC Analyst",
+    "Security Analyst",
+    "Product Manager",
+    "Project Manager",
+    "Program Manager",
+    "Scrum Master",
+    "UI/UX Designer",
+    "Product Designer",
+    "Technical Writer",
+    "Content Writer",
+    "Marketing Manager",
+    "Digital Marketing Specialist",
+    "SEO Specialist",
+    "Social Media Specialist",
+    "Account Executive",
+    "Sales Development Representative",
+    "Business Development Manager",
+    "Customer Success Manager",
+    "Customer Support Specialist",
+    "Technical Support Engineer",
+    "Recruiter",
+    "Talent Acquisition Specialist",
+    "HR Manager",
+    "HR Generalist",
+    "Financial Analyst",
+    "Accountant",
+    "Operations Manager",
+    "Operations Analyst",
+    "Business Operations Analyst",
+    "Supply Chain Analyst",
+    "Solutions Architect",
+    "Salesforce Admin",
+    "Enterprise Applications Engineer",
+]
+
 
 def _unique(items: list[str]) -> list[str]:
     return list(dict.fromkeys(item for item in items if item))
@@ -79,8 +138,9 @@ PRESET_ROLE_MATRICES = {
     "canonical": UNIVERSAL_CANONICAL_ROLE_MATRIX,
     "aliases": UNIVERSAL_ALIAS_ROLE_MATRIX,
     "universal": _unique(UNIVERSAL_CANONICAL_ROLE_MATRIX + UNIVERSAL_ALIAS_ROLE_MATRIX),
+    "broad50": BROAD_50_ROLE_MATRIX,
 }
-PRESET_ROLE_MATRICES["all"] = _unique(CORE_ROLE_MATRIX + PRESET_ROLE_MATRICES["universal"])
+PRESET_ROLE_MATRICES["all"] = _unique(CORE_ROLE_MATRIX + PRESET_ROLE_MATRICES["universal"] + BROAD_50_ROLE_MATRIX)
 
 
 def _json_safe(value: Any) -> Any:
@@ -180,12 +240,17 @@ def _summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         lambda: {"attempts": 0, "successes": 0, "skipped_budget": 0, "timeouts": 0, "errors": 0, "raw_returned": 0}
     )
     underfilled_queries: list[str] = []
+    below_min_live_queries: list[str] = []
     timeout_queries: list[str] = []
     selector_over_pruning_queries: list[str] = []
     for result in results:
         underfill = result.get("underfill") or {}
         reason = str(underfill.get("reason") or "")
         query = str(result.get("query") or "")
+        min_live = int(result.get("min_live", 0) or 0)
+        final_live_count = int(result.get("final_live_count", 0) or 0)
+        if min_live and final_live_count < min_live:
+            below_min_live_queries.append(query)
         if reason and reason != "sufficient_live_supply":
             underfilled_queries.append(query)
         if (underfill.get("timeout_sources") or []):
@@ -206,6 +271,7 @@ def _summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "query_count": len(results),
         "avg_elapsed_ms": round(sum(elapsed_values) / len(elapsed_values), 2) if elapsed_values else 0.0,
         "avg_final_live_count": round(sum(final_live_values) / len(final_live_values), 2) if final_live_values else 0.0,
+        "below_min_live_queries": below_min_live_queries,
         "underfilled_queries": underfilled_queries,
         "timeout_queries": timeout_queries,
         "selector_over_pruning_queries": selector_over_pruning_queries,
@@ -223,6 +289,8 @@ def _pretty_lines(results: list[dict[str, Any]], summary: dict[str, Any]) -> lis
     )
     if summary.get("underfilled_queries"):
         lines.append("Underfilled: " + ", ".join(summary["underfilled_queries"]))
+    if summary.get("below_min_live_queries"):
+        lines.append("Below min live: " + ", ".join(summary["below_min_live_queries"]))
     if summary.get("timeout_queries"):
         lines.append("Timeouts: " + ", ".join(summary["timeout_queries"]))
     lines.append("")
@@ -232,7 +300,7 @@ def _pretty_lines(results: list[dict[str, Any]], summary: dict[str, Any]) -> lis
         timeout_sources = underfill.get("timeout_sources") or []
         plan = result.get("provider_plan") or {}
         lines.append(
-            f"{result['query']} -> live={result['final_live_count']} "
+            f"{result['query']} -> live={result['final_live_count']}/{result.get('min_live', 0) or '-'} "
             f"elapsed={result['elapsed_ms']}ms normalized={result['normalized_role']}"
         )
         lines.append(
@@ -284,7 +352,7 @@ def _pretty_lines(results: list[dict[str, Any]], summary: dict[str, Any]) -> lis
     return lines
 
 
-async def run_case(*, query: str, location: str, limit: int) -> dict[str, Any]:
+async def run_case(*, query: str, location: str, limit: int, min_live: int) -> dict[str, Any]:
     aggregator = JobAggregator(None)
     started = time.perf_counter()
     jobs = await aggregator.fetch_jobs(query=query, location=location, limit=limit)
@@ -301,6 +369,7 @@ async def run_case(*, query: str, location: str, limit: int) -> dict[str, Any]:
         "family_role": role_family(query),
         "domain": role_domain(query),
         "elapsed_ms": elapsed_ms,
+        "min_live": min_live,
         "provider_plan": diagnostics.get("provider_plan", {}),
         "provider_availability": diagnostics.get("provider_availability", []),
         "provider_attempts": provider_attempt_rollup,
@@ -333,6 +402,12 @@ async def main() -> int:
     )
     parser.add_argument("--location", default="Global", help="Location to send with the fetch requests.")
     parser.add_argument("--limit", type=int, default=10, help="Requested live listing cap per query.")
+    parser.add_argument("--min-live", type=int, default=0, help="Optional minimum acceptable live jobs per query.")
+    parser.add_argument(
+        "--fail-under-min-live",
+        action="store_true",
+        help="Exit non-zero when any query returns fewer than --min-live live jobs.",
+    )
     parser.add_argument("--query", action="append", dest="queries", help="Optional role query to run. Repeat for multiple queries.")
     parser.add_argument(
         "--format",
@@ -347,7 +422,7 @@ async def main() -> int:
     settings.llm_provider = "disabled"
 
     queries = args.queries or PRESET_ROLE_MATRICES[args.preset]
-    results = [await run_case(query=query, location=args.location, limit=args.limit) for query in queries]
+    results = [await run_case(query=query, location=args.location, limit=args.limit, min_live=args.min_live) for query in queries]
     summary = _summarize_results(results)
     payload = {
         "preset": args.preset,
@@ -362,6 +437,8 @@ async def main() -> int:
         print("\n".join(_pretty_lines(results, summary)))
     else:
         print(json.dumps(payload, indent=2))
+    if args.fail_under_min_live and summary.get("below_min_live_queries"):
+        return 1
     return 0
 
 

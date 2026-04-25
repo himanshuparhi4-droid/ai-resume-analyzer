@@ -73,6 +73,8 @@ GENERIC_ROLE_MATCH_TOKENS = {
     "engineer",
     "developer",
     "manager",
+    "executive",
+    "representative",
     "analyst",
     "specialist",
     "executive",
@@ -91,6 +93,10 @@ GENERIC_ROLE_MATCH_TOKENS = {
     "designer",
     "scientist",
     "owner",
+    "recruiter",
+    "accountant",
+    "generalist",
+    "coordinator",
     "intern",
 }
 ROLE_SEARCH_VARIATIONS = {
@@ -162,8 +168,11 @@ ROLE_SEARCH_VARIATIONS = {
     ],
     "product manager": [
         "product manager",
-        "associate product manager",
         "product owner",
+        "associate product manager",
+        "technical product manager",
+        "product lead",
+        "product analyst",
     ],
     "ui/ux designer": [
         "ui ux designer",
@@ -213,7 +222,7 @@ ROLE_PRODUCTION_VARIATIONS = {
     "devops engineer": ["aws engineer", "cloud engineer", "devops engineer", "platform engineer", "site reliability engineer"],
     "cybersecurity engineer": ["cybersecurity engineer", "security engineer", "cloud security engineer", "application security engineer", "security operations engineer", "information security engineer"],
     "qa engineer": ["qa engineer", "testing", "quality assurance"],
-    "product manager": ["product manager", "associate product manager", "product owner"],
+    "product manager": ["product manager", "product owner", "associate product manager", "technical product manager", "product lead", "product analyst"],
     "ui/ux designer": ["ui ux designer", "ux designer", "product designer"],
     "teacher": ["lecturer", "teacher", "faculty", "assistant professor", "instructor", "educator"],
     "carpenter": ["carpenter", "finish carpenter", "rough carpenter", "woodworking", "framing"],
@@ -306,9 +315,31 @@ ROLE_TITLE_HINTS = {
     "frontend developer": {"frontend", "front end", "frontend developer", "frontend engineer", "react", "react developer", "ui engineer", "web developer", "web engineer"},
     "full stack developer": {"full stack", "fullstack", "mern", "mern stack", "full stack developer", "full stack engineer", "web developer"},
     "devops engineer": {"devops", "devops engineer", "site reliability", "site reliability engineer", "sre", "platform", "platform engineer", "cloud", "aws", "cloud engineer", "cloud architect", "infrastructure engineer"},
-    "cybersecurity engineer": {"cybersecurity engineer", "cyber security engineer", "security engineer", "cloud security", "application security", "information security", "security operations", "soc", "security architect", "security analyst"},
+    "cybersecurity engineer": {
+        "application security",
+        "cloud security",
+        "cyber security analyst",
+        "cyber security engineer",
+        "cybersecurity analyst",
+        "cybersecurity engineer",
+        "detection engineer",
+        "grc analyst",
+        "incident responder",
+        "information security",
+        "information security analyst",
+        "penetration tester",
+        "security analyst",
+        "security architect",
+        "security engineer",
+        "security operations",
+        "security operations analyst",
+        "soc",
+        "soc analyst",
+        "threat intelligence",
+        "vulnerability analyst",
+    },
     "qa engineer": {"qa", "qa engineer", "quality assurance", "quality assurance engineer", "test", "test engineer", "automation", "automation test engineer"},
-    "product manager": {"product manager", "product owner", "product"},
+    "product manager": {"product manager", "product owner", "associate product manager", "technical product manager", "product lead", "product analyst", "product"},
     "ui/ux designer": {"designer", "ui", "ux", "product designer"},
     "teacher": {"teacher", "educator", "instructor", "lecturer", "professor", "faculty", "tutor", "assistant professor"},
     "carpenter": {"carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"},
@@ -325,7 +356,7 @@ ROLE_KEYWORD_FAMILIES = {
     "devops engineer": ("aws", "aws engineer", "devops", "site reliability", "sre", "platform engineer", "cloud engineer", "cloud architect"),
     "cybersecurity engineer": ("cybersecurity", "cyber security", "security engineer", "cloud security", "application security", "information security", "security operations", "soc engineer", "security architect"),
     "qa engineer": ("qa", "quality assurance", "test engineer", "automation tester"),
-    "product manager": ("product manager", "product owner", "associate product manager"),
+    "product manager": ("product manager", "product owner", "associate product manager", "technical product manager", "product lead", "product analyst"),
     "ui/ux designer": ("ui ux", "ux designer", "ui designer", "product designer"),
     "teacher": ("teacher", "educator", "instructor", "lecturer", "professor", "assistant professor", "faculty", "tutor"),
     "carpenter": ("carpenter", "finish carpenter", "rough carpenter", "cabinet maker", "woodworker"),
@@ -466,6 +497,8 @@ ROLE_HEAD_TOKENS = {
     "architect",
     "designer",
     "manager",
+    "executive",
+    "representative",
     "administrator",
     "admin",
     "writer",
@@ -475,6 +508,10 @@ ROLE_HEAD_TOKENS = {
     "researcher",
     "owner",
     "support",
+    "recruiter",
+    "accountant",
+    "coordinator",
+    "generalist",
 }
 ROLE_SENIORITY_TOKENS = {
     "intern",
@@ -500,11 +537,17 @@ ROLE_HEAD_VARIANTS = {
     "architect": ("architect", "engineer", "consultant"),
     "designer": ("designer", "researcher"),
     "manager": ("manager", "owner", "lead"),
+    "executive": ("executive", "representative", "manager"),
+    "representative": ("representative", "executive", "specialist"),
     "administrator": ("administrator", "developer", "engineer"),
     "admin": ("admin", "administrator", "developer"),
     "writer": ("writer", "documentation engineer"),
     "consultant": ("consultant", "engineer"),
     "support": ("support engineer", "support specialist"),
+    "recruiter": ("recruiter", "talent acquisition specialist"),
+    "accountant": ("accountant", "analyst"),
+    "coordinator": ("coordinator", "specialist"),
+    "generalist": ("generalist", "specialist"),
 }
 DOMAIN_QUERY_TEMPLATES = {
     "software": ("{specialty} engineer", "{specialty} developer", "software engineer"),
@@ -514,6 +557,12 @@ DOMAIN_QUERY_TEMPLATES = {
     "design": ("{specialty} designer", "{specialty} researcher", "ux designer"),
     "education": ("{specialty} teacher", "{specialty} instructor", "teacher"),
     "trades": ("{specialty} technician", "{specialty} contractor"),
+    "marketing": ("{specialty} marketing", "{specialty} specialist", "marketing manager"),
+    "sales": ("{specialty} executive", "{specialty} representative", "account executive"),
+    "customer": ("{specialty} success", "{specialty} support", "customer success manager"),
+    "people": ("{specialty} recruiter", "{specialty} specialist", "recruiter"),
+    "finance": ("{specialty} analyst", "{specialty} accountant", "financial analyst"),
+    "operations": ("{specialty} manager", "{specialty} analyst", "operations manager"),
 }
 PROVIDER_QUERY_BUDGETS = {
     "jobicy": {"base": 2, "narrow": 1},
@@ -523,6 +572,7 @@ PROVIDER_QUERY_BUDGETS = {
     "adzuna": {"base": 2, "narrow": 1},
     "remoteok": {"base": 1, "narrow": 1},
 }
+BUSINESS_QUERY_DOMAINS = {"marketing", "sales", "customer", "people", "finance", "operations"}
 ABSTRACT_CANONICAL_QUERY_FAMILIES = {
     "enterprise applications engineer",
     "engineering leadership",
@@ -565,6 +615,12 @@ DOMAIN_DEFAULT_MARKET_HINTS = {
     "design": {"figma", "ui design", "ux design"},
     "education": {"lesson planning", "classroom management", "curriculum development"},
     "trades": {"safety compliance"},
+    "marketing": {"digital marketing", "seo", "content marketing", "campaign management", "analytics"},
+    "sales": {"sales", "lead generation", "crm", "pipeline management", "account management"},
+    "customer": {"customer success", "customer support", "account management", "retention", "crm"},
+    "people": {"recruiting", "talent acquisition", "sourcing", "hr operations", "onboarding"},
+    "finance": {"financial analysis", "accounting", "excel", "forecasting", "reporting"},
+    "operations": {"operations", "process improvement", "project management", "reporting", "vendor management"},
 }
 DOMAIN_DEFAULT_PRIMARY_HINTS = {
     "software": {"api", "sql"},
@@ -574,6 +630,12 @@ DOMAIN_DEFAULT_PRIMARY_HINTS = {
     "design": {"figma", "ux design"},
     "education": {"lesson planning", "classroom management"},
     "trades": {"safety compliance"},
+    "marketing": {"digital marketing", "seo", "campaign management"},
+    "sales": {"sales", "crm", "pipeline management"},
+    "customer": {"customer success", "customer support", "retention"},
+    "people": {"recruiting", "talent acquisition", "sourcing"},
+    "finance": {"financial analysis", "accounting", "excel"},
+    "operations": {"operations", "process improvement", "project management"},
 }
 ROLE_PHRASE_MARKET_HINTS = {
     "computer vision": {"computer vision", "python", "machine learning", "pytorch", "tensorflow", "opencv"},
@@ -653,7 +715,7 @@ ROLE_NEGATIVE_TITLE_HINTS = {
         "semiconductor",
         "chip",
     },
-    "product": {"sales representative", "travel", "billing", "hr", "recruiter"},
+    "product": {"sales representative", "sales executive", "marketing manager", "travel", "billing", "hr", "recruiter"},
 }
 SPARSE_LIVE_MARKET_ROLES = {"teacher", "carpenter", "painter"}
 ROLE_ADJACENT_CANONICALS = {
@@ -885,23 +947,109 @@ ROLE_FAMILY_EXTENSIONS = {
         "adjacent": {"software engineer"},
     },
     "database engineer": {
-        "search_variations": ["database engineer", "database administrator", "database developer", "sql developer", "data warehouse engineer", "database architect"],
-        "production_variations": ["database engineer", "database administrator", "sql developer", "database developer", "data warehouse engineer"],
+        "search_variations": ["database engineer", "sql developer", "database administrator", "database developer", "data warehouse engineer", "database architect", "dba", "etl developer"],
+        "production_variations": ["database engineer", "sql developer", "database administrator", "database developer", "data warehouse engineer", "dba", "etl developer"],
         "market_hints": {"sql", "postgresql", "mysql", "oracle", "database design", "database administration", "data warehouse", "etl", "performance tuning", "backup"},
         "primary_hints": {"sql", "postgresql", "mysql", "oracle", "database", "data warehouse"},
-        "title_hints": {"database engineer", "database administrator", "database developer", "sql developer", "database architect", "dba"},
-        "keyword_families": ("database engineer", "database administrator", "database developer", "sql developer", "data warehouse engineer", "database architect", "dba"),
+        "title_hints": {"database engineer", "database administrator", "database developer", "sql developer", "database architect", "data warehouse engineer", "dba", "etl developer"},
+        "keyword_families": ("database engineer", "database administrator", "database developer", "sql developer", "data warehouse engineer", "database architect", "dba", "etl developer"),
         "inference_tokens": {"database", "sql", "dba", "postgresql", "mysql", "oracle", "warehouse"},
         "domain": "data",
         "adjacent": {"data engineer", "software engineer"},
     },
     "support engineer": {
-        "search_variations": ["technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"],
-        "production_variations": ["technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"],
-        "market_hints": {"technical support", "troubleshooting", "incident management", "ticketing", "customer support", "sla", "root cause analysis", "monitoring", "linux", "networking"},
-        "primary_hints": {"technical support", "troubleshooting", "incident management", "ticketing", "application support", "monitoring"},
-        "title_hints": {"technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer"},
-        "keyword_families": ("technical support engineer", "application support engineer", "it support specialist", "help desk engineer", "noc engineer", "production support engineer", "support engineer"),
+        "search_variations": [
+            "technical support engineer",
+            "application support engineer",
+            "it support engineer",
+            "technical support specialist",
+            "customer support engineer",
+            "support analyst",
+            "application support analyst",
+            "production support analyst",
+            "desktop support engineer",
+            "cloud support engineer",
+            "it support specialist",
+            "help desk engineer",
+            "noc engineer",
+            "production support engineer",
+        ],
+        "production_variations": [
+            "technical support engineer",
+            "application support engineer",
+            "it support engineer",
+            "technical support specialist",
+            "customer support engineer",
+            "support analyst",
+            "application support analyst",
+            "production support analyst",
+            "desktop support engineer",
+            "cloud support engineer",
+            "it support specialist",
+            "help desk engineer",
+            "noc engineer",
+            "production support engineer",
+        ],
+        "market_hints": {
+            "technical support",
+            "troubleshooting",
+            "incident management",
+            "ticketing",
+            "customer support",
+            "application support",
+            "production support",
+            "desktop support",
+            "cloud support",
+            "help desk",
+            "sla",
+            "root cause analysis",
+            "monitoring",
+            "linux",
+            "networking",
+        },
+        "primary_hints": {
+            "technical support",
+            "troubleshooting",
+            "incident management",
+            "ticketing",
+            "application support",
+            "production support",
+            "customer support",
+            "monitoring",
+        },
+        "title_hints": {
+            "technical support engineer",
+            "application support engineer",
+            "it support engineer",
+            "technical support specialist",
+            "customer support engineer",
+            "support analyst",
+            "application support analyst",
+            "production support analyst",
+            "desktop support engineer",
+            "cloud support engineer",
+            "it support specialist",
+            "help desk engineer",
+            "noc engineer",
+            "production support engineer",
+        },
+        "keyword_families": (
+            "technical support engineer",
+            "application support engineer",
+            "it support engineer",
+            "technical support specialist",
+            "customer support engineer",
+            "support analyst",
+            "application support analyst",
+            "production support analyst",
+            "desktop support engineer",
+            "cloud support engineer",
+            "it support specialist",
+            "help desk engineer",
+            "noc engineer",
+            "production support engineer",
+            "support engineer",
+        ),
         "inference_tokens": {"support", "helpdesk", "noc", "troubleshooting", "ticketing", "incident"},
         "domain": "software",
         "adjacent": {"software engineer", "devops engineer"},
@@ -922,10 +1070,17 @@ ROLE_FAMILY_EXTENSIONS = {
             "salesforce developer",
             "salesforce admin",
             "salesforce administrator",
+            "salesforce consultant",
+            "salesforce business analyst",
+            "salesforce functional consultant",
+            "salesforce support",
             "sap consultant",
             "sap developer",
             "erp consultant",
+            "erp analyst",
             "crm developer",
+            "crm administrator",
+            "crm consultant",
             "oracle developer",
             "microsoft dynamics consultant",
         ],
@@ -933,33 +1088,61 @@ ROLE_FAMILY_EXTENSIONS = {
             "salesforce developer",
             "salesforce admin",
             "salesforce administrator",
+            "salesforce consultant",
+            "salesforce business analyst",
+            "salesforce functional consultant",
             "sap consultant",
             "sap developer",
             "erp consultant",
+            "crm administrator",
             "crm developer",
             "oracle developer",
         ],
-        "market_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics", "configuration", "workflow automation", "apex", "sql"},
-        "primary_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics"},
+        "market_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics", "configuration", "workflow automation", "apex", "sql", "enterprise applications", "business applications", "netsuite", "zuora"},
+        "primary_hints": {"salesforce", "sap", "crm", "erp", "oracle", "microsoft dynamics", "enterprise applications", "business applications"},
         "title_hints": {
+            "enterprise applications engineer",
+            "enterprise application engineer",
+            "business applications engineer",
+            "enterprise digital applications",
+            "field applications engineer",
             "salesforce developer",
             "salesforce admin",
             "salesforce administrator",
+            "salesforce consultant",
+            "salesforce business analyst",
+            "salesforce functional consultant",
+            "salesforce support",
             "sap consultant",
             "sap developer",
             "erp consultant",
+            "erp analyst",
             "crm developer",
+            "crm administrator",
+            "crm consultant",
             "oracle developer",
             "microsoft dynamics consultant",
         },
         "keyword_families": (
+            "enterprise applications engineer",
+            "enterprise application engineer",
+            "business applications engineer",
+            "enterprise digital applications",
+            "field applications engineer",
             "salesforce developer",
             "salesforce admin",
             "salesforce administrator",
+            "salesforce consultant",
+            "salesforce business analyst",
+            "salesforce functional consultant",
+            "salesforce support",
             "sap consultant",
             "sap developer",
             "erp consultant",
+            "erp analyst",
             "crm developer",
+            "crm administrator",
+            "crm consultant",
             "oracle developer",
             "microsoft dynamics consultant",
         ),
@@ -968,26 +1151,231 @@ ROLE_FAMILY_EXTENSIONS = {
         "adjacent": {"solutions architect", "software engineer", "database engineer"},
     },
     "technical writer": {
-        "search_variations": ["technical writer", "documentation engineer", "developer advocate", "api documentation writer"],
-        "production_variations": ["technical writer", "documentation engineer", "developer advocate", "api documentation writer"],
+        "search_variations": [
+            "technical writer",
+            "technical content writer",
+            "documentation writer",
+            "documentation engineer",
+            "api documentation writer",
+            "developer documentation writer",
+            "knowledge base writer",
+            "developer advocate",
+        ],
+        "production_variations": [
+            "technical writer",
+            "technical content writer",
+            "documentation writer",
+            "api documentation writer",
+            "developer documentation writer",
+            "documentation engineer",
+            "knowledge base writer",
+            "developer advocate",
+        ],
         "market_hints": {"technical writing", "documentation", "developer documentation", "api documentation", "openapi", "markdown", "communication", "developer relations"},
         "primary_hints": {"technical writing", "documentation", "api documentation", "markdown", "developer relations"},
-        "title_hints": {"technical writer", "documentation engineer", "developer advocate", "documentation writer"},
-        "keyword_families": ("technical writer", "documentation engineer", "developer advocate", "api documentation"),
+        "title_hints": {"technical writer", "technical content writer", "documentation engineer", "developer advocate", "documentation writer", "api documentation writer", "developer documentation writer", "knowledge base writer"},
+        "keyword_families": ("technical writer", "technical content writer", "documentation engineer", "developer advocate", "api documentation", "documentation writer", "developer documentation writer", "knowledge base writer"),
         "inference_tokens": {"writer", "documentation", "docs", "doc", "advocate"},
         "domain": "product",
         "adjacent": {"product manager"},
     },
     "engineering leadership": {
-        "search_variations": ["engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"],
-        "production_variations": ["engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"],
+        "search_variations": ["engineering manager", "engineering lead", "technical lead", "principal engineer", "staff engineer", "head of engineering", "director engineering", "cto"],
+        "production_variations": ["engineering manager", "engineering lead", "technical lead", "principal engineer", "staff engineer", "head of engineering", "director engineering", "cto"],
         "market_hints": {"leadership", "system design", "architecture", "mentoring", "cross functional collaboration", "engineering management", "scalability"},
         "primary_hints": {"leadership", "system design", "architecture", "engineering management"},
-        "title_hints": {"engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"},
-        "keyword_families": ("engineering manager", "principal engineer", "staff engineer", "head of engineering", "cto"),
-        "inference_tokens": {"manager", "principal", "staff", "cto", "leadership", "engineering"},
+        "title_hints": {"engineering manager", "engineering lead", "technical lead", "principal engineer", "staff engineer", "head of engineering", "director engineering", "director of engineering", "cto"},
+        "keyword_families": ("engineering manager", "engineering lead", "technical lead", "principal engineer", "staff engineer", "head of engineering", "director engineering", "director of engineering", "cto"),
+        "inference_tokens": {"manager", "principal", "staff", "cto", "leadership", "engineering", "lead", "director"},
         "domain": "software",
         "adjacent": {"software engineer", "solutions architect"},
+    },
+    "project manager": {
+        "search_variations": ["project manager", "program manager", "scrum master", "delivery manager", "implementation manager", "project coordinator"],
+        "production_variations": ["project manager", "program manager", "scrum master", "delivery manager", "implementation manager", "project coordinator"],
+        "market_hints": {"project management", "program management", "agile", "scrum", "stakeholder management", "delivery", "jira", "risk management"},
+        "primary_hints": {"project management", "program management", "agile", "scrum", "stakeholder management", "delivery"},
+        "title_hints": {"project manager", "program manager", "scrum master", "delivery manager", "implementation manager", "project coordinator"},
+        "keyword_families": ("project manager", "program manager", "scrum master", "delivery manager", "implementation manager", "project coordinator"),
+        "inference_tokens": {"project", "program", "scrum", "delivery", "implementation", "pmp", "agile"},
+        "domain": "operations",
+        "adjacent": {"product manager"},
+    },
+    "operations manager": {
+        "search_variations": ["operations manager", "business operations manager", "operations lead", "operations coordinator", "business operations"],
+        "production_variations": ["operations manager", "business operations manager", "operations lead", "operations coordinator", "business operations manager"],
+        "market_hints": {"operations", "process improvement", "vendor management", "reporting", "workflow", "project management", "kpi"},
+        "primary_hints": {"operations", "process improvement", "vendor management", "reporting"},
+        "title_hints": {"operations manager", "business operations manager", "operations lead", "operations coordinator"},
+        "keyword_families": ("operations manager", "business operations manager", "operations lead", "operations coordinator"),
+        "inference_tokens": {"operations", "ops", "workflow", "process", "vendor"},
+        "domain": "operations",
+        "adjacent": {"project manager", "data analyst"},
+    },
+    "operations analyst": {
+        "search_variations": ["operations analyst", "business operations analyst", "strategy operations analyst", "process analyst", "supply chain analyst"],
+        "production_variations": ["operations analyst", "business operations analyst", "strategy operations analyst", "process analyst", "supply chain analyst"],
+        "market_hints": {"operations", "process improvement", "sql", "excel", "reporting", "analytics", "supply chain", "kpi"},
+        "primary_hints": {"operations", "process improvement", "excel", "reporting", "analytics"},
+        "title_hints": {"operations analyst", "business operations analyst", "strategy operations analyst", "process analyst", "supply chain analyst"},
+        "keyword_families": ("operations analyst", "business operations analyst", "strategy operations analyst", "process analyst", "supply chain analyst"),
+        "inference_tokens": {"operations", "ops", "process", "supply", "chain", "logistics"},
+        "domain": "operations",
+        "adjacent": {"data analyst", "operations manager"},
+    },
+    "marketing manager": {
+        "search_variations": ["marketing manager", "digital marketing manager", "growth marketing manager", "performance marketing manager", "brand manager", "campaign manager"],
+        "production_variations": ["marketing manager", "digital marketing manager", "growth marketing manager", "performance marketing manager", "brand manager", "campaign manager"],
+        "market_hints": {"marketing", "digital marketing", "campaign management", "seo", "content marketing", "analytics", "brand", "growth"},
+        "primary_hints": {"marketing", "digital marketing", "campaign management", "seo", "growth"},
+        "title_hints": {"marketing manager", "digital marketing manager", "growth marketing manager", "performance marketing manager", "brand manager", "campaign manager"},
+        "keyword_families": ("marketing manager", "digital marketing manager", "growth marketing manager", "performance marketing manager", "brand manager", "campaign manager"),
+        "inference_tokens": {"marketing", "growth", "performance", "campaign", "brand", "seo"},
+        "domain": "marketing",
+        "adjacent": {"digital marketing specialist", "content writer"},
+    },
+    "digital marketing specialist": {
+        "search_variations": ["digital marketing specialist", "seo specialist", "performance marketing specialist", "social media specialist", "content marketing specialist", "paid media specialist"],
+        "production_variations": ["digital marketing specialist", "seo specialist", "performance marketing specialist", "social media specialist", "content marketing specialist", "paid media specialist"],
+        "market_hints": {"digital marketing", "seo", "sem", "paid media", "social media", "content marketing", "google analytics", "campaign management"},
+        "primary_hints": {"digital marketing", "seo", "paid media", "social media", "content marketing"},
+        "title_hints": {"digital marketing specialist", "seo specialist", "performance marketing specialist", "social media specialist", "content marketing specialist", "paid media specialist"},
+        "keyword_families": ("digital marketing specialist", "seo specialist", "performance marketing specialist", "social media specialist", "content marketing specialist", "paid media specialist"),
+        "inference_tokens": {"digital", "marketing", "seo", "sem", "paid", "media", "social", "content"},
+        "domain": "marketing",
+        "adjacent": {"marketing manager", "content writer"},
+    },
+    "content writer": {
+        "search_variations": ["content writer", "copywriter", "content editor", "content strategist", "blog writer", "seo writer"],
+        "production_variations": ["content writer", "copywriter", "content editor", "content strategist", "blog writer", "seo writer"],
+        "market_hints": {"content writing", "copywriting", "editing", "seo", "content strategy", "blog writing", "research"},
+        "primary_hints": {"content writing", "copywriting", "editing", "seo", "content strategy"},
+        "title_hints": {"content writer", "copywriter", "content editor", "content strategist", "blog writer", "seo writer"},
+        "keyword_families": ("content writer", "copywriter", "content editor", "content strategist", "blog writer", "seo writer"),
+        "inference_tokens": {"content", "copywriter", "copywriting", "blog", "seo", "editor"},
+        "domain": "marketing",
+        "adjacent": {"technical writer", "digital marketing specialist"},
+    },
+    "account executive": {
+        "search_variations": ["account executive", "sales executive", "sales representative", "business development representative", "sales development representative", "account manager"],
+        "production_variations": ["account executive", "sales executive", "sales representative", "business development representative", "sales development representative", "account manager"],
+        "market_hints": {"sales", "lead generation", "crm", "pipeline management", "account management", "prospecting", "quota"},
+        "primary_hints": {"sales", "lead generation", "crm", "pipeline management", "prospecting"},
+        "title_hints": {"account executive", "sales executive", "sales representative", "business development representative", "sales development representative", "account manager"},
+        "keyword_families": ("account executive", "sales executive", "sales representative", "business development representative", "sales development representative", "account manager"),
+        "inference_tokens": {"sales", "account", "business", "development", "sdr", "bdr", "quota", "pipeline"},
+        "domain": "sales",
+        "adjacent": {"customer success manager"},
+    },
+    "customer success manager": {
+        "search_variations": ["customer success manager", "customer success specialist", "customer success associate", "client success manager", "account manager", "customer success lead"],
+        "production_variations": ["customer success manager", "customer success specialist", "customer success associate", "client success manager", "account manager", "customer success lead"],
+        "market_hints": {"customer success", "customer retention", "account management", "crm", "onboarding", "renewals", "customer support"},
+        "primary_hints": {"customer success", "retention", "account management", "onboarding", "renewals"},
+        "title_hints": {"customer success manager", "customer success specialist", "customer success associate", "client success manager", "account manager", "customer success lead"},
+        "keyword_families": ("customer success manager", "customer success specialist", "customer success associate", "client success manager", "account manager", "customer success lead"),
+        "inference_tokens": {"customer", "success", "client", "retention", "renewals", "onboarding"},
+        "domain": "customer",
+        "adjacent": {"account executive", "customer support specialist"},
+    },
+    "customer support specialist": {
+        "search_variations": [
+            "customer support specialist",
+            "customer support executive",
+            "customer support",
+            "customer care",
+            "customer care executive",
+            "customer service",
+            "customer support representative",
+            "customer service representative",
+            "support specialist",
+            "support associate",
+        ],
+        "production_variations": [
+            "customer support specialist",
+            "customer support executive",
+            "customer support",
+            "customer care",
+            "customer care executive",
+            "customer service",
+            "customer support representative",
+            "customer service representative",
+            "support specialist",
+            "support associate",
+        ],
+        "market_hints": {"customer support", "customer service", "ticketing", "crm", "communication", "troubleshooting", "customer care"},
+        "primary_hints": {"customer support", "customer service", "ticketing", "crm", "communication"},
+        "title_hints": {
+            "customer support specialist",
+            "customer support executive",
+            "customer support",
+            "customer care",
+            "customer care executive",
+            "customer service",
+            "customer support representative",
+            "customer service representative",
+            "support specialist",
+            "support associate",
+        },
+        "keyword_families": (
+            "customer support specialist",
+            "customer support executive",
+            "customer support",
+            "customer care",
+            "customer care executive",
+            "customer service",
+            "customer support representative",
+            "customer service representative",
+            "support specialist",
+            "support associate",
+        ),
+        "inference_tokens": {"customer", "support", "service", "care", "ticketing"},
+        "domain": "customer",
+        "adjacent": {"customer success manager", "support engineer"},
+    },
+    "recruiter": {
+        "search_variations": ["recruiter", "technical recruiter", "talent acquisition specialist", "talent acquisition recruiter", "sourcing specialist", "recruitment specialist"],
+        "production_variations": ["recruiter", "technical recruiter", "talent acquisition specialist", "talent acquisition recruiter", "sourcing specialist", "recruitment specialist"],
+        "market_hints": {"recruiting", "talent acquisition", "sourcing", "screening", "interviewing", "ats", "linkedin recruiter"},
+        "primary_hints": {"recruiting", "talent acquisition", "sourcing", "screening"},
+        "title_hints": {"recruiter", "technical recruiter", "talent acquisition specialist", "talent acquisition recruiter", "sourcing specialist", "recruitment specialist"},
+        "keyword_families": ("recruiter", "technical recruiter", "talent acquisition specialist", "talent acquisition recruiter", "sourcing specialist", "recruitment specialist"),
+        "inference_tokens": {"recruiter", "recruiting", "recruitment", "talent", "acquisition", "sourcing"},
+        "domain": "people",
+        "adjacent": {"hr manager"},
+    },
+    "hr manager": {
+        "search_variations": ["hr manager", "human resources manager", "hr generalist", "people operations manager", "hr business partner", "people operations specialist"],
+        "production_variations": ["hr manager", "human resources manager", "hr generalist", "people operations manager", "hr business partner", "people operations specialist"],
+        "market_hints": {"human resources", "hr operations", "employee relations", "onboarding", "performance management", "compliance", "people operations"},
+        "primary_hints": {"human resources", "hr operations", "employee relations", "onboarding", "people operations"},
+        "title_hints": {"hr manager", "human resources manager", "hr generalist", "people operations manager", "hr business partner", "people operations specialist"},
+        "keyword_families": ("hr manager", "human resources manager", "hr generalist", "people operations manager", "hr business partner", "people operations specialist"),
+        "inference_tokens": {"hr", "human", "resources", "people", "employee", "onboarding"},
+        "domain": "people",
+        "adjacent": {"recruiter"},
+    },
+    "financial analyst": {
+        "search_variations": ["financial analyst", "finance analyst", "fp&a analyst", "business finance analyst", "investment analyst", "revenue analyst"],
+        "production_variations": ["financial analyst", "finance analyst", "fp&a analyst", "business finance analyst", "investment analyst", "revenue analyst"],
+        "market_hints": {"financial analysis", "finance", "excel", "forecasting", "budgeting", "reporting", "financial modeling"},
+        "primary_hints": {"financial analysis", "finance", "excel", "forecasting", "budgeting"},
+        "title_hints": {"financial analyst", "finance analyst", "fp&a analyst", "business finance analyst", "investment analyst", "revenue analyst"},
+        "keyword_families": ("financial analyst", "finance analyst", "fp&a analyst", "business finance analyst", "investment analyst", "revenue analyst"),
+        "inference_tokens": {"financial", "finance", "fpa", "fp&a", "investment", "revenue", "budget"},
+        "domain": "finance",
+        "adjacent": {"accountant", "data analyst"},
+    },
+    "accountant": {
+        "search_variations": ["accountant", "staff accountant", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "tax accountant"],
+        "production_variations": ["accountant", "staff accountant", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "tax accountant"],
+        "market_hints": {"accounting", "accounts payable", "accounts receivable", "bookkeeping", "tax", "reconciliation", "excel"},
+        "primary_hints": {"accounting", "accounts payable", "accounts receivable", "bookkeeping", "reconciliation"},
+        "title_hints": {"accountant", "staff accountant", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "tax accountant"},
+        "keyword_families": ("accountant", "staff accountant", "accounts payable specialist", "accounts receivable specialist", "bookkeeper", "tax accountant"),
+        "inference_tokens": {"accountant", "accounting", "bookkeeper", "payable", "receivable", "tax", "reconciliation"},
+        "domain": "finance",
+        "adjacent": {"financial analyst"},
     },
 }
 
@@ -1022,7 +1410,7 @@ ROLE_ALIAS_EXTENSIONS = {
     "business analyst": "data analyst",
     "technical business analyst": "data analyst",
     "product analyst": "data analyst",
-    "operations analyst": "data analyst",
+    "operations analyst": "operations analyst",
     "statistician": "data scientist",
     "quantitative analyst": "data scientist",
     "analytics engineer": "data engineer",
@@ -1074,9 +1462,11 @@ ROLE_ALIAS_EXTENSIONS = {
     "data warehouse engineer": "database engineer",
     "database architect": "database engineer",
     "associate product manager": "product manager",
-    "project manager": "product manager",
-    "program manager": "product manager",
-    "scrum master": "product manager",
+    "technical product manager": "product manager",
+    "product lead": "product manager",
+    "project manager": "project manager",
+    "program manager": "project manager",
+    "scrum master": "project manager",
     "ux designer": "ui/ux designer",
     "ui designer": "ui/ux designer",
     "ux researcher": "ui/ux designer",
@@ -1090,6 +1480,14 @@ ROLE_ALIAS_EXTENSIONS = {
     "sales engineer": "solutions architect",
     "technical support engineer": "support engineer",
     "application support engineer": "support engineer",
+    "it support engineer": "support engineer",
+    "technical support specialist": "support engineer",
+    "customer support engineer": "support engineer",
+    "support analyst": "support engineer",
+    "application support analyst": "support engineer",
+    "production support analyst": "support engineer",
+    "desktop support engineer": "support engineer",
+    "cloud support engineer": "support engineer",
     "it support specialist": "support engineer",
     "help desk engineer": "support engineer",
     "noc engineer": "support engineer",
@@ -1099,17 +1497,106 @@ ROLE_ALIAS_EXTENSIONS = {
     "salesforce developer": "enterprise applications engineer",
     "salesforce admin": "enterprise applications engineer",
     "salesforce administrator": "enterprise applications engineer",
+    "salesforce consultant": "enterprise applications engineer",
+    "salesforce business analyst": "enterprise applications engineer",
+    "salesforce functional consultant": "enterprise applications engineer",
+    "salesforce support": "enterprise applications engineer",
     "erp consultant": "enterprise applications engineer",
+    "erp analyst": "enterprise applications engineer",
     "crm developer": "enterprise applications engineer",
+    "crm administrator": "enterprise applications engineer",
+    "crm consultant": "enterprise applications engineer",
     "oracle developer": "enterprise applications engineer",
     "microsoft dynamics consultant": "enterprise applications engineer",
     "technical writer": "technical writer",
+    "technical content writer": "technical writer",
     "documentation engineer": "technical writer",
+    "documentation writer": "technical writer",
+    "api documentation writer": "technical writer",
+    "developer documentation writer": "technical writer",
+    "knowledge base writer": "technical writer",
     "developer advocate": "technical writer",
+    "engineering lead": "engineering leadership",
+    "technical lead": "engineering leadership",
+    "director engineering": "engineering leadership",
+    "director of engineering": "engineering leadership",
+    "engineering manager": "engineering leadership",
+    "head of engineering": "engineering leadership",
     "principal engineer": "engineering leadership",
     "staff engineer": "engineering leadership",
     "engineering manager": "engineering leadership",
     "cto": "engineering leadership",
+    "implementation manager": "project manager",
+    "delivery manager": "project manager",
+    "project coordinator": "project manager",
+    "business operations manager": "operations manager",
+    "operations manager": "operations manager",
+    "operations lead": "operations manager",
+    "operations coordinator": "operations manager",
+    "business operations analyst": "operations analyst",
+    "strategy operations analyst": "operations analyst",
+    "process analyst": "operations analyst",
+    "supply chain analyst": "operations analyst",
+    "marketing manager": "marketing manager",
+    "digital marketing manager": "marketing manager",
+    "growth marketing manager": "marketing manager",
+    "performance marketing manager": "marketing manager",
+    "brand manager": "marketing manager",
+    "campaign manager": "marketing manager",
+    "digital marketing specialist": "digital marketing specialist",
+    "seo specialist": "digital marketing specialist",
+    "performance marketing specialist": "digital marketing specialist",
+    "social media specialist": "digital marketing specialist",
+    "content marketing specialist": "digital marketing specialist",
+    "paid media specialist": "digital marketing specialist",
+    "content writer": "content writer",
+    "copywriter": "content writer",
+    "content editor": "content writer",
+    "content strategist": "content writer",
+    "blog writer": "content writer",
+    "seo writer": "content writer",
+    "account executive": "account executive",
+    "sales executive": "account executive",
+    "sales representative": "account executive",
+    "business development representative": "account executive",
+    "sales development representative": "account executive",
+    "business development manager": "account executive",
+    "account manager": "account executive",
+    "customer success manager": "customer success manager",
+    "customer success specialist": "customer success manager",
+    "customer success associate": "customer success manager",
+    "client success manager": "customer success manager",
+    "customer success lead": "customer success manager",
+    "customer support specialist": "customer support specialist",
+    "customer support representative": "customer support specialist",
+    "customer service representative": "customer support specialist",
+    "customer care executive": "customer support specialist",
+    "support associate": "customer support specialist",
+    "recruiter": "recruiter",
+    "technical recruiter": "recruiter",
+    "talent acquisition specialist": "recruiter",
+    "talent acquisition recruiter": "recruiter",
+    "sourcing specialist": "recruiter",
+    "recruitment specialist": "recruiter",
+    "hr manager": "hr manager",
+    "human resources manager": "hr manager",
+    "hr generalist": "hr manager",
+    "people operations manager": "hr manager",
+    "hr business partner": "hr manager",
+    "people operations specialist": "hr manager",
+    "financial analyst": "financial analyst",
+    "finance analyst": "financial analyst",
+    "fp&a analyst": "financial analyst",
+    "fpa analyst": "financial analyst",
+    "business finance analyst": "financial analyst",
+    "investment analyst": "financial analyst",
+    "revenue analyst": "financial analyst",
+    "accountant": "accountant",
+    "staff accountant": "accountant",
+    "accounts payable specialist": "accountant",
+    "accounts receivable specialist": "accountant",
+    "bookkeeper": "accountant",
+    "tax accountant": "accountant",
 }
 
 for canonical, config in ROLE_FAMILY_EXTENSIONS.items():
@@ -1286,6 +1773,18 @@ def _infer_domain_from_cleaned_query(cleaned: str, normalized: str) -> str | Non
         domain_scores["design"] += 1.25
     if {"product", "roadmap", "owner"} & words:
         domain_scores["product"] += 1.25
+    if {"marketing", "seo", "sem", "campaign", "brand", "growth", "social"} & words:
+        domain_scores["marketing"] += 1.25
+    if {"sales", "account", "pipeline", "quota", "sdr", "bdr"} & words:
+        domain_scores["sales"] += 1.25
+    if {"customer", "client", "success", "retention", "renewals", "service"} & words:
+        domain_scores["customer"] += 1.25
+    if {"recruiter", "recruiting", "recruitment", "talent", "hr", "human", "people"} & words:
+        domain_scores["people"] += 1.25
+    if {"finance", "financial", "accountant", "accounting", "bookkeeper", "tax"} & words:
+        domain_scores["finance"] += 1.25
+    if {"operations", "ops", "project", "program", "scrum", "delivery", "supply", "logistics"} & words:
+        domain_scores["operations"] += 1.25
     if {"teacher", "lecturer", "faculty", "professor"} & words:
         domain_scores["education"] += 1.25
     if {"carpenter", "painter", "plumber", "electrician"} & words:
@@ -1410,6 +1909,30 @@ def _infer_family_role_from_values(
             score += 1.75
         if {"writer", "documentation", "docs", "advocate"} & words and role == "technical writer":
             score += 1.5
+        if {"content", "copywriter", "blog", "seo"} & words and role == "content writer":
+            score += 1.75
+        if {"marketing", "seo", "sem", "campaign", "brand", "growth"} & words and role in {"marketing manager", "digital marketing specialist"}:
+            score += 1.75
+        if {"sales", "account", "sdr", "bdr", "quota"} & words and role == "account executive":
+            score += 1.75
+        if {"customer", "success", "client", "retention", "renewals"} & words and role == "customer success manager":
+            score += 1.75
+        if {"customer", "support", "service", "care", "ticketing"} & words and role == "customer support specialist":
+            score += 1.75
+        if {"recruiter", "recruiting", "recruitment", "talent", "acquisition"} & words and role == "recruiter":
+            score += 1.75
+        if {"hr", "human", "resources", "people", "employee"} & words and role == "hr manager":
+            score += 1.75
+        if {"finance", "financial", "fpa", "fp&a", "investment", "revenue"} & words and role == "financial analyst":
+            score += 1.75
+        if {"accountant", "accounting", "bookkeeper", "payable", "receivable", "tax"} & words and role == "accountant":
+            score += 1.75
+        if {"project", "program", "scrum", "delivery", "implementation"} & words and role == "project manager":
+            score += 1.75
+        if {"operations", "ops", "workflow", "process", "vendor"} & words and role == "operations manager":
+            score += 1.75
+        if {"operations", "ops", "process", "supply", "chain", "logistics"} & words and role == "operations analyst":
+            score += 1.75
         if {"mobile", "android", "ios", "swift", "kotlin", "flutter"} & words and role == "mobile developer":
             score += 1.75
         if {"embedded", "firmware", "microcontroller", "rtos", "iot"} & words and role == "embedded engineer":
@@ -1469,6 +1992,38 @@ def _infer_role_from_cleaned_query(cleaned: str) -> str | None:
         return "data scientist"
     if {"salesforce", "sap", "erp", "crm", "dynamics"} & words:
         return "enterprise applications engineer"
+    if {"content", "copywriter", "copywriting", "blog"} & words and {"writer", "editor", "strategist"} & words:
+        return "content writer"
+    if {"digital", "seo", "sem", "paid", "social"} & words and {"marketing", "specialist", "manager"} & words:
+        if "manager" in words:
+            return "marketing manager"
+        return "digital marketing specialist"
+    if {"marketing", "growth", "performance", "campaign", "brand"} & words and {"manager", "lead"} & words:
+        return "marketing manager"
+    if {"marketing", "seo", "sem", "social", "paid"} & words and {"specialist", "associate", "executive"} & words:
+        return "digital marketing specialist"
+    if {"account", "sales", "sdr", "bdr"} & words and {"executive", "representative", "manager"} & words:
+        return "account executive"
+    if {"business", "development"} <= words and {"manager", "representative", "executive"} & words:
+        return "account executive"
+    if {"customer", "client"} & words and {"success", "retention", "renewals"} & words:
+        return "customer success manager"
+    if {"customer", "client"} & words and {"support", "service", "care"} & words:
+        return "customer support specialist"
+    if {"recruiter", "recruiting", "recruitment"} & words or {"talent", "acquisition"} <= words:
+        return "recruiter"
+    if {"hr"} & words or {"human", "resources"} <= words or {"people", "operations"} <= words:
+        return "hr manager"
+    if {"financial", "finance", "fpa", "fp&a", "investment", "revenue"} & words and "analyst" in words:
+        return "financial analyst"
+    if {"accountant", "accounting", "bookkeeper"} & words or ({"accounts", "payable"} <= words) or ({"accounts", "receivable"} <= words):
+        return "accountant"
+    if {"project", "program", "scrum", "delivery", "implementation"} & words and {"manager", "coordinator", "master"} & words:
+        return "project manager"
+    if {"operations", "ops"} & words and {"manager", "lead", "coordinator"} & words:
+        return "operations manager"
+    if ({"operations", "ops"} & words and "analyst" in words) or ({"supply", "chain"} <= words and "analyst" in words):
+        return "operations analyst"
     if {"support", "helpdesk", "noc"} & words:
         return "support engineer"
     if {"writer", "documentation", "docs", "doc", "advocate"} & words:
@@ -1622,6 +2177,18 @@ def _head_query_variants(profile: RoleProfile) -> list[str]:
         return ["manager", "analyst"]
     if profile.domain == "design":
         return ["designer", "researcher"]
+    if profile.domain == "marketing":
+        return ["manager", "specialist", "writer"]
+    if profile.domain == "sales":
+        return ["executive", "representative", "manager"]
+    if profile.domain == "customer":
+        return ["manager", "specialist", "representative"]
+    if profile.domain == "people":
+        return ["recruiter", "specialist", "manager", "generalist"]
+    if profile.domain == "finance":
+        return ["analyst", "accountant", "specialist"]
+    if profile.domain == "operations":
+        return ["manager", "analyst", "coordinator"]
     if profile.domain == "education":
         return ["teacher", "instructor"]
     if profile.domain == "trades":
@@ -1658,11 +2225,11 @@ def _generic_query_expansions(profile: RoleProfile) -> list[str]:
 
     canonical_role = profile.family_role or profile.normalized_role
     if canonical_role:
-        family_safe_candidates = {
+        family_safe_candidates = [
             *ROLE_SEARCH_VARIATIONS.get(canonical_role, []),
             *ROLE_PRODUCTION_VARIATIONS.get(canonical_role, []),
-            *ROLE_TITLE_HINTS.get(canonical_role, set()),
-        }
+            *sorted(ROLE_TITLE_HINTS.get(canonical_role, set())),
+        ]
         for candidate in family_safe_candidates:
             cleaned_candidate = _clean_role_text(candidate)
             if not cleaned_candidate or cleaned_candidate in {profile.cleaned_query, profile.normalized_role}:
@@ -1811,6 +2378,42 @@ def production_query_variations(query: str) -> list[str]:
             "cybersecurity analyst",
             *variations,
         ]
+    elif profile.domain == "security" and any(head in {"analyst", "specialist"} for head in profile.head_terms):
+        variations = [
+            "security analyst",
+            "soc analyst",
+            "cybersecurity analyst",
+            *variations,
+        ]
+    elif profile.normalized_role == "product manager":
+        variations = [
+            "product manager",
+            "product owner",
+            "associate product manager",
+            "technical product manager",
+            "product lead",
+            *variations,
+        ]
+    elif (profile.family_role or profile.normalized_role) == "enterprise applications engineer" and "salesforce" not in profile.cleaned_query:
+        variations = [
+            "enterprise applications engineer",
+            "salesforce consultant",
+            "salesforce administrator",
+            "salesforce developer",
+            "salesforce business analyst",
+            "crm administrator",
+            *variations,
+        ]
+    elif (profile.family_role or profile.normalized_role) == "enterprise applications engineer" and "salesforce" in profile.cleaned_query:
+        variations = [
+            profile.cleaned_query,
+            "salesforce administrator",
+            "salesforce consultant",
+            "salesforce business analyst",
+            "salesforce developer",
+            "salesforce functional consultant",
+            *variations,
+        ]
     if profile.cleaned_query and profile.cleaned_query not in variations:
         variations = [profile.cleaned_query, *variations]
     return list(dict.fromkeys(item for item in variations if item))[:6]
@@ -1828,6 +2431,21 @@ def _query_priority_score(candidate: str, profile: RoleProfile, source_name: str
         score += 3.0 if profile.normalized_role in ABSTRACT_CANONICAL_QUERY_FAMILIES and profile.specialty_tokens else 10.0
     if profile.specialty_tokens:
         score += len(candidate_tokens & set(profile.specialty_tokens)) * 3.0
+    if profile.normalized_role == "product manager":
+        if cleaned_candidate in {"product owner", "product lead", "technical product manager", "associate product manager"}:
+            score += 8.0
+        if cleaned_candidate == "product owner":
+            score += 8.0
+        if candidate_tokens & {"owner", "lead"}:
+            score += 3.0
+    if (profile.family_role or profile.normalized_role) == "enterprise applications engineer":
+        if cleaned_candidate in {"salesforce consultant", "salesforce administrator", "salesforce business analyst", "salesforce functional consultant"}:
+            score += 9.0
+    if (profile.family_role or profile.normalized_role) == "enterprise applications engineer" and "salesforce" in profile.cleaned_query:
+        if cleaned_candidate.startswith("salesforce"):
+            score += 10.0
+        if cleaned_candidate in {"salesforce consultant", "salesforce business analyst", "salesforce functional consultant"}:
+            score += 5.0
     generic_security_query = _is_generic_security_query(profile)
     if generic_security_query:
         if candidate_tokens & {"security", "cybersecurity", "cyber", "soc"}:
@@ -1863,6 +2481,8 @@ def _provider_query_budget(profile: RoleProfile, source_name: str, *, production
         head in {"analyst", "specialist"} for head in profile.head_terms
     )
     weak_software_family = profile.normalized_role in {"frontend developer", "mobile developer", "embedded engineer"}
+    normalized = profile.family_role or profile.normalized_role
+    business_query = profile.domain in BUSINESS_QUERY_DOMAINS
 
     if not production:
         if family_alias_query:
@@ -1870,10 +2490,27 @@ def _provider_query_budget(profile: RoleProfile, source_name: str, *, production
         return budget
 
     if source_name in {"remotive", "jooble", "adzuna"}:
+        if business_query:
+            budget = max(budget, 3)
+            if source_name == "jooble":
+                budget = max(budget, 4)
         if broad_dense_query:
             budget = max(budget, 3)
-        if source_name == "remotive" and (broad_dense_query or family_alias_query or abstract_family):
+        if normalized in {
+            "devops engineer",
+            "database engineer",
+            "product manager",
+            "ui/ux designer",
+            "support engineer",
+            "enterprise applications engineer",
+            "technical writer",
+            "engineering leadership",
+        }:
             budget = max(budget, 4)
+        if source_name == "remotive" and (business_query or broad_dense_query or family_alias_query or abstract_family):
+            budget = max(budget, 4)
+        if source_name == "remotive" and normalized in {"devops engineer", "support engineer", "enterprise applications engineer", "technical writer", "engineering leadership"}:
+            budget = max(budget, 5)
         if source_name in {"jooble", "adzuna"} and security_analyst_style:
             budget = max(budget, 3)
         if source_name == "jooble" and weak_software_family:
@@ -1887,10 +2524,29 @@ def _provider_query_budget(profile: RoleProfile, source_name: str, *, production
             budget = max(budget, 2 if (broad_dense_query or family_alias_query or abstract_family) else 1)
             if weak_software_family and not query_is_narrow:
                 budget = max(budget, 3)
-            if query_is_narrow and not family_alias_query and not abstract_family:
+            if normalized in {"devops engineer", "support engineer"}:
+                budget = max(budget, 2)
+            if query_is_narrow and not family_alias_query and not abstract_family and normalized not in {"devops engineer", "support engineer"}:
                 budget = 1
+        elif business_query:
+            budget = max(budget, 2)
+        elif normalized in {"enterprise applications engineer", "technical writer", "engineering leadership"}:
+            budget = max(budget, 3)
     if source_name == "themuse" and profile.domain in {"data", "security"}:
         budget = min(budget, 1)
+    elif source_name == "themuse" and (
+        business_query
+        or normalized
+        in {
+            "product manager",
+            "ui/ux designer",
+            "support engineer",
+            "enterprise applications engineer",
+            "technical writer",
+            "engineering leadership",
+        }
+    ):
+        budget = max(budget, 2)
     if family_alias_query:
         budget = max(budget, 2)
     return budget

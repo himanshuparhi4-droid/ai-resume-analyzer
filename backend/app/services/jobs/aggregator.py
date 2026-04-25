@@ -167,6 +167,8 @@ PRODUCTION_FAMILY_GROUPS = {
     "leadership": {"engineering leadership"},
 }
 DENSE_PRODUCTION_FAMILY_GROUPS = {"data", "software", "infra", "security"}
+PRODUCTION_MIN_LIVE_TARGET = 10
+BUSINESS_PRODUCTION_DOMAINS = {"marketing", "sales", "customer", "people", "finance", "operations"}
 
 
 class JobAggregator:
@@ -357,19 +359,31 @@ class JobAggregator:
                 return 13.0
             if stage == "supplemental":
                 return 11.5
+        profile = role_profile(query)
+        if (profile.family_role or profile.normalized_role) == "support engineer":
+            if stage == "primary":
+                return 24.0
+            if stage == "supplemental":
+                return 9.5
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         if stage == "primary":
             if dense_family:
                 return 12.5
+            if family_group in BUSINESS_PRODUCTION_DOMAINS:
+                return 15.5
             if family_group in {"product", "design"}:
-                return 7.5
+                return 15.0
+            if family_group in {"enterprise", "docs", "leadership"}:
+                return 15.0
             return 7.0
         if stage == "supplemental":
             if dense_family:
                 return 10.0
+            if family_group in BUSINESS_PRODUCTION_DOMAINS:
+                return 10.5
             if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
-                return 7.5
+                return 10.0
             return 7.5
         return 4.5
 
@@ -385,7 +399,10 @@ class JobAggregator:
     ) -> float:
         if pending_task_count <= 0 or stage not in {"primary", "supplemental"}:
             return 0.0
-        if is_sparse_live_market_role(query) or not self._is_dense_production_family(query):
+        family_group = self._production_family_group(query)
+        dense_role = self._is_dense_production_family(query)
+        business_role = family_group in BUSINESS_PRODUCTION_DOMAINS
+        if is_sparse_live_market_role(query) or not (dense_role or business_role):
             return 0.0
         target_floor = live_floor if stage == "primary" else partial_live_floor
         if current_live_count >= target_floor:
@@ -393,7 +410,8 @@ class JobAggregator:
         gap = max(target_floor - current_live_count, 0)
         if gap <= 0:
             return 0.0
-        return min(3.0, 0.75 + (0.45 * min(gap, 3)) + (0.2 * min(pending_task_count, 3)))
+        cap = 4.5 if business_role else 3.0
+        return min(cap, 0.75 + (0.55 * min(gap, 5)) + (0.25 * min(pending_task_count, 4)))
 
     def _is_india_focused_location(self, location: str) -> bool:
         lowered = normalize_role(location)
@@ -404,6 +422,28 @@ class JobAggregator:
         normalized = profile.family_role or profile.normalized_role
         return normalized == "cybersecurity engineer" and any(
             head in {"analyst", "specialist"} for head in profile.head_terms
+        )
+
+    def _is_generic_security_search_query(self, query: str) -> bool:
+        profile = role_profile(query)
+        normalized = profile.family_role or profile.normalized_role
+        cleaned_tokens = set((profile.cleaned_query or "").split())
+        explicit_head_tokens = cleaned_tokens & {
+            "admin",
+            "administrator",
+            "analyst",
+            "architect",
+            "consultant",
+            "developer",
+            "engineer",
+            "manager",
+            "officer",
+            "specialist",
+        }
+        return (
+            normalized == "cybersecurity engineer"
+            and not explicit_head_tokens
+            and bool(cleaned_tokens & {"cyber", "cybersecurity", "infosec", "security"})
         )
 
     def _is_data_analyst_style_query(self, query: str) -> bool:
@@ -420,15 +460,38 @@ class JobAggregator:
         family_group = self._production_family_group(query)
         india_focused_location = self._is_india_focused_location(location)
         security_analyst_style = self._is_security_analyst_style_query(query)
+        generic_security_query = self._is_generic_security_search_query(query)
         data_analyst_style = self._is_data_analyst_style_query(query)
         weak_software_family = self._is_weak_software_live_family(query)
+        profile = role_profile(query)
+        canonical_query_role = profile.family_role or profile.normalized_role
+        support_engineer_style = canonical_query_role == "support engineer"
 
         if source_name == "themuse" and family_group in {"data", "software", "security"}:
             return 1
         if source_name in {"adzuna", "jooble"}:
             if data_analyst_style:
                 return 1 if not india_focused_location else 2
-            if security_analyst_style or weak_software_family:
+            if support_engineer_style:
+                return 4 if india_focused_location else 2
+            if family_group in BUSINESS_PRODUCTION_DOMAINS:
+                if source_name == "adzuna" and india_focused_location:
+                    return 1
+                if source_name == "jooble" and india_focused_location:
+                    return 4
+                return 3 if india_focused_location else 2
+            if source_name == "adzuna":
+                if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                    if family_group == "docs" and india_focused_location:
+                        return 1
+                    return 2 if india_focused_location else 1
+                if canonical_query_role == "database engineer":
+                    return 2 if india_focused_location else 1
+            if family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                return 3 if india_focused_location else 2
+            if canonical_query_role == "database engineer":
+                return 4 if india_focused_location else 3
+            if security_analyst_style or generic_security_query or weak_software_family:
                 return 2 if india_focused_location else 1
             if family_group in {"software", "security", "infra"} and not india_focused_location:
                 return 1
@@ -437,11 +500,25 @@ class JobAggregator:
             return 2 if india_focused_location else 1
         if source_name == "remotive" and data_analyst_style:
             return 3 if india_focused_location else 2
+        if source_name == "remotive" and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+            return 5 if india_focused_location else 3
+        if source_name == "remotive" and family_group in BUSINESS_PRODUCTION_DOMAINS:
+            return 5 if india_focused_location else 4
+        if source_name == "remotive" and canonical_query_role == "database engineer":
+            return 6 if india_focused_location else 4
+        if source_name == "remotive" and support_engineer_style:
+            return 6 if india_focused_location else 4
         if source_name == "jobicy" and security_analyst_style:
             return 1
         if source_name == "jobicy" and data_analyst_style:
             return 1
-        if source_name == "remotive" and security_analyst_style:
+        if source_name == "jobicy" and support_engineer_style:
+            return 3 if india_focused_location else 2
+        if source_name == "jobicy" and family_group in BUSINESS_PRODUCTION_DOMAINS:
+            return 2
+        if source_name == "jobicy" and family_group in {"enterprise", "docs", "leadership"}:
+            return 3 if india_focused_location else 2
+        if source_name == "remotive" and (security_analyst_style or generic_security_query):
             return 3
         return None
 
@@ -457,8 +534,11 @@ class JobAggregator:
         family_group = self._production_family_group(query)
         dense_family = family_group in DENSE_PRODUCTION_FAMILY_GROUPS
         security_analyst_style = self._is_security_analyst_style_query(query)
+        generic_security_query = self._is_generic_security_search_query(query)
         data_analyst_style = self._is_data_analyst_style_query(query)
         weak_software_family = self._is_weak_software_live_family(query)
+        profile = role_profile(query)
+        support_engineer_style = (profile.family_role or profile.normalized_role) == "support engineer"
 
         fallback_order: list[str] = []
         if sparse_role:
@@ -466,9 +546,12 @@ class JobAggregator:
             supplemental_order: list[str] = []
         elif dense_family:
             if india_focused_location:
-                if security_analyst_style:
-                    primary_order = ["greenhouse", "remotive", "adzuna", "jooble"]
-                    supplemental_order = ["jobicy", "themuse"]
+                if security_analyst_style or generic_security_query:
+                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
+                    supplemental_order = ["themuse", "greenhouse"]
+                elif support_engineer_style:
+                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
+                    supplemental_order = ["themuse", "greenhouse"]
                 elif data_analyst_style:
                     primary_order = ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
                     supplemental_order = ["greenhouse"]
@@ -482,8 +565,8 @@ class JobAggregator:
                     primary_order = ["greenhouse", "remotive", "jobicy", "jooble"]
                     supplemental_order = ["themuse", "adzuna"]
                 elif family_group == "security":
-                    primary_order = ["greenhouse", "remotive", "jooble", "adzuna"]
-                    supplemental_order = ["jobicy", "themuse"]
+                    primary_order = ["jooble", "adzuna", "remotive", "jobicy"]
+                    supplemental_order = ["themuse", "greenhouse"]
                 else:
                     primary_order = ["greenhouse", "jooble", "remotive"]
                     supplemental_order = ["jobicy", "adzuna", "themuse"]
@@ -510,17 +593,32 @@ class JobAggregator:
             else:
                 primary_order = ["greenhouse", "remotive", "jobicy"]
                 supplemental_order = ["themuse", "jooble", "adzuna"]
+        elif family_group in BUSINESS_PRODUCTION_DOMAINS:
+            if india_focused_location:
+                # Adzuna is the strongest India-specific source for business
+                # families; keep the primary stage narrow so Render does not
+                # overload it with several simultaneous searches.
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
+            else:
+                primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
+                supplemental_order = ["greenhouse"]
+            fallback_order = ["lever"]
         elif family_group in {"product", "design"}:
             primary_order = ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
             supplemental_order = ["greenhouse"]
             fallback_order = ["lever"]
         elif family_group in {"enterprise", "docs", "leadership"}:
-            primary_order = (
-                ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
-                if india_focused_location
-                else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
-            )
-            supplemental_order = ["greenhouse"]
+            if india_focused_location and family_group == "docs":
+                primary_order = ["adzuna", "jooble"]
+                supplemental_order = ["jobicy", "remotive", "themuse", "greenhouse"]
+            else:
+                primary_order = (
+                    ["jooble", "adzuna", "jobicy", "remotive", "themuse"]
+                    if india_focused_location
+                    else ["jobicy", "jooble", "adzuna", "remotive", "themuse"]
+                )
+                supplemental_order = ["greenhouse"]
             fallback_order = ["lever"]
         else:
             primary_order = (
@@ -1107,6 +1205,9 @@ class JobAggregator:
             security_analyst_style = self._is_security_analyst_style_query(query)
             data_analyst_style = self._is_data_analyst_style_query(query)
             weak_software_family = self._is_weak_software_live_family(query)
+            family_group = self._production_family_group(query)
+            canonical_query_role = query_profile.family_role or query_profile.normalized_role
+            support_engineer_style = canonical_query_role == "support engineer"
             if source_name == "jobicy":
                 if security_analyst_style:
                     provider_timeout = 7.0
@@ -1130,6 +1231,12 @@ class JobAggregator:
                     provider_timeout = 6.0
             elif source_name == "jooble":
                 provider_timeout = 10.0 if india_focused_location else 6.0
+                if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
+                    provider_timeout = 12.0
+                if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                    provider_timeout = 12.0
+                if india_focused_location and support_engineer_style:
+                    provider_timeout = 12.0
                 if data_analyst_style and not india_focused_location:
                     provider_timeout = 8.5
                 if security_analyst_style and not india_focused_location:
@@ -1138,6 +1245,12 @@ class JobAggregator:
                     provider_timeout = min(provider_timeout, 5.25)
             elif source_name == "adzuna":
                 provider_timeout = 10.5 if india_focused_location else 5.5
+                if india_focused_location and family_group in BUSINESS_PRODUCTION_DOMAINS:
+                    provider_timeout = 14.0
+                if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                    provider_timeout = 14.0
+                if india_focused_location and support_engineer_style:
+                    provider_timeout = 22.0
                 if data_analyst_style:
                     provider_timeout = 12.0 if india_focused_location else 8.5
                 if security_analyst_style and not india_focused_location:
@@ -1148,6 +1261,8 @@ class JobAggregator:
                 provider_timeout = 9.0
             elif source_name == "themuse":
                 provider_timeout = 6.5 if query_domain in {"data", "software", "security"} else 5.5
+                if india_focused_location and family_group in {"product", "design", "enterprise", "docs", "leadership"}:
+                    provider_timeout = 8.0
             elif source_name == "findwork":
                 provider_timeout = 6.0
             elif source_name == "remoteok":
@@ -1820,12 +1935,28 @@ class JobAggregator:
                 has_distinct_listing_id = bool(
                     self._query_signature(item.get("external_id") or item.get("url") or "")
                 )
+                strong_distinct_india_listing = (
+                    india_focused_selection
+                    and has_distinct_listing_id
+                    and len(selected) < target_live_count
+                    and self._canonical_role_alignment(query, item) >= 1
+                    and (
+                        self._title_precision_score(query, item) >= 2
+                        or self._title_hint_overlap(query, item) >= 1
+                        or (
+                            self._family_token_overlap(query, item) >= 1
+                            and self._role_domain_match_score(query, item) >= 2
+                        )
+                    )
+                )
                 if (
                     not india_focused_selection
                     and has_distinct_listing_id
                     and source in {"jobicy", "themuse"}
                     and len(selected) < display_floor
                 ):
+                    company_title_limit = 3
+                elif strong_distinct_india_listing and len(selected) < display_floor:
                     company_title_limit = 3
                 elif (
                     india_focused_selection
@@ -1858,12 +1989,15 @@ class JobAggregator:
                     continue
                 if similarity_signature in selected_signatures:
                     allow_similarity_escape = (
-                        (
-                            len(selected) < display_floor
-                            or (has_distinct_listing_id and len(selected) < target_live_count)
+                        strong_distinct_india_listing
+                        or (
+                            (
+                                len(selected) < display_floor
+                                or (has_distinct_listing_id and len(selected) < target_live_count)
+                            )
+                            and self._canonical_role_alignment(query, item) >= 2
+                            and self._title_precision_score(query, item) >= 2
                         )
-                        and self._canonical_role_alignment(query, item) >= 2
-                        and self._title_precision_score(query, item) >= 2
                     )
                     if not allow_similarity_escape:
                         if isinstance(rejection_counts, dict):
@@ -2550,7 +2684,14 @@ class JobAggregator:
 
     def _requires_specialty_guard(self, query: str) -> bool:
         profile = role_profile(query)
+        canonical_role = profile.family_role or profile.normalized_role
+        if profile.domain in BUSINESS_PRODUCTION_DOMAINS:
+            return False
+        if canonical_role in {"devops engineer", "support engineer", "technical writer", "ui/ux designer"}:
+            return False
         if profile.normalized_role == "frontend developer":
+            return False
+        if self._is_generic_security_search_query(query):
             return False
         if self._is_security_analyst_style_query(query):
             return False
@@ -2685,6 +2826,20 @@ class JobAggregator:
             return False
         if title_alignment <= -6.0:
             return False
+        business_title_match = (
+            query_domain in BUSINESS_PRODUCTION_DOMAINS
+            and canonical_alignment >= 0
+            and (
+                title_overlap >= 1
+                or title_precision >= 1
+                or explicit_alignment
+                or (domain_score >= 2 and (core_title_overlap >= 1 or family_overlap >= 1))
+            )
+        )
+        if business_title_match and location_score > 0.0:
+            if strict:
+                return market_quality >= 10.0 or role_fit >= 0.4 or title_alignment >= 8.0
+            return market_quality >= 8.0 or role_fit >= 0.2 or title_alignment >= 5.0
         if (
             query_domain == "data"
             and not explicit_alignment
@@ -2792,6 +2947,15 @@ class JobAggregator:
         if self._canonical_role_alignment(query, item) < 0 and title_overlap == 0:
             return False
         if (
+            role_domain(query) in BUSINESS_PRODUCTION_DOMAINS
+            and (
+                title_overlap >= 1
+                or title_precision >= 1
+                or (domain_score >= 2 and (core_title_overlap >= 1 or family_overlap >= 1))
+            )
+        ):
+            return True
+        if (
             role_domain(query) == "data"
             and title_overlap == 0
             and family_overlap == 0
@@ -2848,14 +3012,14 @@ class JobAggregator:
             return min(limit, 4)
         if self._is_dense_production_family(query):
             return min(limit, settings.production_live_fetch_maximum)
-        return min(limit, max(settings.production_live_display_minimum, settings.production_live_fetch_minimum))
+        return min(limit, max(PRODUCTION_MIN_LIVE_TARGET, settings.production_live_display_minimum, settings.production_live_fetch_minimum))
 
     def _production_display_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
             return min(limit, 1)
         if self._is_dense_production_family(query):
             return min(limit, max(6, settings.production_live_display_minimum))
-        return min(limit, max(6, min(settings.production_live_display_minimum, settings.production_live_fetch_minimum)))
+        return min(limit, max(PRODUCTION_MIN_LIVE_TARGET, min(settings.production_live_display_minimum, settings.production_live_fetch_minimum)))
 
     def _production_partial_live_floor(self, *, query: str, limit: int) -> int:
         if is_sparse_live_market_role(query):
@@ -2972,6 +3136,16 @@ class JobAggregator:
             return False
         if title_alignment <= -6.0:
             return False
+        if (
+            role_domain(query) in BUSINESS_PRODUCTION_DOMAINS
+            and (
+                title_overlap >= 1
+                or title_precision >= 1
+                or explicit_alignment
+                or (domain_score >= 2 and (core_title_overlap >= 1 or family_overlap >= 1))
+            )
+        ):
+            return requirement_quality >= 8.0 or listing_quality >= 4.0 or role_fit >= 0.3
         if is_sparse_live_market_role(query):
             if skill_overlap < 1.0 and title_precision < 2:
                 return False

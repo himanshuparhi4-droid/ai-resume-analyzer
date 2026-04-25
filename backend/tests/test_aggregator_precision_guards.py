@@ -222,6 +222,28 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         self.assertTrue(self.aggregator._passes_precise_query_guard("SOC Analyst", item))
         self.assertTrue(self.aggregator._passes_final_live_guard("SOC Analyst", item))
 
+    def test_generic_cybersecurity_query_accepts_security_analyst_titles(self) -> None:
+        item = {
+            "title": "Security Operations Analyst",
+            "description": "Work in SOC operations, SIEM alerting, incident response, threat detection, and IAM review.",
+            "tags": ["security analyst"],
+            "location": "India",
+            "source": "jooble",
+            "external_id": "security-ops-analyst",
+            "url": "https://example.test/security-ops-analyst",
+            "normalized_data": {
+                "skills": ["siem", "iam", "incident response", "threat detection", "security operations"],
+                "role_fit_score": 4.5,
+                "market_quality_score": 42.0,
+                "title_alignment_score": 18.0,
+            },
+        }
+
+        self.assertFalse(self.aggregator._requires_specialty_guard("cybersecurity"))
+        self.assertTrue(self.aggregator._passes_precise_query_guard("cybersecurity", item))
+        self.assertTrue(self.aggregator._passes_final_live_guard("cybersecurity", item))
+        self.assertTrue(self.aggregator._is_production_live_candidate("cybersecurity", "India", item, strict=True))
+
     def test_devops_engineer_keeps_site_reliability_engineer_title(self) -> None:
         item = {
             "title": "Site Reliability Engineer",
@@ -330,6 +352,17 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
 
         self.assertEqual(plan["primary_sources"], ["jooble", "adzuna", "jobicy", "remotive", "themuse"])
         self.assertEqual(plan["supplemental_sources"], ["greenhouse"])
+
+    def test_cybersecurity_india_provider_plan_prioritizes_fast_india_sources(self) -> None:
+        source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
+        plan = self.aggregator._build_production_provider_plan(
+            query="cybersecurity",
+            location="India",
+            source_groups=source_groups,
+        )
+
+        self.assertEqual(plan["primary_sources"], ["jooble", "adzuna", "remotive", "jobicy"])
+        self.assertEqual(plan["supplemental_sources"], ["themuse", "greenhouse"])
 
     def test_business_analyst_reuses_the_fast_analyst_global_provider_plan(self) -> None:
         source_groups = {name: [object()] for name in ["remotive", "jobicy", "greenhouse", "themuse", "jooble", "adzuna"]}
@@ -1173,6 +1206,65 @@ class AggregatorPrecisionGuardTest(unittest.TestCase):
         debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
         self.assertEqual(debug["target_live_count"], 18)
         self.assertEqual(debug["underfill"]["required_live_floor"], 18)
+        self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
+
+    def test_generic_cybersecurity_india_can_fill_requested_eighteen_from_security_matches(self) -> None:
+        jobs = []
+        titles = [
+            "Security Analyst",
+            "SOC Analyst",
+            "Cybersecurity Analyst",
+            "Information Security Analyst",
+            "Security Operations Analyst",
+            "Vulnerability Analyst",
+        ]
+        sources = ["jooble", "adzuna", "remotive", "themuse", "jobicy", "greenhouse"]
+        for index in range(1, 19):
+            jobs.append(
+                {
+                    "title": f"{titles[index % len(titles)]} {index}",
+                    "company": f"India Security {index}",
+                    "source": sources[index % len(sources)],
+                    "external_id": f"india-security-{index}",
+                    "url": f"https://example.test/india-security/{index}",
+                    "description": (
+                        "Own SOC monitoring, SIEM alerting, IAM reviews, incident response, "
+                        "threat detection, vulnerability management, and security operations."
+                    ),
+                    "location": "India",
+                    "tags": ["security analyst", "soc analyst"],
+                    "normalized_data": {
+                        "skills": [
+                            "siem",
+                            "iam",
+                            "incident response",
+                            "threat detection",
+                            "vulnerability management",
+                            "security operations",
+                        ],
+                        "title_alignment_score": 24.0 - (index * 0.1),
+                        "role_fit_score": 5.0,
+                        "market_quality_score": 48.0,
+                    },
+                }
+            )
+
+        selected = self.aggregator._select_production_live_jobs(
+            query="cybersecurity",
+            location="India",
+            jobs=jobs,
+            limit=18,
+        )
+
+        self.assertEqual(len(selected), 18)
+        self.assertTrue(
+            all(
+                any(token in item["title"].lower() for token in {"cybersecurity", "security", "soc", "vulnerability"})
+                for item in selected
+            )
+        )
+        debug = self.aggregator.last_fetch_diagnostics["selection_debug"]
+        self.assertEqual(debug["selected_count"], 18)
         self.assertEqual(debug["underfill"]["reason"], "sufficient_live_supply")
 
     def test_dense_india_role_can_overflow_source_cap_after_clean_floor(self) -> None:
