@@ -3,19 +3,22 @@ import { Link } from "react-router-dom";
 const PLANS = [
   {
     name: "Free Resume Scan",
-    price: "Free",
+    price: "Rs. 0",
+    note: "Starter scan",
     description: "Start with a practical resume scan covering ATS readability, role fit, and core improvement areas.",
     features: ["Anonymous resume analysis", "Overall score", "Core ATS and keyword feedback", "Actionable next steps"],
   },
   {
     name: "Detailed AI Feedback",
-    price: "Advanced",
+    price: "Rs. 199",
+    note: "Per detailed report",
     description: "Unlock deeper section feedback, skill evidence review, and detailed recommendations for stronger applications.",
     features: ["Detailed feedback sections", "Missing keyword analysis", "Weak proof detection", "Market-informed suggestions"],
   },
   {
     name: "Premium Resume Optimization",
-    price: "Premium",
+    price: "Rs. 499",
+    note: "Per resume version",
     description: "For users who want richer rewrite suggestions, version tracking, and ongoing resume improvement support.",
     features: ["Rewrite guidance", "Saved reports", "Version comparison", "Progress tracking"],
   },
@@ -39,6 +42,7 @@ export function PricingPage() {
           <article key={plan.name} className={`signal-panel rounded-[2rem] p-6 ${index === 1 ? "ring-2 ring-cyan-300/30" : ""}`}>
             <p className="eyebrow">{plan.name}</p>
             <h2 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">{plan.price}</h2>
+            <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{plan.note}</p>
             <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">{plan.description}</p>
             <div className="mt-5 grid gap-3">
               {plan.features.map((feature) => (
