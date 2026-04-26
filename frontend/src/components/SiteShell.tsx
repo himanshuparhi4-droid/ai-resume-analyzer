@@ -43,25 +43,25 @@ export function SiteShell({ children, theme, onToggleTheme, user, onLogout }: Si
   return (
     <main className="min-h-screen bg-transparent text-ink transition-colors duration-300 dark:text-slate-100">
       <div className="studio-shell">
-        <nav className="glass-panel sticky top-3 z-30 rounded-[1.5rem] px-4 py-3 backdrop-blur-xl">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link className="flex items-center gap-3" to="/">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-slate-950 text-sm font-black text-cyan-100 dark:bg-cyan-300/10">
+        <nav className="glass-panel sticky top-3 z-30 rounded-2xl px-5 py-4 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 xl:flex-nowrap">
+            <Link className="flex shrink-0 items-center gap-3" to="/">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-slate-950 text-base font-black text-cyan-100 dark:bg-cyan-300/10">
                 AI
               </span>
               <span>
-                <span className="block font-display text-lg font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">Resume Intelligence</span>
-                <span className="block text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Career feedback studio</span>
+                <span className="block font-display text-xl font-extrabold tracking-[-0.04em] text-ink dark:text-slate-50">Resume Intelligence</span>
+                <span className="hidden text-xs font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 sm:block">Career feedback studio</span>
               </span>
             </Link>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="hidden flex-wrap items-center gap-1 lg:flex">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
+              <div className="hidden flex-wrap items-center gap-2 lg:flex">
                 {NAV_ITEMS.map((item) => (
                   <NavLink
                     key={item.to}
                     className={({ isActive }) =>
-                      `rounded-full px-4 py-2 text-sm font-extrabold transition ${
+                      `rounded-xl px-4 py-2.5 text-sm font-extrabold transition ${
                         isActive ? "bg-slate-950 text-white dark:bg-cyan-300/15 dark:text-cyan-50" : "text-slate-700 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/[0.06]"
                       }`
                     }
@@ -92,7 +92,7 @@ export function SiteShell({ children, theme, onToggleTheme, user, onLogout }: Si
                 </Link>
               )}
 
-              <Link className="primary-button min-h-0 px-5 py-2.5 text-xs" to="/upload">
+              <Link className="h-12 shrink-0 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-extrabold uppercase tracking-[0.12em] text-slate-950 shadow-xl shadow-cyan-950/20 transition hover:-translate-y-0.5 hover:bg-cyan-200" to="/upload">
                 Analyze My Resume
               </Link>
             </div>

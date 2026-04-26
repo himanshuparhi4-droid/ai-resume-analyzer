@@ -140,7 +140,7 @@ input {
 
 @layer components {
   .studio-shell {
-    @apply mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-5 sm:px-6 md:gap-7 md:px-8 md:py-8;
+    @apply mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8 md:gap-8 md:py-10;
   }
 
   .glass-panel {
