@@ -52,7 +52,7 @@ function AppRoutes() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const analyzeRequestId = useRef(0);
 
   useEffect(() => {
@@ -68,9 +68,6 @@ function AppRoutes() {
     if (savedTheme === "light" || savedTheme === "dark") {
       setTheme(savedTheme);
       return;
-    }
-    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
-      setTheme("dark");
     }
   }, []);
 

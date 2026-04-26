@@ -18,7 +18,7 @@ const LOCATION_OPTIONS = ["Global", "India", "Remote", "United States", "Europe"
 export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
-  const [location, setLocation] = useState("India");
+  const [location, setLocation] = useState("Global");
   const [limit, setLimit] = useState(18);
   const [jobDescription, setJobDescription] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -47,13 +47,13 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   }
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl sm:p-8">
+    <section className="rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-xl shadow-slate-900/10 dark:border-white/10 dark:bg-white/5 dark:shadow-black/20 sm:p-8">
         <form className="grid gap-6" onSubmit={handleSubmit}>
           <label
             className={`group relative grid min-h-[18rem] cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed p-10 text-center transition ${
               isDragging
-                ? "border-cyan-300/70 bg-cyan-300/10"
-                : "border-white/15 bg-white/[0.03] hover:border-cyan-300/45 hover:bg-white/[0.06]"
+                ? "border-cyan-500/70 bg-cyan-100/70 dark:border-cyan-300/70 dark:bg-cyan-300/10"
+                : "border-cyan-300/70 bg-slate-50/80 hover:border-cyan-500/70 hover:bg-cyan-50/70 dark:border-white/15 dark:bg-white/[0.03] dark:hover:border-cyan-300/45 dark:hover:bg-white/[0.06]"
             }`}
             onDragLeave={() => setIsDragging(false)}
             onDragOver={(event) => {
@@ -64,45 +64,45 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
           >
             <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-300/10 blur-3xl transition group-hover:scale-110" />
             <div className="relative">
-              <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-xl font-black text-cyan-100">
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan-500/25 bg-cyan-100 text-xl font-black text-cyan-700 dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-100">
                 +
               </span>
-              <p className="mt-5 font-display text-3xl font-extrabold tracking-[-0.045em] text-white">{fileLabel}</p>
-              <p className="mt-3 text-base leading-relaxed text-slate-300">
+              <p className="mt-5 font-display text-3xl font-extrabold tracking-[-0.045em] text-slate-950 dark:text-white">{fileLabel}</p>
+              <p className="mt-3 text-base leading-relaxed text-slate-600 dark:text-slate-300">
                 Drag and drop your resume here, or choose a file to upload.
               </p>
-              <p className="mt-4 text-sm font-bold uppercase tracking-[0.16em] text-cyan-100/80">{fileMeta}</p>
+              <p className="mt-4 text-sm font-bold uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-100/80">{fileMeta}</p>
             </div>
             <input className="hidden" type="file" accept=".pdf,.docx" onChange={(event) => selectFile(event.target.files?.[0])} />
           </label>
 
           <div className="grid gap-4">
-            <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <span className="text-sm font-extrabold text-slate-100">Target role</span>
+            <label className="rounded-2xl border border-slate-200 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.04]">
+              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">Target role</span>
               <input className="field-control mt-3" value={roleQuery} onChange={(event) => setRoleQuery(event.target.value)} placeholder="Data Analyst" />
               <div className="mt-3 flex flex-wrap gap-2">
                 {ROLE_SUGGESTIONS.map((role) => (
-                  <button key={role} className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-slate-300 transition hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-cyan-50" onClick={() => setRoleQuery(role)} type="button">
+                  <button key={role} className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold text-slate-700 transition hover:border-cyan-400/60 hover:bg-cyan-50 hover:text-cyan-800 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:border-cyan-300/35 dark:hover:bg-cyan-300/10 dark:hover:text-cyan-50" onClick={() => setRoleQuery(role)} type="button">
                     {role}
                   </button>
                 ))}
               </div>
             </label>
 
-            <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <span className="text-sm font-extrabold text-slate-100">Optional job description comparison</span>
+            <label className="rounded-2xl border border-slate-200 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.04]">
+              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">Optional job description comparison</span>
               <textarea
                 className="field-control mt-3 min-h-28 resize-y"
                 value={jobDescription}
                 onChange={(event) => setJobDescription(event.target.value)}
                 placeholder="Paste a job description here if you want to compare your resume against a specific role."
               />
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-400">Optional for now. The role field still drives the analysis.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Optional for now. The role field still drives the analysis.</p>
             </label>
 
             <div className="grid gap-4 sm:grid-cols-[1fr_0.75fr]">
-            <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <span className="text-sm font-extrabold text-slate-100">Market location</span>
+            <label className="rounded-2xl border border-slate-200 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.04]">
+              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">Market location</span>
               <select className="field-control mt-3 cursor-pointer" value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Market location">
                 {LOCATION_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -110,13 +110,13 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
                   </option>
                 ))}
               </select>
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-400">Choose a relevant job market.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Choose a relevant job market.</p>
             </label>
 
-            <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <span className="text-sm font-extrabold text-slate-100">Listings</span>
+            <label className="rounded-2xl border border-slate-200 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.04]">
+              <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">Listings</span>
               <input className="field-control mt-3" type="number" min={5} max={20} value={limit} onChange={(event) => setLimit(Number(event.target.value) || 18)} />
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-400">More listings can improve coverage.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">More listings can improve coverage.</p>
             </label>
             </div>
           </div>
