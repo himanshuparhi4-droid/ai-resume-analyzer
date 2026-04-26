@@ -58,6 +58,12 @@ export function DashboardPage({ result }: DashboardPageProps) {
             <Link className="ghost-button min-h-[3.35rem] px-6" to="/suggestions">
               Get Improvement Suggestions
             </Link>
+            <Link className="ghost-button min-h-[3.35rem] px-6" to="/skills">
+              View Skill Evidence
+            </Link>
+            <Link className="ghost-button min-h-[3.35rem] px-6" to="/jobs">
+              View Live Job Matches
+            </Link>
           </div>
         </div>
       </section>

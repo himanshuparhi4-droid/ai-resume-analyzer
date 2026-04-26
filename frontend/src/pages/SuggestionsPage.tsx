@@ -52,11 +52,17 @@ export function SuggestionsPage({ result, user, onAnalyzeAnother }: SuggestionsP
             <button className="primary-button" onClick={onAnalyzeAnother} type="button">
               Analyze Another Resume
             </button>
+            <Link className="ghost-button min-h-[3.35rem] px-6" to="/skills">
+              View Skill Evidence
+            </Link>
+            <Link className="ghost-button min-h-[3.35rem] px-6" to="/jobs">
+              View Live Jobs
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="glass-panel rounded-[2rem] p-5 sm:p-7">
           <p className="eyebrow">Priority list</p>
           <h2 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">Highest-impact fixes</h2>
@@ -80,10 +86,13 @@ export function SuggestionsPage({ result, user, onAnalyzeAnother }: SuggestionsP
           </div>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4 self-start">
           <article className="signal-panel rounded-[2rem] p-5 sm:p-6">
             <p className="eyebrow">Missing keywords</p>
             <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.05em] text-ink dark:text-slate-50">Add role-specific language.</h2>
+            <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">
+              Use these terms naturally in your summary, skills, and strongest project or experience bullets. Do not stuff keywords without proof.
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {missingKeywords.length ? (
                 missingKeywords.map((item) => (
@@ -99,6 +108,10 @@ export function SuggestionsPage({ result, user, onAnalyzeAnother }: SuggestionsP
 
           <article className="signal-panel rounded-[2rem] p-5 sm:p-6">
             <p className="eyebrow">Better action verbs</p>
+            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.05em] text-ink dark:text-slate-50">Make bullets sound outcome-focused.</h2>
+            <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">
+              Start important bullets with strong verbs, then add the tool, scope, and result.
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {ACTION_VERBS.map((verb) => (
                 <span key={verb} className="rounded-full bg-white/50 px-3 py-1 text-sm font-bold text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
@@ -106,6 +119,14 @@ export function SuggestionsPage({ result, user, onAnalyzeAnother }: SuggestionsP
                 </span>
               ))}
             </div>
+          </article>
+
+          <article className="signal-panel rounded-[2rem] p-5 sm:p-6">
+            <p className="eyebrow">Formatting recommendation</p>
+            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.05em] text-ink dark:text-slate-50">Keep improvements easy to scan.</h2>
+            <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">
+              Update one section at a time: headline, skills, top projects, then experience bullets. This keeps the resume clearer and avoids over-editing.
+            </p>
           </article>
         </div>
       </section>

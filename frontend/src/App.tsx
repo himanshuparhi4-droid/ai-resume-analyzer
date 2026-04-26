@@ -10,10 +10,12 @@ import { AboutPage } from "./pages/AboutPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import { HomePage } from "./pages/HomePage";
+import { JobMatchesPage } from "./pages/JobMatchesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PricingPage } from "./pages/PricingPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { SkillInsightsPage } from "./pages/SkillInsightsPage";
 import { SuggestionsPage } from "./pages/SuggestionsPage";
 import { UploadPage } from "./pages/UploadPage";
 
@@ -222,6 +224,8 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage result={result} />} />
         <Route path="/feedback" element={<FeedbackPage result={result} />} />
         <Route path="/suggestions" element={<SuggestionsPage result={result} user={user} onAnalyzeAnother={handleAnalyzeAnother} />} />
+        <Route path="/skills" element={<SkillInsightsPage result={result} />} />
+        <Route path="/jobs" element={<JobMatchesPage result={result} />} />
         <Route
           path="/login"
           element={

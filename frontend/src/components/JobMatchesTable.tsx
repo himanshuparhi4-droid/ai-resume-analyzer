@@ -258,7 +258,7 @@ export function JobMatchesTable({ jobs, analysisContext }: JobMatchesTableProps)
             target="_blank"
             rel="noreferrer"
           >
-            Open listing
+            Apply on job site
           </a>
         )}
       </article>
