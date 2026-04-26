@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { DragEvent, FormEvent, useMemo, useState } from "react";
 
 export type UploadInput = {
   file: File;
@@ -20,8 +20,22 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
   const [roleQuery, setRoleQuery] = useState("Data Analyst");
   const [location, setLocation] = useState("India");
   const [limit, setLimit] = useState(18);
+  const [isDragging, setIsDragging] = useState(false);
   const fileLabel = useMemo(() => (file ? file.name : "Upload your resume"), [file]);
-  const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, DOCX, or TXT";
+  const fileMeta = file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF or DOCX";
+
+  function selectFile(nextFile?: File | null) {
+    if (!nextFile) {
+      return;
+    }
+    setFile(nextFile);
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    selectFile(event.dataTransfer.files?.[0]);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,7 +69,19 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
         </div>
 
         <form className="grid gap-5 p-5 sm:p-7 lg:p-8" onSubmit={handleSubmit}>
-          <label className="group relative flex min-h-[13rem] cursor-pointer flex-col justify-between overflow-hidden rounded-[1.6rem] border border-dashed border-slate-300/80 bg-white/55 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-cyan-500/45 hover:bg-white/70 dark:border-slate-700/80 dark:bg-slate-950/35 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:border-cyan-300/35 dark:hover:bg-slate-900/45">
+          <label
+            className={`group relative flex min-h-[13rem] cursor-pointer flex-col justify-between overflow-hidden rounded-[1.6rem] border border-dashed p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+              isDragging
+                ? "border-cyan-500/70 bg-cyan-50/80 dark:border-cyan-300/60 dark:bg-cyan-300/10"
+                : "border-slate-300/80 bg-white/55 hover:border-cyan-500/45 hover:bg-white/70 dark:border-slate-700/80 dark:bg-slate-950/35 dark:hover:border-cyan-300/35 dark:hover:bg-slate-900/45"
+            }`}
+            onDragLeave={() => setIsDragging(false)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDrop={handleDrop}
+          >
             <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-300/10 blur-2xl transition group-hover:scale-110" />
             <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent opacity-70" />
             <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -68,9 +94,9 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
               </span>
             </div>
             <p className="relative mt-5 max-w-2xl text-sm leading-6 text-slate-700 dark:text-slate-300">
-              A clean resume file helps the system read your sections, skills, experience, and projects more accurately.
+              Drag and drop a resume here, or click to choose a file. A clean PDF or DOCX helps the system read sections, skills, experience, and projects more accurately.
             </p>
-            <input className="hidden" type="file" accept=".pdf,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+            <input className="hidden" type="file" accept=".pdf,.docx" onChange={(event) => selectFile(event.target.files?.[0])} />
           </label>
 
           <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr_0.7fr]">
@@ -106,7 +132,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
           </div>
 
           <button className="primary-button w-full" type="submit" disabled={loading || !file}>
-            {loading ? "Reviewing resume..." : "Analyze Resume"}
+            {loading ? "Reviewing resume..." : "Start Resume Analysis"}
           </button>
         </form>
       </div>

@@ -16,15 +16,42 @@ from app.utils.text import normalize_whitespace
 SECTION_HEADERS = {
     "summary": ["summary", "professional summary", "profile", "objective", "about me", "professional profile"],
     "experience": ["experience", "work experience", "professional experience", "employment", "career history", "employment history", "work history", "work experience"],
-    "projects": ["projects", "project experience", "selected projects", "academic projects"],
+    "projects": [
+        "projects",
+        "project experience",
+        "selected projects",
+        "academic projects",
+        "academic project",
+        "personal projects",
+        "key projects",
+        "major projects",
+        "relevant projects",
+        "project work",
+        "portfolio projects",
+    ],
     "education": ["education", "academics", "education and training", "academic background"],
-    "skills": ["skills", "technical skills", "core skills", "personal skills", "digital skills", "technical proficiencies", "core competencies"],
+    "skills": [
+        "skills",
+        "technical skills",
+        "core skills",
+        "personal skills",
+        "digital skills",
+        "technical proficiencies",
+        "core competencies",
+        "programming languages",
+        "programming language",
+        "tools",
+        "tools and technologies",
+        "technologies",
+        "tech stack",
+        "software skills",
+    ],
     "certifications": ["certifications", "licenses", "courses", "licenses & certifications"],
     "research": ["research", "research experience"],
     "publications": ["publications", "papers", "selected publications"],
     "teaching": ["teaching", "teaching experience"],
     "awards": ["awards", "honors", "achievements"],
-    "languages": ["languages", "language skills"],
+    "languages": ["languages", "language", "language skills", "spoken languages", "known languages", "languages known", "language proficiency", "linguistic skills"],
     "interests": ["interests", "hobbies"],
 }
 HEADER_ALIASES = {
@@ -247,6 +274,13 @@ class ResumeParser:
                         sections.setdefault(current, []).append(content)
                 continue
             lowered = line.lower().strip(":")
+            heading_match = self._section_heading_line(line)
+            if heading_match:
+                matched, remainder = heading_match
+                current = matched
+                if remainder and remainder.lower() not in HEADER_ALIASES:
+                    sections.setdefault(current, []).append(remainder)
+                continue
             matched = next((key for key, headers in SECTION_HEADERS.items() if lowered in headers), None)
             if matched:
                 current = matched
@@ -265,6 +299,28 @@ class ResumeParser:
                 continue
             sections.setdefault(current, []).append(line)
         return {key: value for key, value in sections.items() if value}
+
+    def _section_heading_line(self, line: str) -> tuple[str, str] | None:
+        cleaned = line.strip()
+        lowered = cleaned.lower().strip()
+        if not lowered:
+            return None
+        if lowered.strip(":") in HEADER_ALIASES:
+            return HEADER_ALIASES[lowered.strip(":")], ""
+
+        for alias, section in sorted(HEADER_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
+            delimiter_match = re.match(rf"^{re.escape(alias)}\s*[:|\-]\s*(.+)$", cleaned, re.IGNORECASE)
+            if delimiter_match:
+                return section, delimiter_match.group(1).strip()
+
+        for alias, section in sorted(HEADER_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
+            prefix_match = re.match(rf"^{re.escape(alias)}\s+(.+)$", cleaned, re.IGNORECASE)
+            if not prefix_match:
+                continue
+            remainder = prefix_match.group(1).strip()
+            if remainder:
+                return section, remainder
+        return None
 
     def _inline_section_segments(self, line: str) -> list[tuple[str, str]]:
         matches = self._inline_section_header_matches(line)

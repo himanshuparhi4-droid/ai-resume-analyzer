@@ -9,6 +9,7 @@ type SuggestionsPanelProps = {
     next_steps?: string[] | Record<string, string> | string;
   };
   resumePreview: string;
+  resumeSections?: Record<string, string>;
 };
 
 function impactClass(impact: string) {
@@ -22,7 +23,37 @@ function impactClass(impact: string) {
   return "bg-sea text-ink";
 }
 
-export function SuggestionsPanel({ recommendations, aiSummary, resumePreview }: SuggestionsPanelProps) {
+const SECTION_LABELS: Record<string, string> = {
+  summary: "Summary",
+  experience: "Experience",
+  projects: "Projects",
+  education: "Education",
+  skills: "Skills",
+  certifications: "Certifications",
+  research: "Research",
+  publications: "Publications",
+  teaching: "Teaching",
+  awards: "Awards",
+  languages: "Languages",
+  interests: "Interests",
+};
+
+const SECTION_ORDER = [
+  "summary",
+  "experience",
+  "projects",
+  "education",
+  "skills",
+  "certifications",
+  "research",
+  "publications",
+  "teaching",
+  "awards",
+  "languages",
+  "interests",
+];
+
+export function SuggestionsPanel({ recommendations, aiSummary, resumePreview, resumeSections = {} }: SuggestionsPanelProps) {
   const strengths = Array.isArray(aiSummary.strengths) ? aiSummary.strengths : [];
   const weaknesses = Array.isArray(aiSummary.weaknesses) ? aiSummary.weaknesses : [];
   const nextSteps = Array.isArray(aiSummary.next_steps)
@@ -32,6 +63,10 @@ export function SuggestionsPanel({ recommendations, aiSummary, resumePreview }: 
       : aiSummary.next_steps && typeof aiSummary.next_steps === "object"
         ? Object.values(aiSummary.next_steps)
         : [];
+  const parsedSections = [
+    ...SECTION_ORDER.filter((key) => resumeSections[key]),
+    ...Object.keys(resumeSections).filter((key) => !SECTION_ORDER.includes(key) && resumeSections[key]),
+  ];
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
@@ -95,9 +130,22 @@ export function SuggestionsPanel({ recommendations, aiSummary, resumePreview }: 
         </div>
         <div className="signal-panel rounded-[2rem] p-5 sm:p-6">
           <p className="eyebrow">Parsed Snapshot</p>
-          <p className="mt-4 max-h-56 overflow-auto rounded-[1.25rem] bg-white/45 p-4 text-sm font-semibold leading-7 text-slate-700 dark:bg-white/[0.05] dark:text-slate-300">
-            {resumePreview}
-          </p>
+          <div className="mt-4 max-h-72 overflow-auto rounded-[1.25rem] bg-white/45 p-4 text-sm font-semibold leading-7 text-slate-700 dark:bg-white/[0.05] dark:text-slate-300">
+            {parsedSections.length ? (
+              <div className="grid gap-4">
+                {parsedSections.map((key) => (
+                  <div key={key} className="rounded-[1rem] border border-slate-200/70 bg-white/45 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                      {SECTION_LABELS[key] ?? key.replace(/_/g, " ")}
+                    </p>
+                    <p className="mt-2">{resumeSections[key]}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              resumePreview
+            )}
+          </div>
         </div>
       </div>
     </section>
