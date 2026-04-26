@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { analyzeResume, compareAnalyses, getHistory, login, register, resetPassword, setAuthToken } from "./api/client";
 import { AuthPanel } from "./components/AuthPanel";
 import { Header } from "./components/Header";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { JobMatchesTable } from "./components/JobMatchesTable";
-import { ResultCommandCenter } from "./components/ResultCommandCenter";
 import { ScoreGrid } from "./components/ScoreGrid";
 import { SkillGapChart } from "./components/SkillGapChart";
 import { SuggestionsPanel } from "./components/SuggestionsPanel";
@@ -17,16 +16,6 @@ const USER_KEY = "resume-analyzer-user";
 const THEME_KEY = "resume-analyzer-theme";
 
 type ThemeMode = "light" | "dark";
-type ResultTab = "overview" | "skills" | "recommendations" | "jobs" | "resume" | "history";
-
-const RESULT_TABS: { id: ResultTab; label: string; helper: string }[] = [
-  { id: "overview", label: "Score", helper: "ATS + quality" },
-  { id: "skills", label: "Skills", helper: "Matched + missing" },
-  { id: "recommendations", label: "Fixes", helper: "Next actions" },
-  { id: "jobs", label: "Jobs", helper: "Market evidence" },
-  { id: "resume", label: "Resume Text", helper: "Parsed sections" },
-  { id: "history", label: "History", helper: "Saved runs" },
-];
 
 function getBackendErrorMessage(err: any, fallback: string): string {
   const backendDetail = formatApiErrorDetail(err?.response?.data?.detail);
@@ -45,51 +34,6 @@ function getBackendErrorMessage(err: any, fallback: string): string {
   return fallback;
 }
 
-function sectionLabel(key: string) {
-  return key
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`)
-    .join(" ");
-}
-
-function ResumeReportPreview({ result }: { result: AnalysisResponse }) {
-  const sections = Object.entries(result.resume_sections ?? {}).filter(([, value]) => value.trim().length > 0);
-
-  return (
-    <section className="glass-panel rounded-[2rem] p-5 sm:p-7">
-      <div className="flex flex-wrap items-start justify-between gap-5">
-        <div>
-          <p className="eyebrow">Parsed Resume Evidence</p>
-          <h2 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">
-            What the system actually read
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">
-            This helps you verify whether the parser understood the resume correctly before trusting the scores.
-          </p>
-        </div>
-        <span className="pill">{sections.length} sections found</span>
-      </div>
-
-      <div className="mt-6 rounded-[1.5rem] border border-ink/10 bg-white/55 p-4 dark:border-white/10 dark:bg-white/[0.04]">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Resume Preview</p>
-        <p className="mt-3 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">
-          {result.resume_preview || "No preview text was returned."}
-        </p>
-      </div>
-
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {sections.map(([key, value]) => (
-          <article key={key} className="signal-panel rounded-[1.5rem] p-4">
-            <p className="text-sm font-extrabold text-ink dark:text-slate-100">{sectionLabel(key)}</p>
-            <p className="mt-3 line-clamp-6 text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">{value}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,7 +44,6 @@ function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const [activeResultTab, setActiveResultTab] = useState<ResultTab>("overview");
   const analyzeRequestId = useRef(0);
 
   useEffect(() => {
@@ -154,7 +97,6 @@ function App() {
         return;
       }
       setResult(data);
-      setActiveResultTab("overview");
       if (user) {
         await refreshHistory();
       }
@@ -276,71 +218,60 @@ function App() {
                 <span className="font-semibold">Review context:</span> {result.analysis_context.message}
               </div>
             ) : null}
-            <ResultCommandCenter result={result} />
-            <nav className="glass-panel rounded-[1.75rem] p-2" aria-label="Result sections">
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                {RESULT_TABS.map((tab) => {
-                  const isActive = activeResultTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={`rounded-[1.2rem] px-4 py-3 text-left transition ${
-                        isActive
-                          ? "bg-ink text-white shadow-soft dark:bg-sea dark:text-ink"
-                          : "bg-white/45 text-slate-700 hover:bg-white/75 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08]"
-                      }`}
-                      onClick={() => setActiveResultTab(tab.id)}
-                    >
-                      <span className="block text-sm font-black">{tab.label}</span>
-                      <span className={`mt-1 block text-[10px] font-black uppercase tracking-[0.18em] ${isActive ? "opacity-70" : "text-slate-500 dark:text-slate-500"}`}>
-                        {tab.helper}
-                      </span>
-                    </button>
-                  );
-                })}
+            <section className="glass-panel rounded-[2rem] p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-5">
+                <div>
+                  <p className="eyebrow">Review complete</p>
+                  <h2 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">
+                    {result.role_query} resume review
+                  </h2>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{Math.round(result.overall_score)}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Score</p>
+                  </div>
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.analysis_context?.live_job_count ?? result.top_job_matches.filter((job) => job.source !== "role-baseline").length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Jobs</p>
+                  </div>
+                  <div className="soft-card rounded-[1rem] px-4 py-3">
+                    <p className="font-display text-2xl font-extrabold text-ink dark:text-slate-50">{result.missing_skills.length}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Gaps</p>
+                  </div>
+                </div>
               </div>
-            </nav>
-            {activeResultTab === "overview" ? (
-              <ScoreGrid
-                overallScore={result.overall_score}
-                breakdown={result.breakdown}
-                roleQuery={result.role_query}
-                resumeArchetype={result.resume_archetype}
-                parserConfidence={result.analysis_context?.parser_confidence}
-                componentFeedback={result.component_feedback ?? {}}
-              />
-            ) : null}
-            {activeResultTab === "skills" ? (
-              <SkillGapChart
-                missingSkills={result.missing_skills}
-                matchedSkills={result.matched_skills}
-                matchedSkillDetails={result.matched_skill_details ?? []}
-                missingSkillDetails={result.missing_skill_details ?? []}
-                weakSkillProofs={result.weak_skill_proofs ?? []}
-                weakSkillProofDetails={result.weak_skill_proof_details ?? []}
-                detectedSkills={result.analysis_context?.parsed_resume_skills ?? []}
-              />
-            ) : null}
-            {activeResultTab === "recommendations" ? (
-              <SuggestionsPanel recommendations={result.recommendations} aiSummary={result.ai_summary} resumePreview={result.resume_preview} />
-            ) : null}
-            {activeResultTab === "jobs" ? <JobMatchesTable jobs={result.top_job_matches} analysisContext={result.analysis_context} /> : null}
-            {activeResultTab === "resume" ? <ResumeReportPreview result={result} /> : null}
-            {activeResultTab === "history" ? <HistoryPanel history={history} comparison={comparison} onCompare={handleCompare} /> : null}
+            </section>
+            <ScoreGrid
+              overallScore={result.overall_score}
+              breakdown={result.breakdown}
+              roleQuery={result.role_query}
+              resumeArchetype={result.resume_archetype}
+              parserConfidence={result.analysis_context?.parser_confidence}
+              componentFeedback={result.component_feedback ?? {}}
+            />
+            <SkillGapChart
+              missingSkills={result.missing_skills}
+              matchedSkills={result.matched_skills}
+              matchedSkillDetails={result.matched_skill_details ?? []}
+              missingSkillDetails={result.missing_skill_details ?? []}
+              weakSkillProofs={result.weak_skill_proofs ?? []}
+              weakSkillProofDetails={result.weak_skill_proof_details ?? []}
+              detectedSkills={result.analysis_context?.parsed_resume_skills ?? []}
+            />
+            <SuggestionsPanel recommendations={result.recommendations} aiSummary={result.ai_summary} resumePreview={result.resume_preview} />
+            <JobMatchesTable jobs={result.top_job_matches} analysisContext={result.analysis_context} />
           </div>
         ) : (
-          <>
-            <section className="glass-panel rounded-[2rem] p-8 text-center">
-              <p className="eyebrow">Ready when you are</p>
-              <p className="mt-3 font-display text-4xl font-extrabold tracking-[-0.05em] text-ink transition-colors duration-300 dark:text-slate-50">Your resume review will appear here.</p>
-              <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
-                Upload a resume and choose a target role to see ATS readability, skill gaps, role fit, job evidence, and recommended improvements.
-              </p>
-            </section>
-            <HistoryPanel history={history} comparison={comparison} onCompare={handleCompare} />
-          </>
+          <section className="glass-panel rounded-[2rem] p-8 text-center">
+            <p className="eyebrow">Ready when you are</p>
+            <p className="mt-3 font-display text-4xl font-extrabold tracking-[-0.05em] text-ink transition-colors duration-300 dark:text-slate-50">Your resume review will appear here.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-700 transition-colors duration-300 dark:text-slate-300">
+              Upload a resume and choose a target role to see ATS readability, skill gaps, role fit, job evidence, and recommended improvements.
+            </p>
+          </section>
         )}
+        <HistoryPanel history={history} comparison={comparison} onCompare={handleCompare} />
       </div>
     </main>
   );
