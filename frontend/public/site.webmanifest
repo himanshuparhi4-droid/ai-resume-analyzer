@@ -1,0 +1,16 @@
+{
+  "name": "Resume Intelligence Studio",
+  "short_name": "Resume Studio",
+  "description": "AI-powered resume feedback for ATS compatibility, keywords, formatting, and role fit.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f8fb",
+  "theme_color": "#67e8f9",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

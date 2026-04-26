@@ -19,6 +19,7 @@ class AnalysisUploadRequest(BaseModel):
     role_query: str
     location: str = "Global"
     limit: int = 18
+    job_description: str | None = None
 
 
 class AnalysisResponse(BaseModel):

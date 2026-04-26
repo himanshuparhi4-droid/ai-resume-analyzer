@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import type { User } from "../lib/types";
+import { Seo } from "./Seo";
 
 type SiteShellProps = {
   children: ReactNode;
@@ -35,6 +36,9 @@ function ThemeGlyph({ theme }: { theme: "light" | "dark" }) {
 const NAV_ITEMS = [
   { label: "Home", to: "/" },
   { label: "Upload Resume", to: "/upload" },
+  { label: "Dashboard", to: "/dashboard" },
+  { label: "Feedback", to: "/feedback" },
+  { label: "Suggestions", to: "/suggestions" },
   { label: "Pricing", to: "/pricing" },
   { label: "About", to: "/about" },
 ];
@@ -42,6 +46,7 @@ const NAV_ITEMS = [
 export function SiteShell({ children, theme, onToggleTheme, user, onLogout }: SiteShellProps) {
   return (
     <main className="min-h-screen bg-transparent text-ink transition-colors duration-300 dark:text-slate-100">
+      <Seo />
       <div className="studio-shell">
         <nav className="glass-panel sticky top-3 z-30 rounded-2xl px-5 py-4 backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-between gap-4 xl:flex-nowrap">
@@ -56,12 +61,12 @@ export function SiteShell({ children, theme, onToggleTheme, user, onLogout }: Si
             </Link>
 
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 xl:flex-nowrap">
-              <div className="hidden flex-wrap items-center gap-2 lg:flex">
+              <div className="hidden flex-wrap items-center gap-1 lg:flex">
                 {NAV_ITEMS.map((item) => (
                   <NavLink
                     key={item.to}
                     className={({ isActive }) =>
-                      `rounded-xl px-4 py-2.5 text-sm font-extrabold transition ${
+                      `rounded-xl px-3 py-2.5 text-sm font-extrabold transition ${
                         isActive ? "bg-slate-950 text-white dark:bg-cyan-300/15 dark:text-cyan-50" : "text-slate-700 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/[0.06]"
                       }`
                     }

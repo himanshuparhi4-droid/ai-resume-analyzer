@@ -6,10 +6,11 @@ type ReportsPageProps = {
   user: User | null;
   history: HistoryItem[];
   comparison: ComparisonResponse | null;
+  comparisonError?: string | null;
   onCompare: (currentId: string) => Promise<void>;
 };
 
-export function ReportsPage({ user, history, comparison, onCompare }: ReportsPageProps) {
+export function ReportsPage({ user, history, comparison, comparisonError, onCompare }: ReportsPageProps) {
   if (!user) {
     return (
       <section className="glass-panel rounded-[2rem] p-8 text-center">
@@ -41,7 +42,7 @@ export function ReportsPage({ user, history, comparison, onCompare }: ReportsPag
           Review your past resume analyses, track improvements, and compare how your resume has changed over time.
         </p>
       </section>
-      <HistoryPanel history={history} comparison={comparison} onCompare={onCompare} />
+      <HistoryPanel history={history} comparison={comparison} comparisonError={comparisonError} onCompare={onCompare} />
     </div>
   );
 }

@@ -135,7 +135,7 @@ export async function compareAnalyses(currentId: string, previousId?: string): P
   return data;
 }
 
-export async function analyzeResume(input: { file: File; roleQuery: string; location: string; limit: number }): Promise<AnalysisResponse> {
+export async function analyzeResume(input: { file: File; roleQuery: string; location: string; limit: number; jobDescription?: string }): Promise<AnalysisResponse> {
   await ensureBackendReady();
   const fileBase64 = await fileToBase64(input.file);
   const { data } = await withWakeRetry(() =>
@@ -145,7 +145,8 @@ export async function analyzeResume(input: { file: File; roleQuery: string; loca
       file_base64: fileBase64,
       role_query: input.roleQuery,
       location: input.location,
-      limit: input.limit
+      limit: input.limit,
+      job_description: input.jobDescription
     }, {
       timeout: ANALYSIS_TIMEOUT_MS
     })

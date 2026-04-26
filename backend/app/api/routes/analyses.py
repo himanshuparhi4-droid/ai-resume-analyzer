@@ -16,7 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/resume", response_model=AnalysisResponse)
-async def analyze_resume(resume: UploadFile = File(...), role_query: str = Form(...), location: str = Form("India"), limit: int = Form(18), db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)) -> AnalysisResponse:
+async def analyze_resume(
+    resume: UploadFile = File(...),
+    role_query: str = Form(...),
+    location: str = Form("Global"),
+    limit: int = Form(18),
+    job_description: str | None = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+) -> AnalysisResponse:
     file_bytes = await resume.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
@@ -28,6 +36,7 @@ async def analyze_resume(resume: UploadFile = File(...), role_query: str = Form(
             role_query=role_query,
             location=location,
             limit=limit,
+            job_description=job_description,
             user=current_user,
         )
     except ValueError as exc:
@@ -54,6 +63,7 @@ async def analyze_resume_json(payload: AnalysisUploadRequest, db: Session = Depe
             role_query=payload.role_query,
             location=payload.location,
             limit=payload.limit,
+            job_description=payload.job_description,
             user=current_user,
         )
     except ValueError as exc:

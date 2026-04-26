@@ -53,6 +53,7 @@ class AnalysisOrchestrator:
         role_query: str,
         location: str,
         limit: int,
+        job_description: str | None = None,
         user: User | None = None,
     ) -> AnalysisResponse:
         started = time.perf_counter()
@@ -173,6 +174,9 @@ class AnalysisOrchestrator:
             score_payload["skill_grounding"] = grounding_metadata
         score_payload["analysis_context"] = self.skill_grounding.build_analysis_context(jobs)
         score_payload["analysis_context"]["target_location"] = location
+        if job_description and normalize_whitespace(job_description):
+            score_payload["analysis_context"]["job_description_provided"] = True
+            score_payload["analysis_context"]["job_description_preview"] = truncate(job_description, 280)
         score_payload["analysis_context"]["parser_confidence"] = self.scoring_engine.parser_confidence_profile(resume_data)
         if score_payload.get("market_confidence"):
             score_payload["analysis_context"]["market_confidence"] = score_payload["market_confidence"]
@@ -251,6 +255,9 @@ class AnalysisOrchestrator:
         return list(self.db.scalars(select(AnalysisRun).where(AnalysisRun.user_id == user.id).order_by(desc(AnalysisRun.created_at))).all())
 
     def compare(self, *, user: User, current_id: str, previous_id: str | None = None) -> dict:
+        def comparable_role(value: str) -> str:
+            return normalize_whitespace(value).casefold()
+
         current = self.db.get(AnalysisRun, current_id)
         if not current or current.user_id != user.id:
             raise ValueError("Current analysis not found")
@@ -258,11 +265,22 @@ class AnalysisOrchestrator:
         if previous_id and (not previous or previous.user_id != user.id):
             raise ValueError("Previous analysis not found")
         if previous is None:
-            previous = next((item for item in self.list_user_history(user) if item.id != current.id and item.role_query == current.role_query), None)
+            current_role = comparable_role(current.role_query)
+            same_role_history = [
+                item
+                for item in self.list_user_history(user)
+                if item.id != current.id and comparable_role(item.role_query) == current_role
+            ]
+            older_same_role = [item for item in same_role_history if item.created_at <= current.created_at]
+            previous = older_same_role[0] if older_same_role else (same_role_history[0] if same_role_history else None)
         previous_scores = previous.component_scores if previous else {}
         component_deltas = {key: round(float(current.component_scores.get(key, 0)) - float(previous_scores.get(key, 0)), 2) for key in current.component_scores.keys()}
         score_delta = round(current.overall_score - float(previous.overall_score if previous else 0), 2)
-        summary = f"Your score changed by {score_delta} points." if previous else "No earlier analysis found for this role, so this is your baseline."
+        if previous:
+            direction = "increased" if score_delta > 0 else "decreased" if score_delta < 0 else "stayed the same"
+            summary = f"Compared with your previous {previous.role_query} analysis, your score {direction} by {abs(score_delta)} points."
+        else:
+            summary = "No earlier saved analysis was found for this role, so this report is the baseline."
         return {
             "current_analysis_id": current.id,
             "previous_analysis_id": previous.id if previous else None,

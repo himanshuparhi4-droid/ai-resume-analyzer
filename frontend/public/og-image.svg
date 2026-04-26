@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="AI resume analysis dashboard preview">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="0.48" stop-color="#eaf6fb"/>
+      <stop offset="1" stop-color="#dff4fa"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#0f172a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1040" cy="80" r="220" fill="#67e8f9" opacity="0.18"/>
+  <circle cx="110" cy="560" r="230" fill="#38bdf8" opacity="0.12"/>
+  <rect x="82" y="78" width="1036" height="474" rx="38" fill="white" opacity="0.86" filter="url(#shadow)"/>
+  <text x="134" y="162" fill="#0f172a" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="800" letter-spacing="4">RESUME INTELLIGENCE STUDIO</text>
+  <text x="134" y="244" fill="#06111f" font-family="Manrope, Arial, sans-serif" font-size="66" font-weight="900">AI Resume Analyzer</text>
+  <text x="134" y="310" fill="#334155" font-family="Manrope, Arial, sans-serif" font-size="30" font-weight="600">ATS feedback, keyword insights, formatting checks,</text>
+  <text x="134" y="352" fill="#334155" font-family="Manrope, Arial, sans-serif" font-size="30" font-weight="600">skill evidence, and role-fit recommendations.</text>
+  <rect x="134" y="408" width="292" height="74" rx="22" fill="url(#accent)"/>
+  <text x="174" y="455" fill="#06111f" font-family="Manrope, Arial, sans-serif" font-size="22" font-weight="900" letter-spacing="2">ANALYZE RESUME</text>
+  <rect x="684" y="156" width="338" height="280" rx="28" fill="#07111f"/>
+  <rect x="718" y="198" width="270" height="22" rx="11" fill="#67e8f9" opacity="0.85"/>
+  <rect x="718" y="246" width="214" height="22" rx="11" fill="#94a3b8" opacity="0.55"/>
+  <rect x="718" y="294" width="240" height="22" rx="11" fill="#94a3b8" opacity="0.55"/>
+  <rect x="718" y="352" width="92" height="50" rx="16" fill="#67e8f9" opacity="0.22"/>
+  <rect x="830" y="352" width="92" height="50" rx="16" fill="#67e8f9" opacity="0.22"/>
+  <rect x="942" y="352" width="46" height="50" rx="16" fill="#67e8f9" opacity="0.22"/>
+</svg>

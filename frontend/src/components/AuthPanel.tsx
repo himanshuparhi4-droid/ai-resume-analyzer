@@ -82,7 +82,17 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
     );
   }
 
-  const actionLabel = busy ? "Please wait..." : mode === "register" ? "Create account" : mode === "reset" ? "Reset password" : "Log in";
+  const actionLabel = busy
+    ? mode === "register"
+      ? "Creating account..."
+      : mode === "reset"
+        ? "Resetting password..."
+        : "Signing in..."
+    : mode === "register"
+      ? "Create account"
+      : mode === "reset"
+        ? "Reset password"
+        : "Log in";
 
   return (
     <section className="signal-panel rounded-[2rem] p-5 sm:p-6">
@@ -129,6 +139,16 @@ export function AuthPanel({ user, onRegister, onLogin, onResetPassword, onLogout
               aria-live="assertive"
             >
               {visibleError}
+            </div>
+          ) : null}
+
+          {busy ? (
+            <div
+              className="mb-4 rounded-[1.1rem] border border-cyan-300/40 bg-cyan-50 px-4 py-3 text-sm font-semibold leading-6 text-cyan-900 shadow-sm dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-50"
+              role="status"
+              aria-live="polite"
+            >
+              Secure account service is responding. The first request can take a little longer if the backend is waking up.
             </div>
           ) : null}
 

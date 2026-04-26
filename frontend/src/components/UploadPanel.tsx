@@ -5,6 +5,7 @@ export type UploadInput = {
   roleQuery: string;
   location: string;
   limit: number;
+  jobDescription?: string;
 };
 
 type UploadPanelProps = {
@@ -43,7 +44,7 @@ export function UploadPanel({ loading, onSubmit }: UploadPanelProps) {
     if (!file) {
       return;
     }
-    await onSubmit({ file, roleQuery, location, limit });
+    await onSubmit({ file, roleQuery, location, limit, jobDescription: jobDescription.trim() || undefined });
   }
 
   return (

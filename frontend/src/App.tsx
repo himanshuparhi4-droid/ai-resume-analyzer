@@ -52,6 +52,7 @@ function AppRoutes() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("light");
   const analyzeRequestId = useRef(0);
 
@@ -97,6 +98,7 @@ function AppRoutes() {
       setLoading(true);
       setAnalysisError(null);
       setComparison(null);
+      setComparisonError(null);
       const data = await analyzeResume(payload);
       if (requestId !== analyzeRequestId.current) {
         return;
@@ -125,6 +127,7 @@ function AppRoutes() {
     setResult(null);
     setAnalysisError(null);
     setComparison(null);
+    setComparisonError(null);
     navigate("/upload");
   }
 
@@ -201,10 +204,11 @@ function AppRoutes() {
 
   async function handleCompare(currentId: string) {
     try {
+      setComparisonError(null);
       setComparison(await compareAnalyses(currentId));
-    } catch {
-      setAnalysisError("Could not compare analyses yet. Run at least two saved analyses for the same role.");
-      navigate("/upload");
+    } catch (err: any) {
+      setComparison(null);
+      setComparisonError(getBackendErrorMessage(err, "Could not compare analyses yet. Run at least two saved analyses for the same role."));
     }
   }
 
@@ -238,7 +242,7 @@ function AppRoutes() {
             />
           }
         />
-        <Route path="/reports" element={<ReportsPage user={user} history={history} comparison={comparison} onCompare={handleCompare} />} />
+        <Route path="/reports" element={<ReportsPage user={user} history={history} comparison={comparison} comparisonError={comparisonError} onCompare={handleCompare} />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="*" element={<NotFoundPage />} />
