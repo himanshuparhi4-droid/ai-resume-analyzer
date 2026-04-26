@@ -77,6 +77,10 @@ function parserConfidenceLabel(parserConfidence?: ParserConfidence) {
   return `${label}${score}`;
 }
 
+function scoreEntries(breakdown: ScoreBreakdown) {
+  return (Object.entries(breakdown) as [keyof ScoreBreakdown, number][]).sort((left, right) => left[1] - right[1]);
+}
+
 function bandLabel(value: number) {
   if (value >= 80) return "strong";
   if (value >= 65) return "usable";
@@ -95,6 +99,9 @@ export function ScoreGrid({
   const verdict = buildVerdict(overallScore, breakdown, roleQuery);
   const parserLabel = parserConfidenceLabel(parserConfidence);
   const roundedScore = Math.round(overallScore);
+  const entries = scoreEntries(breakdown);
+  const weakest = entries[0];
+  const strongest = entries[entries.length - 1];
 
   return (
     <section className="grid gap-5 xl:grid-cols-[0.78fr_1.22fr]">
@@ -116,6 +123,23 @@ export function ScoreGrid({
         <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.07] p-5">
           <p className="font-display text-3xl font-extrabold tracking-[-0.045em] text-white">{verdict.label}</p>
           <p className="mt-3 text-sm leading-7 text-white/78">{verdict.detail}</p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+          <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.06] p-4">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Strongest</p>
+            <p className="mt-2 text-sm font-extrabold text-white">{LABELS[strongest[0]]}</p>
+            <p className="mt-1 text-xs font-bold text-white/60">{Math.round(strongest[1])}%</p>
+          </div>
+          <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.06] p-4">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Weakest</p>
+            <p className="mt-2 text-sm font-extrabold text-white">{LABELS[weakest[0]]}</p>
+            <p className="mt-1 text-xs font-bold text-white/60">{Math.round(weakest[1])}%</p>
+          </div>
+          <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.06] p-4">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Confidence</p>
+            <p className="mt-2 text-sm font-extrabold text-white">{parserLabel ?? "Measured"}</p>
+            <p className="mt-1 text-xs font-bold text-white/60">Parser signal</p>
+          </div>
         </div>
         <div className="mt-4 grid gap-3">
           {resumeArchetype?.label ? (
@@ -163,9 +187,9 @@ export function ScoreGrid({
               <p className="mt-4 font-display text-4xl font-extrabold tracking-[-0.055em] text-ink dark:text-slate-50">{Math.round(Number(value))}%</p>
               {feedback.length ? (
                 <div className="mt-4 grid gap-2">
-                  {feedback.map((item) => (
+                  {feedback.map((item, feedbackIndex) => (
                     <p key={item} className="rounded-2xl bg-white/45 px-3 py-2 text-xs font-semibold leading-5 text-slate-700 dark:bg-white/[0.05] dark:text-slate-300">
-                      {item}
+                      <span className="font-black text-ink dark:text-slate-100">{feedbackIndex === 0 ? "Why" : "Action"}:</span> {item}
                     </p>
                   ))}
                 </div>

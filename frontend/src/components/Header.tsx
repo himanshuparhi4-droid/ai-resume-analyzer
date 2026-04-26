@@ -32,17 +32,17 @@ function ThemeGlyph({ theme }: { theme: "light" | "dark" }) {
 }
 
 const REVIEW_STAGES = [
-  { label: "Upload Resume", value: "Review structure, sections, and content." },
-  { label: "Match Roles", value: "Compare against relevant hiring expectations." },
-  { label: "Improve Clearly", value: "Get focused, evidence-based recommendations." },
+  { label: "Upload", value: "Read structure and content" },
+  { label: "Compare", value: "Map against role expectations" },
+  { label: "Improve", value: "Prioritize evidence-based fixes" },
 ];
 
 export function Header({ theme, onToggleTheme }: HeaderProps) {
   return (
-    <header className="glass-panel relative overflow-hidden rounded-[2rem] p-5 sm:p-7 lg:p-10">
+    <header className="glass-panel relative overflow-hidden rounded-[2rem] p-5 sm:p-7 lg:p-8">
       <div className="absolute inset-0 opacity-75">
-        <div className="absolute -left-28 top-8 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="absolute -left-24 top-0 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-300/10 blur-3xl" />
       </div>
 
       <div className="relative z-10">
@@ -62,24 +62,24 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
           </button>
         </div>
 
-        <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-end">
+        <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] xl:items-stretch">
           <div>
             <div className="inline-flex rounded-full border border-slate-900/10 bg-white/60 p-1 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-800 backdrop-blur dark:border-white/10 dark:bg-slate-950/45 dark:text-slate-100">
               <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-950 dark:text-cyan-100">Resume review</span>
               <span className="px-3 py-1 text-slate-600 dark:text-slate-300">Market-informed feedback</span>
             </div>
-            <h1 className="mt-6 max-w-5xl font-display text-[clamp(2.65rem,7vw,6.35rem)] font-extrabold leading-[0.9] tracking-[-0.065em] text-ink dark:text-slate-50">
-              Analyze your resume against real hiring expectations.
+            <h1 className="mt-5 max-w-4xl font-display text-[clamp(2.35rem,5vw,4.8rem)] font-extrabold leading-[0.93] tracking-[-0.06em] text-ink dark:text-slate-50">
+              Resume feedback that stays tied to real hiring signals.
             </h1>
-            <p className="mt-6 max-w-3xl text-base leading-8 text-slate-700 sm:text-lg dark:text-slate-200">
-              Upload your resume to review ATS readability, role alignment, skill evidence, and market fit. Get clear, prioritized feedback on what to improve before you apply.
+            <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-200">
+              Review ATS readability, role alignment, skill evidence, and market fit in one focused workflow before you apply.
             </p>
-            <div className="mt-7 grid gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {REVIEW_STAGES.map((stage, index) => (
-                <div key={stage.label} className="soft-card rounded-[1.25rem] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30">
-                  <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">0{index + 1}</p>
-                  <p className="mt-3 font-display text-xl font-bold text-ink dark:text-slate-50">{stage.label}</p>
-                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{stage.value}</p>
+                <div key={stage.label} className="soft-card rounded-[1.2rem] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/30">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">0{index + 1}</p>
+                  <p className="mt-2 font-display text-lg font-bold text-ink dark:text-slate-50">{stage.label}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-700 dark:text-slate-300">{stage.value}</p>
                 </div>
               ))}
             </div>
@@ -91,10 +91,10 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
             <div className="absolute right-12 top-12 h-12 w-12 rounded-full border border-cyan-200/10" />
             <div className="relative">
               <div className="flex items-center justify-between gap-4">
-                <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Resume Review Dashboard</p>
+                <p className="font-mono text-xs font-bold uppercase tracking-[0.28em] text-white/65">Review dashboard</p>
                 <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-100">Live analysis</span>
               </div>
-              <div className="mt-7 grid gap-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {[
                   ["Resume Parsing", "Checks whether your resume is structured clearly and readable by screening systems."],
                   ["Skill Evidence", "Identifies which skills are clearly proven, weakly supported, or missing."],
@@ -106,13 +106,13 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
                       <p className="font-semibold text-white">{title}</p>
                       <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.45)]" />
                     </div>
-                    <p className="mt-1 text-sm leading-6 text-white/72">{detail}</p>
+                    <p className="mt-1 text-xs leading-5 text-white/70">{detail}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-[1.15rem] border border-cyan-300/15 bg-slate-950/45 p-4 text-slate-100 shadow-[0_18px_46px_rgba(2,6,23,0.22)]">
-                <p className="font-display text-2xl font-extrabold tracking-[-0.03em]">Evidence-based resume feedback</p>
-                <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">Each recommendation is based on your resume content, target role expectations, and market signals, helping you focus on changes that can improve your application quality.</p>
+              <div className="mt-4 rounded-[1.15rem] border border-cyan-300/15 bg-slate-950/45 p-4 text-slate-100 shadow-[0_18px_46px_rgba(2,6,23,0.22)]">
+                <p className="font-display text-xl font-extrabold tracking-[-0.03em]">Evidence-based resume feedback</p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">Recommendations stay grounded in resume content, target-role expectations, and market signals.</p>
               </div>
             </div>
           </div>
